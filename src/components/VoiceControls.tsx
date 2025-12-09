@@ -21,7 +21,8 @@ export default function VoiceControls({
   onAutoReadChange,
   textToRead,
 }: VoiceControlsProps) {
-  const [ttsEnabled, setTtsEnabled] = useState(false);
+  // Si autoRead está habilitado, activar TTS automáticamente
+  const [ttsEnabled, setTtsEnabled] = useState(autoRead);
   const [sttEnabled, setSttEnabled] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [rate, setRate] = useState(0.9); // Velocidad más natural por defecto
