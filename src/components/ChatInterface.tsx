@@ -30,15 +30,45 @@ function ChatInterface() {
   const [userType, setUserType] = useState<UserType | undefined>(undefined);
   const [userName, setUserName] = useState<string | undefined>(undefined);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showSearch, setShowSearch] = useState(false);
+  const [showScrollButton, setShowScrollButton] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    setShowScrollButton(false);
   }, []);
 
   useEffect(() => {
     scrollToBottom();
   }, [messages, scrollToBottom]);
+
+  // Detectar si el usuario está cerca del final del scroll
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      const isNearBottom = scrollHeight - scrollTop - clientHeight < 200;
+      setShowScrollButton(!isNearBottom && messages.length > 0);
+    };
+
+    container.addEventListener("scroll", handleScroll);
+    return () => container.removeEventListener("scroll", handleScroll);
+  }, [messages.length]);
+
+  // Auto-resize textarea
+  useEffect(() => {
+    const textarea = inputRef.current;
+    if (textarea) {
+      textarea.style.height = "auto";
+      textarea.style.height = `${Math.min(textarea.scrollHeight, 150)}px`;
+    }
+  }, [input]);
 
   // Cargar conversación activa y mensajes históricos al montar
   // Se ejecuta cada vez que el componente se monta (incluyendo cuando vuelves del admin panel)
@@ -261,6 +291,13 @@ function ChatInterface() {
     }
   };
 
+  // Filtrar mensajes según búsqueda
+  const filteredMessages = searchQuery.trim()
+    ? messages.filter((msg) =>
+        msg.text.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : messages;
+
   if (loadingHistory) {
     return (
       <div className="chat-interface">
@@ -276,14 +313,64 @@ function ChatInterface() {
 
   return (
     <div className="chat-interface">
-      <div className="messages-container">
-        {messages.length === 0 ? (
+      {/* Barra de búsqueda */}
+      {showSearch && (
+        <div className="search-bar">
+          <input
+            type="text"
+            placeholder="Buscar en la conversación..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="search-input"
+            autoFocus
+          />
+          <button
+            onClick={() => {
+              setShowSearch(false);
+              setSearchQuery("");
+            }}
+            className="search-close-button"
+            aria-label="Cerrar búsqueda"
+          >
+            ✕
+          </button>
+          {searchQuery.trim() && (
+            <span className="search-results-count">
+              {filteredMessages.length} resultado{filteredMessages.length !== 1 ? "s" : ""}
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Botón de scroll al final */}
+      {showScrollButton && (
+        <button
+          onClick={scrollToBottom}
+          className="scroll-to-bottom-button"
+          aria-label="Ir al final"
+          title="Ir al final"
+        >
+          ↓
+        </button>
+      )}
+
+      <div className="messages-container" ref={messagesContainerRef}>
+        {filteredMessages.length === 0 ? (
           <div className="empty-state">
-            <p>Comienza una conversación escribiendo un mensaje</p>
-            <p className="empty-subtitle">Esta es tu conversación personal</p>
+            {searchQuery.trim() ? (
+              <>
+                <p>No se encontraron mensajes con "{searchQuery}"</p>
+                <p className="empty-subtitle">Intenta con otros términos de búsqueda</p>
+              </>
+            ) : (
+              <>
+                <p>Comienza una conversación escribiendo un mensaje</p>
+                <p className="empty-subtitle">Esta es tu conversación personal</p>
+              </>
+            )}
           </div>
         ) : (
-          messages.map((message) => (
+          filteredMessages.map((message) => (
             <div key={message.id} className={`message ${message.sender}`}>
               <div className="message-content">
                 {hasMarkdown(message.text) ? (
@@ -362,14 +449,25 @@ function ChatInterface() {
       </div>
 
       <div className="input-container">
+        <div className="input-actions">
+          <button
+            onClick={() => setShowSearch(!showSearch)}
+            className="action-button search-button"
+            title="Buscar en conversación"
+            aria-label="Buscar"
+          >
+            🔍
+          </button>
+        </div>
         <textarea
+          ref={inputRef}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={
             loadingHistory
               ? "Cargando conversación..."
-              : "Escribe tu mensaje..."
+              : "Escribe tu mensaje... (Shift+Enter para nueva línea)"
           }
           rows={1}
           disabled={loading || loadingHistory || !conversationId}
@@ -382,8 +480,13 @@ function ChatInterface() {
           }
           className="send-button"
           type="button"
+          title="Enviar mensaje (Enter)"
         >
-          {loading ? "Enviando..." : "Enviar"}
+          {loading ? (
+            <span className="send-button-loading">⏳</span>
+          ) : (
+            <span className="send-button-icon">➤</span>
+          )}
         </button>
       </div>
     </div>

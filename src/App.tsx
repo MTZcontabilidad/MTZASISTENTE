@@ -6,8 +6,9 @@ import ChatInterface from './components/ChatInterface'
 import AdminPanel from './components/AdminPanel'
 import InvitadoWelcome from './components/InvitadoWelcome'
 import Footer from './components/Footer'
+import DevModeSelector from './components/DevModeSelector'
 import './App.css'
-import type { UserRole } from './types'
+import type { UserRole, UserType } from './types'
 
 interface User {
   id: string
@@ -32,6 +33,8 @@ function App() {
   const [loading, setLoading] = useState(!initialUser) // Si hay caché, no cargar
   const [showAdminPanel, setShowAdminPanel] = useState(false)
   const [showGuestWelcome, setShowGuestWelcome] = useState(false)
+  const [devMode, setDevMode] = useState(false) // Modo de desarrollo
+  const isDev = import.meta.env.DEV // Detecta si estamos en desarrollo
   
   // Refs para evitar recargas innecesarias
   const isLoadingRef = useRef(false)
@@ -484,6 +487,38 @@ function App() {
     setShowAdminPanel(false)
     setShowGuestWelcome(false)
     isLoadingRef.current = false
+    setDevMode(false) // Resetear modo dev al hacer logout
+  }
+
+  // Función para iniciar modo de desarrollo
+  const handleDevModeSelect = (role: UserRole, userType?: UserType) => {
+    const mockUser: User = {
+      id: `dev-${role}-${Date.now()}`,
+      email: `dev-${role}@test.local`,
+      role: role,
+      user_type: userType || (role === 'admin' ? undefined : 'invitado')
+    }
+    
+    setUser(mockUser)
+    setDevMode(true)
+    setLoading(false)
+    
+    // Guardar en caché
+    sessionCache.set({
+      id: mockUser.id,
+      email: mockUser.email,
+      role: mockUser.role,
+      user_type: mockUser.user_type
+    })
+    
+    // Configurar estados según el rol
+    if (role === 'admin') {
+      setShowAdminPanel(true)
+      setShowGuestWelcome(false)
+    } else {
+      setShowAdminPanel(false)
+      setShowGuestWelcome(userType === 'invitado')
+    }
   }
 
   if (loading) {
@@ -509,6 +544,11 @@ function App() {
   }
 
   if (!user) {
+    // En modo desarrollo, mostrar selector de roles
+    if (isDev) {
+      return <DevModeSelector onSelectRole={handleDevModeSelect} />
+    }
+    // En producción, mostrar autenticación normal
     return <Auth onAuthSuccess={handleAuthSuccess} />
   }
 

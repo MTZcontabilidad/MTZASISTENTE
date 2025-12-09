@@ -1,0 +1,214 @@
+.dev-mode-selector {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 20px;
+  background: var(--bg-primary);
+}
+
+.dev-mode-card {
+  background: linear-gradient(
+    135deg,
+    var(--bg-secondary) 0%,
+    var(--bg-tertiary) 100%
+  );
+  border: 2px solid var(--neon-blue-dark);
+  border-radius: 24px;
+  padding: 40px;
+  max-width: 800px;
+  width: 100%;
+  box-shadow: 0 0 40px rgba(0, 212, 255, 0.2);
+}
+
+.dev-mode-header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.dev-mode-header h2 {
+  color: var(--neon-blue);
+  font-size: 32px;
+  font-weight: 700;
+  margin-bottom: 12px;
+  text-shadow: 0 0 20px rgba(0, 212, 255, 0.5);
+}
+
+.dev-mode-subtitle {
+  color: var(--text-secondary);
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.dev-mode-content {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.dev-mode-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.dev-mode-label {
+  color: var(--text-primary);
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.dev-mode-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+}
+
+.dev-mode-option {
+  padding: 20px;
+  background: var(--bg-primary);
+  border: 2px solid var(--border-color);
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dev-mode-option:hover {
+  border-color: var(--neon-blue);
+  background: rgba(0, 212, 255, 0.05);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px rgba(0, 212, 255, 0.2);
+}
+
+.dev-mode-option.active {
+  border-color: var(--neon-blue);
+  background: rgba(0, 212, 255, 0.15);
+  box-shadow: 0 0 25px rgba(0, 212, 255, 0.4);
+}
+
+.dev-mode-option-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dev-mode-option-label {
+  color: var(--neon-blue);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.dev-mode-option.active .dev-mode-option-label {
+  color: var(--neon-blue-light);
+  text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+}
+
+.dev-mode-option-description {
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.dev-mode-options-small {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.dev-mode-option-small {
+  padding: 12px 24px;
+  background: var(--bg-primary);
+  border: 2px solid var(--border-color);
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.dev-mode-option-small:hover {
+  border-color: var(--neon-blue);
+  color: var(--neon-blue);
+  background: rgba(0, 212, 255, 0.05);
+}
+
+.dev-mode-option-small.active {
+  border-color: var(--neon-blue);
+  background: rgba(0, 212, 255, 0.15);
+  color: var(--neon-blue-light);
+  box-shadow: 0 0 15px rgba(0, 212, 255, 0.3);
+}
+
+.dev-mode-start-button {
+  padding: 18px 40px;
+  background: linear-gradient(
+    135deg,
+    var(--neon-blue) 0%,
+    var(--neon-blue-dark) 100%
+  );
+  border: 2px solid var(--neon-blue);
+  border-radius: 24px;
+  color: #000;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 0 25px rgba(0, 212, 255, 0.4);
+  width: 100%;
+  margin-top: 8px;
+}
+
+.dev-mode-start-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 35px rgba(0, 212, 255, 0.6);
+  background: linear-gradient(
+    135deg,
+    var(--neon-blue-light) 0%,
+    var(--neon-blue) 100%
+  );
+}
+
+.dev-mode-start-button:active {
+  transform: translateY(0);
+}
+
+.dev-mode-footer {
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border-color);
+  text-align: center;
+}
+
+.dev-mode-footer p {
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-style: italic;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .dev-mode-card {
+    padding: 24px;
+  }
+
+  .dev-mode-header h2 {
+    font-size: 24px;
+  }
+
+  .dev-mode-options {
+    grid-template-columns: 1fr;
+  }
+
+  .dev-mode-option {
+    padding: 16px;
+  }
+}
+

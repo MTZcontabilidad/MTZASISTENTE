@@ -35,3 +35,5 @@ dist-ssr
 # .vscode/
 # .cursor/
 
+.vercel
+.env*.local

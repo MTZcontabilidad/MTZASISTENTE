@@ -116,6 +116,7 @@ Esta configuración:
    - Las variables `VITE_*` son públicas en el cliente
    - Esto es seguro para `VITE_SUPABASE_ANON_KEY` (es la clave pública)
    - **NUNCA** expongas la clave de servicio (service role key)
+   - ⚠️ **Si Vercel muestra una advertencia sobre VITE_SUPABASE_ANON_KEY**: Es normal y seguro continuar. La clave anónima está diseñada para ser pública. Ver `EXPLICACION-VITE-KEY-SEGURA.md` para más detalles.
 
 2. **Google OAuth**:
    - Debes agregar la URL de producción a Google Cloud Console
@@ -131,6 +132,20 @@ Esta configuración:
    - Si hay errores, revisa los logs en Vercel
 
 ## 🐛 Solución de Problemas
+
+### Error: "Deployment was canceled because it was created with an unverified commit"
+
+**Solución Rápida (Recomendada)**:
+1. Ve a tu proyecto en Vercel
+2. Ve a **Settings** > **Git**
+3. Busca **"Deployment Protection"** o **"Require verified commits"**
+4. **Desactiva** la opción de verificación de commits
+5. Guarda los cambios
+6. Haz un nuevo push o haz clic en **"Redeploy"** en el deploy cancelado
+
+**Solución Alternativa**:
+- Hacer un nuevo commit y push (ya hecho automáticamente)
+- Vercel debería detectar el nuevo commit y hacer el deploy
 
 ### Error: "Faltan las variables de entorno de Supabase"
 
