@@ -694,19 +694,8 @@
     font-size: 13px;
   }
 
-  .admin-tabs {
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-bottom: 24px;
-  }
-
-  .admin-tab {
-    padding: 10px 18px;
-    font-size: 13px;
-    flex: 0 0 auto;
-    min-width: auto;
-    white-space: nowrap;
-  }
+  /* Los estilos de pestañas en móvil están definidos más abajo en la sección específica */
+  /* No duplicar aquí para evitar conflictos */
 
   .admin-stats {
     grid-template-columns: repeat(2, 1fr);
@@ -1176,37 +1165,71 @@
 /* Responsive para pestañas en móviles (Pills scrollables) */
 @media (max-width: 768px) {
   .admin-tabs {
-    flex-direction: row; /* Mantener fila */
-    gap: 12px;
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
     padding-bottom: 12px;
     border-bottom: none;
     margin-bottom: 24px;
-    mask-image: linear-gradient(to right, black 85%, transparent 100%);
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: var(--neon-blue-dark) transparent;
+    scroll-behavior: smooth;
+    /* Remover mask-image para que todas las pestañas sean visibles */
+    mask-image: none;
+    -webkit-mask-image: none;
+    /* Agregar padding a los lados para mejor UX */
+    padding-left: 4px;
+    padding-right: 4px;
+  }
+
+  .admin-tabs::-webkit-scrollbar {
+    display: block;
+    height: 4px;
+  }
+
+  .admin-tabs::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .admin-tabs::-webkit-scrollbar-thumb {
+    background: var(--neon-blue-dark);
+    border-radius: 2px;
   }
 
   .admin-tab {
     flex: 0 0 auto;
-    width: auto;
+    min-width: fit-content;
     text-align: center;
     border: 1px solid var(--border-color);
     border-radius: 20px;
-    padding: 8px 20px;
+    padding: 10px 18px;
     margin-bottom: 0;
     font-size: 13px;
     background: rgba(26, 26, 36, 0.5);
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
   }
 
-  .admin-tab:hover {
+  .admin-tab:hover,
+  .admin-tab:active {
     background: rgba(26, 26, 36, 0.8);
+    transform: scale(1.05);
   }
 
   .admin-tab.active {
     background: var(--neon-blue);
     color: #000;
     border-color: var(--neon-blue);
-    border-bottom: 1px solid var(--neon-blue); /* Resetear borde bottom específico */
+    border-bottom: 1px solid var(--neon-blue);
     text-shadow: none;
     box-shadow: 0 0 15px rgba(0, 212, 255, 0.4);
+    font-weight: 700;
   }
 }
 

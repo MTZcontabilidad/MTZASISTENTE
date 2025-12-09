@@ -28,13 +28,15 @@ import {
 import type { Meeting, MeetingStatus } from "../types";
 import { getDocumentIcon } from "../lib/documents";
 import { UserProfile, ClientInfo, UserType, UserRole } from "../types";
+import WheelchairWorkshopPanel from "./WheelchairWorkshopPanel";
+import TransportPanel from "./TransportPanel";
 import "./AdminPanel.css";
 
 interface UserWithClientInfo extends UserProfile {
   client_info?: ClientInfo | null;
 }
 
-type AdminTab = "users" | "faqs" | "company" | "documents" | "meetings" | "requests";
+type AdminTab = "users" | "faqs" | "company" | "documents" | "meetings" | "requests" | "wheelchair" | "transport";
 
 function AdminPanel() {
   const [activeTab, setActiveTab] = useState<AdminTab>("users");
@@ -203,6 +205,8 @@ function AdminPanel() {
       // Las requests se cargan automáticamente desde users y meetings
       fetchUsers();
       fetchMeetings();
+    } else if (activeTab === "wheelchair" || activeTab === "transport") {
+      // Los paneles de Taller y Transporte cargan sus propios datos
     }
   }, [activeTab, fetchUsers, fetchFAQs, fetchCompanyInfo, fetchAllDocuments, fetchMeetings]);
 
@@ -490,6 +494,18 @@ function AdminPanel() {
           onClick={() => setActiveTab("requests")}
         >
           🔔 Requerimientos
+        </button>
+        <button
+          className={`admin-tab ${activeTab === "wheelchair" ? "active" : ""}`}
+          onClick={() => setActiveTab("wheelchair")}
+        >
+          🪑 Taller de Sillas
+        </button>
+        <button
+          className={`admin-tab ${activeTab === "transport" ? "active" : ""}`}
+          onClick={() => setActiveTab("transport")}
+        >
+          🚐 Transporte Inclusivo
         </button>
       </div>
 
@@ -789,6 +805,10 @@ function AdminPanel() {
           onUserClick={handleEditUser}
         />
       )}
+
+      {activeTab === "wheelchair" && <WheelchairWorkshopPanel />}
+
+      {activeTab === "transport" && <TransportPanel />}
 
       {/* Modal de FAQ */}
       {showFAQModal && (
@@ -1892,12 +1912,14 @@ function RequestsSection({ users, meetings, onUserClick }: RequestsSectionProps)
   // Usuarios inactivos
   const inactiveUsers = users.filter(u => u.is_active === false);
   
-  // Usuarios sin información completa
-  const incompleteUsers = users.filter(u => 
-    !u.client_info?.company_name && 
-    !u.client_info?.phone && 
-    u.user_type !== 'invitado'
-  );
+  // Usuarios sin información completa o con notas/solicitudes
+  const incompleteUsers = users.filter(u => {
+    const hasIncompleteData = !u.client_info?.company_name && 
+                             !u.client_info?.phone && 
+                             u.user_type !== 'invitado';
+    const hasNotes = u.client_info?.notes && u.client_info.notes.trim() !== '';
+    return hasIncompleteData || hasNotes;
+  });
 
   return (
     <div className="requests-section">

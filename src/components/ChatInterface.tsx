@@ -4,6 +4,7 @@ import {
   getActiveConversation,
   getConversationMessages,
   createMessage,
+  clearConversation,
 } from "../lib/conversations";
 import { getUserMemories, createMemory } from "../lib/memories";
 import {
@@ -45,9 +46,25 @@ function ChatInterface() {
   const [showMeetings, setShowMeetings] = useState(false);
   const [showHumanSupport, setShowHumanSupport] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [abortController, setAbortController] = useState<AbortController | null>(null);
   const [autoReadEnabled, setAutoReadEnabled] = useState(true); // Habilitado por defecto
+  const [isMuted, setIsMuted] = useState(false);
   const [lastAssistantMessage, setLastAssistantMessage] = useState<string>("");
+  
+  // Escuchar evento de toggle mute desde el header
+  useEffect(() => {
+    const handleToggleMute = () => {
+      setIsMuted(prev => {
+        const newMuted = !prev;
+        setAutoReadEnabled(!newMuted); // Si está muteado, desactivar auto-read
+        return newMuted;
+      });
+    };
+    
+    window.addEventListener('toggleMute', handleToggleMute as EventListener);
+    return () => window.removeEventListener('toggleMute', handleToggleMute as EventListener);
+  }, []);
   const [welcomePlayed, setWelcomePlayed] = useState(false);
   const welcomeSpeechRef = useRef<SpeechSynthesisUtterance | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -67,13 +84,32 @@ function ChatInterface() {
   
   const [sttEnabled, setSttEnabled] = useState(false);
   
-  // Cuando se recibe transcript del micrófono, ponerlo en el input
+  // handleSend debe estar definido antes de este useEffect, así que lo movemos después
+  // Por ahora, usamos una referencia para evitar problemas de dependencias
+  const handleSendRef = useRef<((customMessage?: string) => Promise<void>) | null>(null);
+  
+  // Cuando se recibe transcript del micrófono, ponerlo en el input y auto-enviar automáticamente
   useEffect(() => {
-    if (voiceTranscript && !isListening) {
-      setInput(voiceTranscript);
-      setSttEnabled(false);
+    if (voiceTranscript && !isListening && sttEnabled) {
+      const transcriptTrimmed = voiceTranscript.trim();
+      
+      // Solo auto-enviar si hay texto válido
+      if (transcriptTrimmed.length > 0 && conversationId && !loading && !loadingHistory) {
+        setInput(transcriptTrimmed);
+        setSttEnabled(false);
+        
+        // Auto-enviar después de un pequeño delay para que el usuario pueda ver lo que se transcribió
+        const sendTimeout = setTimeout(() => {
+          if (handleSendRef.current) {
+            handleSendRef.current(transcriptTrimmed);
+          }
+        }, 800); // Delay un poco más largo para mejor UX
+        
+        // Limpiar timeout si el componente se desmonta
+        return () => clearTimeout(sendTimeout);
+      }
     }
-  }, [voiceTranscript, isListening]);
+  }, [voiceTranscript, isListening, sttEnabled, conversationId, loading, loadingHistory]);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -164,17 +200,43 @@ function ChatInterface() {
         
         setConversationId(activeConvId);
 
-        // Cargar mensajes históricos
-        const historyMessages = await getConversationMessages(activeConvId);
+        // Cargar mensajes históricos usando sistema optimizado
+        const { getOptimizedConversationMessages, shouldCreateSummary, createConversationSummary } = await import("../lib/conversationSummaries");
+        
+        // Verificar si necesita crear resumen
+        const needsSummary = await shouldCreateSummary(activeConvId);
+        if (needsSummary) {
+          await createConversationSummary(activeConvId);
+        }
+        
+        // Obtener mensajes optimizados (resúmenes + mensajes recientes)
+        const { summaries, recentMessages, totalMessageCount } = await getOptimizedConversationMessages(activeConvId);
         
         if (!mounted || isCancelled) return;
         
-        const mappedMessages = historyMessages.map((msg) => ({
+        // Mapear mensajes recientes
+        const mappedMessages = recentMessages.map((msg) => ({
           ...msg,
           timestamp: new Date(msg.created_at),
           menu: undefined,
           document: undefined,
         }));
+        
+        // Si hay resúmenes, agregar un mensaje especial al inicio
+        if (summaries.length > 0) {
+          const summaryMessage = {
+            id: `summary-${summaries[0].id}`,
+            conversation_id: activeConvId,
+            text: `📋 **Resumen de conversación anterior:**\n\n${summaries.map(s => s.summary_text).join('\n\n')}\n\n_Se muestran los últimos ${recentMessages.length} mensajes. Para ver el historial completo, contacta con nuestro equipo._`,
+            sender: "assistant" as const,
+            user_id: user.id,
+            created_at: summaries[0].created_at,
+            timestamp: new Date(summaries[0].created_at),
+            menu: undefined,
+            document: undefined,
+          };
+          mappedMessages.unshift(summaryMessage);
+        }
         
         setMessages(mappedMessages);
 
@@ -182,27 +244,60 @@ function ChatInterface() {
         if (mappedMessages.length === 0 && activeConvId && mounted && !isCancelled) {
           // Obtener información de la empresa para personalizar el mensaje
           const { getCompanyInfo } = await import("../lib/companyConfig");
-          const { generateContextualMessages } = await import("../lib/responseConfig");
+          const { generateContextualMessages, formatClientName } = await import("../lib/responseConfig");
+          const { getOrCreateClientInfo } = await import("../lib/clientInfo");
           const companyInfo = await getCompanyInfo();
           const companyName = companyInfo?.company_name || "MTZ";
+          
+          // Cargar información del cliente para obtener nombre/apodo y género
+          let clientInfo = null;
+          try {
+            clientInfo = await getOrCreateClientInfo(user.id);
+          } catch (error) {
+            console.warn("No se pudo obtener información del cliente:", error);
+          }
+          
+          // Formatear nombre del cliente con "Don" o "Srita" y apodo si está disponible
+          const formattedClientName = formatClientName(
+            userName || clientInfo?.company_name || undefined,
+            clientInfo?.preferred_name || undefined,
+            clientInfo?.use_formal_address !== false,
+            clientInfo?.gender || undefined
+          );
           
           // Generar mensaje contextual usando la configuración de respuestas
           // Usar valores locales en lugar de estado para evitar dependencias
           const currentUserType = userType || "invitado";
-          const currentUserName = userName || undefined;
           const context = {
             userType: currentUserType,
-            userName: currentUserName,
+            userName: formattedClientName, // Usar el nombre formateado
             companyName: companyName,
             memories: [],
             recentMessages: [],
           };
-          const contextualMessages = generateContextualMessages(context);
+          const contextualMessages = generateContextualMessages(context, {
+            preferredName: clientInfo?.preferred_name,
+            useFormalAddress: clientInfo?.use_formal_address !== false,
+            gender: clientInfo?.gender || undefined,
+          });
           
           // Crear mensaje de bienvenida personalizado
           const greeting = contextualMessages.greeting;
           const welcomeMsg = contextualMessages.welcomeMessage;
           const displayName = contextualMessages.userName;
+          
+          // Verificar si el usuario tiene perfil completo
+          const hasCompleteProfile = clientInfo && (
+            clientInfo.phone || 
+            clientInfo.is_mtz_client !== null ||
+            clientInfo.wants_to_be_client !== null
+          );
+          
+          // Agregar mensaje sobre completar perfil si no está completo
+          let profileNotice = '';
+          if (!hasCompleteProfile) {
+            profileNotice = '\n\n💡 **¿Eres cliente de MTZ?** Para brindarte un mejor servicio y acceso a documentos personalizados, te recomiendo completar tu perfil. Haz clic en el botón 👤 para actualizar tu información.\n\n';
+          }
           
           // Agregar mensaje sobre beneficios limitados para usuarios invitados
           let benefitsNotice = '';
@@ -210,7 +305,8 @@ function ChatInterface() {
             benefitsNotice = '\n\n⚠️ **Nota importante**: Estás ingresando como invitado. Para acceder a todos los beneficios y servicios completos (como descargar documentos, ver tu historial completo, y recibir atención personalizada), te recomendamos registrarte con tu cuenta de Gmail.\n\n';
           }
           
-          const welcomeMessage = `${greeting}, ${displayName}! 👋\n\n${welcomeMsg}. Soy **Arise**, tu asistente virtual de MTZ y estoy aquí para ayudarte con:\n\n• 📊 **MTZ Consultores Tributarios** - Consultoría tributaria y contable\n• 🚐 **Fundación Te Quiero Feliz** - Información sobre nuestros programas sociales\n• 🪑 **Taller de Sillas de Ruedas MMC** - Servicios de movilidad\n• 📋 Trámites y documentos\n• 💬 Soporte y atención al cliente\n• 📅 Agendar reuniones con nuestro equipo${benefitsNotice}\nPuedo guiarte hacia el servicio que necesitas. ¿Qué te interesa conocer?`;
+          // Personalizar mensaje de bienvenida con el nombre formateado
+          const welcomeMessage = `${greeting}, ${formattedClientName}! 👋\n\nSoy **Arise**, tu asistente virtual de MTZ. Puedo ayudarte con:\n\n• 📊 Consultoría tributaria y contable\n• 🚐 Fundación Te Quiero Feliz (transporte inclusivo)\n• 🪑 Taller de Sillas de Ruedas MMC\n• 📋 Trámites y documentos\n• 💬 Soporte personalizado\n• 📅 Agendar reuniones${profileNotice}${benefitsNotice}\n\n¿En qué puedo ayudarte hoy?`;
           
           // Crear mensaje de bienvenida en la base de datos
           const welcomeMsgData = await createMessage(
@@ -268,7 +364,7 @@ function ChatInterface() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Array vacío - se ejecuta cada vez que el componente se monta
 
-  const handleSend = async (customMessage?: string) => {
+  const handleSend = useCallback(async (customMessage?: string) => {
     const messageToSend = customMessage || input.trim();
     
     // Verificaciones más estrictas
@@ -432,7 +528,12 @@ function ChatInterface() {
       setLoading(false);
       setAbortController(null);
     }
-  };
+  }, [input, loading, conversationId, loadingHistory, userType, userName]);
+  
+  // Actualizar referencia cuando handleSend cambia
+  useEffect(() => {
+    handleSendRef.current = handleSend;
+  }, [handleSend]);
 
   const handleStopResponse = () => {
     if (abortController) {
@@ -451,6 +552,38 @@ function ChatInterface() {
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, stopMessage]);
+    }
+  };
+
+  // Función para limpiar/reiniciar el chat
+  const handleClearChat = async () => {
+    if (!currentUserId || !conversationId) return;
+
+    try {
+      setLoading(true);
+      
+      // Limpiar conversación
+      const newConversationId = await clearConversation(currentUserId, conversationId);
+      
+      // Limpiar mensajes locales
+      setMessages([]);
+      setInput("");
+      setConversationId(newConversationId);
+      setWelcomePlayed(false);
+      
+      // Recargar mensajes (debería estar vacío)
+      const newMessages = await getConversationMessages(newConversationId);
+      setMessages(newMessages.map(msg => ({
+        ...msg,
+        timestamp: new Date(msg.created_at)
+      })));
+      
+      setShowClearConfirm(false);
+    } catch (error) {
+      console.error("Error al limpiar chat:", error);
+      alert("Error al limpiar el chat. Por favor intenta de nuevo.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -886,6 +1019,32 @@ function ChatInterface() {
         />
       )}
 
+      {/* Modal de confirmación para limpiar chat */}
+      {showClearConfirm && (
+        <div className="modal-overlay" onClick={() => setShowClearConfirm(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <h3>¿Limpiar conversación?</h3>
+            <p>Esta acción iniciará una nueva conversación. Los mensajes anteriores se guardarán pero no se mostrarán en esta sesión.</p>
+            <div className="modal-actions">
+              <button
+                onClick={handleClearChat}
+                className="modal-button primary"
+                disabled={loading}
+              >
+                {loading ? "Limpiando..." : "Sí, limpiar"}
+              </button>
+              <button
+                onClick={() => setShowClearConfirm(false)}
+                className="modal-button secondary"
+                disabled={loading}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="input-container">
         <div className="input-actions">
           <button
@@ -895,6 +1054,14 @@ function ChatInterface() {
             aria-label="Mi perfil"
           >
             👤
+          </button>
+          <button
+            onClick={() => setShowClearConfirm(true)}
+            className="action-button clear-button"
+            title="Limpiar conversación"
+            aria-label="Limpiar conversación"
+          >
+            🗑️
           </button>
           <button
             onClick={() => {
@@ -926,10 +1093,6 @@ function ChatInterface() {
           >
             💬
           </button>
-          <VoiceSettingsDropdown
-            autoRead={autoReadEnabled}
-            onAutoReadChange={setAutoReadEnabled}
-          />
         </div>
         <textarea
           ref={inputRef}
@@ -946,20 +1109,39 @@ function ChatInterface() {
           className="message-input"
         />
         <button
-          onClick={() => {
+          onClick={async () => {
             if (isListening) {
+              // Detener grabación y esperar a que termine para auto-enviar
               stopListening();
-              setSttEnabled(false);
+              // El auto-envío se manejará en el useEffect cuando voiceTranscript esté disponible
             } else {
-              startListening({ lang: "es-CL", continuous: false });
-              setSttEnabled(true);
+              // Solicitar permisos de micrófono primero (especialmente importante en móviles)
+              try {
+                await navigator.mediaDevices.getUserMedia({ audio: true });
+                // Iniciar grabación con configuración optimizada para móviles
+                startListening({ 
+                  lang: "es-CL", 
+                  continuous: true, // Mejor para móviles
+                  interimResults: true // Mostrar resultados mientras habla
+                });
+                setSttEnabled(true);
+              } catch (error: any) {
+                console.error("Error al acceder al micrófono:", error);
+                if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+                  alert("Por favor, permite el acceso al micrófono en la configuración de tu navegador.");
+                } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+                  alert("No se encontró ningún micrófono. Verifica que tu dispositivo tenga un micrófono conectado.");
+                } else {
+                  alert("No se pudo acceder al micrófono. Por favor, verifica los permisos.");
+                }
+              }
             }
           }}
-          className={`action-button voice-input-button ${isListening ? 'listening' : ''}`}
+          className={`action-button voice-input-button ${isListening ? 'listening' : ''} ${!sttSupported ? 'disabled' : ''}`}
           type="button"
-          title={isListening ? "Detener grabación" : "Grabar audio"}
-          aria-label={isListening ? "Detener grabación" : "Grabar audio"}
-          disabled={loading || loadingHistory || !conversationId}
+          title={isListening ? "Detener grabación y enviar" : sttSupported ? "Grabar audio" : "Reconocimiento de voz no disponible"}
+          aria-label={isListening ? "Detener grabación y enviar" : sttSupported ? "Grabar audio" : "Reconocimiento de voz no disponible"}
+          disabled={loading || loadingHistory || !conversationId || !sttSupported}
         >
           {isListening ? '⏹' : '🎙️'}
         </button>

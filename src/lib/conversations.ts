@@ -72,6 +72,40 @@ export async function getUserConversations(userId: string): Promise<Conversation
 }
 
 /**
+ * Limpia/reinicia una conversación (marca como inactiva y crea una nueva)
+ * IMPORTANTE: Solo limpia la vista del cliente. Todos los mensajes y datos se mantienen en Supabase.
+ */
+export async function clearConversation(userId: string, conversationId: string): Promise<string> {
+  try {
+    // Si es un ID temporal, simplemente retornar un nuevo ID temporal
+    // Los mensajes temporales no se guardan en BD, así que no hay nada que limpiar
+    if (conversationId.startsWith('temp-')) {
+      return 'temp-' + userId + '-' + Date.now()
+    }
+
+    // IMPORTANTE: NO eliminamos mensajes, solo marcamos la conversación como inactiva
+    // Todos los mensajes y datos se mantienen en Supabase para referencia futura
+    const { error: updateError } = await supabase
+      .from('conversations')
+      .update({ is_active: false })
+      .eq('id', conversationId)
+      .eq('user_id', userId)
+
+    if (updateError && updateError.code !== '42P01') {
+      console.warn('Error al marcar conversación como inactiva:', updateError)
+    }
+
+    // Crear nueva conversación activa
+    // La conversación anterior y todos sus mensajes permanecen en la BD
+    return await getActiveConversation(userId)
+  } catch (error: any) {
+    console.error('Error al limpiar conversación:', error)
+    // Fallback: retornar nuevo ID temporal
+    return 'temp-' + userId + '-' + Date.now()
+  }
+}
+
+/**
  * Obtiene los mensajes de una conversación
  */
 export async function getConversationMessages(conversationId: string): Promise<Message[]> {

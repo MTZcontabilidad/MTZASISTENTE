@@ -685,6 +685,8 @@
 
   .input-actions {
     gap: 6px;
+    display: flex; /* Asegurar que se muestre */
+    flex-wrap: wrap; /* Permitir que se envuelvan en pantallas pequeñas */
   }
 
   .action-button {
@@ -692,6 +694,7 @@
     height: 40px;
     font-size: 16px;
     padding: 10px;
+    flex-shrink: 0; /* Evitar que se compriman */
   }
 
   .scroll-to-bottom-button {
@@ -1084,4 +1087,94 @@
   );
   border-color: #ff4444;
   box-shadow: 0 0 20px rgba(255, 68, 68, 0.5);
+}
+
+/* Botón de limpiar chat */
+.clear-button {
+  /* Hereda estilos de action-button */
+}
+
+.clear-button:hover {
+  background: rgba(255, 68, 68, 0.2);
+  border-color: #ff4444;
+  color: #ff4444;
+}
+
+/* Modal de confirmación */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  backdrop-filter: blur(4px);
+}
+
+.modal-content {
+  background: var(--bg-primary, #1a1a24);
+  border-radius: 16px;
+  padding: 32px;
+  max-width: 500px;
+  width: 90%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+}
+
+.modal-content h3 {
+  margin: 0 0 16px 0;
+  color: var(--text-primary, #ffffff);
+  font-size: 24px;
+}
+
+.modal-content p {
+  margin: 0 0 24px 0;
+  color: var(--text-secondary, #aaa);
+  line-height: 1.6;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.modal-button {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.modal-button.primary {
+  background: var(--neon-blue, #00d4ff);
+  color: #000;
+}
+
+.modal-button.primary:hover:not(:disabled) {
+  background: #00b8e6;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 212, 255, 0.3);
+}
+
+.modal-button.secondary {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary, #ffffff);
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+}
+
+.modal-button.secondary:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.modal-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }

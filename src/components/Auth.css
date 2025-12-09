@@ -197,6 +197,27 @@
   margin-top: 16px;
 }
 
+.provisional-account-notice {
+  margin-top: 20px;
+  padding: 16px;
+  background: rgba(255, 193, 7, 0.1);
+  border: 1px solid rgba(255, 193, 7, 0.3);
+  border-radius: 8px;
+  text-align: left;
+}
+
+.provisional-notice-text {
+  margin: 0;
+  color: #ffc107;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.provisional-notice-text strong {
+  color: #ffc107;
+  font-weight: 600;
+}
+
 /* Formulario de invitado */
 .guest-form-title {
   color: var(--text-primary);

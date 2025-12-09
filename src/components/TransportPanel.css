@@ -1,0 +1,8 @@
+/* Reutilizar estilos del panel de sillas de ruedas */
+.transport-panel {
+  padding: 20px;
+}
+
+/* Los estilos son los mismos que WheelchairWorkshopPanel.css */
+/* Se pueden compartir o mantener separados según necesidad */
+

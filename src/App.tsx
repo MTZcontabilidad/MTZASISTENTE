@@ -825,6 +825,18 @@ function App() {
                 {showAdminPanel ? 'Arise' : 'Panel Admin'}
               </button>
             )}
+            <button
+              onClick={() => {
+                // Toggle mute - esto se manejará en ChatInterface
+                const event = new CustomEvent('toggleMute');
+                window.dispatchEvent(event);
+              }}
+              className="mute-button"
+              title="Activar/Desactivar sonido"
+              aria-label="Activar/Desactivar sonido"
+            >
+              🔊
+            </button>
             <button onClick={handleLogout} className="logout-button">
               Salir
             </button>

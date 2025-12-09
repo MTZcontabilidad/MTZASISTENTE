@@ -199,7 +199,8 @@
 }
 
 .admin-toggle-button:hover,
-.logout-button:hover {
+.logout-button:hover,
+.mute-button:hover {
   border-color: var(--neon-blue);
   box-shadow: var(--shadow-neon);
 }

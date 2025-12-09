@@ -132,14 +132,21 @@ function Auth({ onAuthSuccess, onGuestLogin }: AuthProps) {
         return
       }
 
-      // Crear sesión de invitado anónima
+      // Crear sesión de invitado anónima (cuenta provisoria)
       const { data, error } = await supabase.auth.signInAnonymously()
       
       if (error) throw error
 
       if (data?.user) {
-        // Guardar teléfono en metadata o en una tabla temporal
-        // Por ahora solo continuamos
+        // Guardar teléfono en el perfil del usuario
+        if (data.user) {
+          await supabase
+            .from('user_profiles')
+            .update({ phone: guestPhone.trim() })
+            .eq('id', data.user.id)
+            .then(() => {}, () => {}) // Ignorar errores silenciosamente
+        }
+        
         onAuthSuccess()
       }
     } catch (error: any) {
@@ -236,6 +243,13 @@ function Auth({ onAuthSuccess, onGuestLogin }: AuthProps) {
               <p className="auth-note">
                 Al continuar, aceptas nuestros términos de servicio y política de privacidad
               </p>
+              
+              <div className="provisional-account-notice">
+                <p className="provisional-notice-text">
+                  ⚠️ <strong>Cuenta provisoria:</strong> Al ingresar como invitado, estarás usando una cuenta temporal. 
+                  Para acceder a todos los beneficios y servicios completos, te recomendamos registrarte con tu cuenta de Gmail.
+                </p>
+              </div>
             </>
           ) : (
             <>
@@ -243,6 +257,14 @@ function Auth({ onAuthSuccess, onGuestLogin }: AuthProps) {
               <p className="guest-form-subtitle">
                 Ingresa tu número de teléfono para acceder al chat
               </p>
+              
+              <div className="provisional-account-notice">
+                <p className="provisional-notice-text">
+                  ⚠️ <strong>Cuenta provisoria:</strong> Esta es una cuenta temporal. 
+                  Para acceder a todos los beneficios y servicios completos (documentos, historial completo, atención personalizada), 
+                  te recomendamos registrarte con tu cuenta de Gmail.
+                </p>
+              </div>
               
               <div className="guest-phone-input">
                 <input

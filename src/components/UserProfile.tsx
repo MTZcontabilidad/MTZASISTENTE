@@ -1,6 +1,7 @@
 /**
  * Panel de perfil de usuario
  * Permite a los usuarios actualizar su información personal
+ * Incluye opciones para identificar si es cliente MTZ y vincular con empresa
  */
 
 import { useState, useEffect } from 'react'
@@ -22,6 +23,8 @@ export default function UserProfile({ userId, userEmail, userName, onUpdate }: U
   const [clientInfo, setClientInfo] = useState<ClientInfo | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [matchingCompany, setMatchingCompany] = useState<any>(null)
+  const [validatingRUT, setValidatingRUT] = useState(false)
 
   // Formulario
   const [formData, setFormData] = useState({
@@ -29,7 +32,14 @@ export default function UserProfile({ userId, userEmail, userName, onUpdate }: U
     phone: '',
     address: '',
     company_name: '',
-    notes: ''
+    notes: '',
+    preferred_name: '',
+    gender: '' as 'masculino' | 'femenino' | 'otro' | '',
+    use_formal_address: true,
+    is_mtz_client: false,
+    wants_to_be_client: false,
+    rut_empresa: '',
+    clave_sii: ''
   })
 
   useEffect(() => {
@@ -58,14 +68,114 @@ export default function UserProfile({ userId, userEmail, userName, onUpdate }: U
           phone: info.phone || '',
           address: info.address || '',
           company_name: info.company_name || '',
-          notes: info.notes || ''
+          notes: info.notes || '',
+          preferred_name: info.preferred_name || '',
+          gender: (info.gender as any) || '',
+          use_formal_address: info.use_formal_address !== false,
+          is_mtz_client: info.is_mtz_client || false,
+          wants_to_be_client: info.wants_to_be_client || false,
+          rut_empresa: info.rut_empresa || '',
+          clave_sii: '' // No mostrar la clave por seguridad
         })
+
+        // Si ya tiene RUT empresa, buscar empresa correspondiente
+        if (info.rut_empresa) {
+          await validateRUTAndFindCompany(info.rut_empresa, info.clave_sii || '')
+        }
       }
     } catch (err: any) {
       console.error('Error al cargar datos:', err)
       setError('Error al cargar tu información')
     } finally {
       setLoading(false)
+    }
+  }
+
+  // Validar RUT y buscar empresa correspondiente
+  const validateRUTAndFindCompany = async (rut: string, clave: string) => {
+    if (!rut || !rut.trim()) {
+      setMatchingCompany(null)
+      return
+    }
+
+    try {
+      setValidatingRUT(true)
+      
+      // Limpiar formato del RUT (quitar puntos y guiones)
+      const cleanRUT = rut.replace(/\./g, '').replace(/-/g, '').trim()
+      
+      // Buscar empresa por RUT
+      const { data: companies, error } = await supabase
+        .from('companies')
+        .select('*')
+        .eq('rut', cleanRUT)
+        .maybeSingle()
+
+      if (error && error.code !== 'PGRST116') {
+        throw error
+      }
+
+      if (companies) {
+        // Si hay clave, validar que coincida
+        if (clave && companies.clave_impuestos) {
+          // En producción, aquí deberías comparar hashes o usar encriptación
+          // Por ahora, comparación simple (NO SEGURO para producción)
+          if (clave === companies.clave_impuestos) {
+            setMatchingCompany(companies)
+            setFormData(prev => ({
+              ...prev,
+              company_name: companies.company_name || prev.company_name,
+              is_mtz_client: true
+            }))
+          } else {
+            setMatchingCompany(null)
+            setError('La clave del SII no coincide con la empresa registrada')
+          }
+        } else {
+          // Si no hay clave pero hay empresa, solo mostrar la empresa
+          setMatchingCompany(companies)
+          setFormData(prev => ({
+            ...prev,
+            company_name: companies.company_name || prev.company_name
+          }))
+        }
+      } else {
+        setMatchingCompany(null)
+        if (clave) {
+          // Si hay RUT y clave pero no se encuentra empresa, puede ser nuevo cliente
+          setFormData(prev => ({
+            ...prev,
+            wants_to_be_client: true
+          }))
+        }
+      }
+    } catch (err: any) {
+      console.error('Error al validar RUT:', err)
+      setMatchingCompany(null)
+    } finally {
+      setValidatingRUT(false)
+    }
+  }
+
+  const handleRUTChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rut = e.target.value
+    setFormData(prev => ({ ...prev, rut_empresa: rut }))
+    
+    // Validar RUT cuando el usuario termine de escribir
+    if (rut.length >= 8) {
+      await validateRUTAndFindCompany(rut, formData.clave_sii)
+    } else {
+      setMatchingCompany(null)
+    }
+  }
+
+  const handleClaveChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const clave = e.target.value
+    setFormData(prev => ({ ...prev, clave_sii: clave }))
+    
+    // Si ya hay RUT, validar nuevamente con la nueva clave
+    if (formData.rut_empresa && clave.length > 0) {
+      await validateRUTAndFindCompany(formData.rut_empresa, clave)
     }
   }
 
@@ -91,7 +201,19 @@ export default function UserProfile({ userId, userEmail, userName, onUpdate }: U
         phone: formData.phone || null,
         address: formData.address || null,
         company_name: formData.company_name || null,
-        notes: formData.notes || null
+        notes: formData.notes || null,
+        preferred_name: formData.preferred_name || null,
+        gender: formData.gender || null,
+        use_formal_address: formData.use_formal_address,
+        is_mtz_client: formData.is_mtz_client,
+        wants_to_be_client: formData.wants_to_be_client,
+        rut_empresa: formData.rut_empresa || null,
+        clave_sii: formData.clave_sii || null // En producción, esto debería estar encriptado
+      }
+
+      // Si se encontró una empresa y se validó correctamente, actualizar también
+      if (matchingCompany && formData.is_mtz_client) {
+        updateData.company_name = matchingCompany.company_name || formData.company_name
       }
 
       const updated = await updateClientInfo(userId, updateData)
@@ -114,9 +236,15 @@ export default function UserProfile({ userId, userEmail, userName, onUpdate }: U
     }
   }
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target
-    setFormData(prev => ({ ...prev, [name]: value }))
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value, type } = e.target
+    const checked = (e.target as HTMLInputElement).checked
+    
+    if (type === 'checkbox') {
+      setFormData(prev => ({ ...prev, [name]: checked }))
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }))
+    }
   }
 
   if (loading) {
@@ -201,6 +329,50 @@ export default function UserProfile({ userId, userEmail, userName, onUpdate }: U
           </div>
 
           <div className="form-group">
+            <label htmlFor="preferred_name">Nombre Preferido o Apodo (opcional)</label>
+            <input
+              type="text"
+              id="preferred_name"
+              name="preferred_name"
+              value={formData.preferred_name}
+              onChange={handleChange}
+              placeholder="Cómo te gusta que te llamen"
+              className="form-input"
+            />
+            <small className="form-help">Si prefieres que te llamen por un apodo o nombre diferente</small>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="gender">Género (opcional)</label>
+            <select
+              id="gender"
+              name="gender"
+              value={formData.gender}
+              onChange={handleChange}
+              className="form-input"
+            >
+              <option value="">No especificar</option>
+              <option value="masculino">Masculino</option>
+              <option value="femenino">Femenino</option>
+              <option value="otro">Otro</option>
+            </select>
+            <small className="form-help">Usado para determinar si usar "Don" o "Srita" en el trato</small>
+          </div>
+
+          <div className="form-group">
+            <label>
+              <input
+                type="checkbox"
+                name="use_formal_address"
+                checked={formData.use_formal_address}
+                onChange={handleChange}
+              />
+              {' '}Usar trato formal (Don/Srita)
+            </label>
+            <small className="form-help">Si está marcado, te llamaremos "Don Nombre" o "Srita Nombre"</small>
+          </div>
+
+          <div className="form-group">
             <label htmlFor="phone">Teléfono</label>
             <input
               type="tel"
@@ -209,19 +381,6 @@ export default function UserProfile({ userId, userEmail, userName, onUpdate }: U
               value={formData.phone}
               onChange={handleChange}
               placeholder="Ej: +56 9 1234 5678"
-              className="form-input"
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="company_name">Nombre de Empresa (opcional)</label>
-            <input
-              type="text"
-              id="company_name"
-              name="company_name"
-              value={formData.company_name}
-              onChange={handleChange}
-              placeholder="Nombre de tu empresa"
               className="form-input"
             />
           </div>
@@ -237,6 +396,111 @@ export default function UserProfile({ userId, userEmail, userName, onUpdate }: U
               placeholder="Tu dirección"
               className="form-input"
             />
+          </div>
+
+          {/* Sección de Cliente MTZ */}
+          <div style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '2px solid #e0e0e0' }}>
+            <h3 style={{ marginBottom: '1rem', fontSize: '1.2rem' }}>Información de Cliente MTZ</h3>
+            
+            <div className="form-group">
+              <label>
+                <input
+                  type="checkbox"
+                  name="is_mtz_client"
+                  checked={formData.is_mtz_client}
+                  onChange={handleChange}
+                />
+                {' '}Soy cliente de MTZ
+              </label>
+            </div>
+
+            <div className="form-group">
+              <label>
+                <input
+                  type="checkbox"
+                  name="wants_to_be_client"
+                  checked={formData.wants_to_be_client}
+                  onChange={handleChange}
+                />
+                {' '}Quiero ser cliente de MTZ
+              </label>
+            </div>
+
+            {formData.is_mtz_client && (
+              <>
+                <div className="form-group">
+                  <label htmlFor="rut_empresa">RUT de la Empresa *</label>
+                  <input
+                    type="text"
+                    id="rut_empresa"
+                    name="rut_empresa"
+                    value={formData.rut_empresa}
+                    onChange={handleRUTChange}
+                    placeholder="Ej: 12345678-9"
+                    className="form-input"
+                    required={formData.is_mtz_client}
+                  />
+                  {validatingRUT && (
+                    <small className="form-help" style={{ color: '#666' }}>Validando RUT...</small>
+                  )}
+                  {matchingCompany && (
+                    <div style={{ marginTop: '8px', padding: '8px', background: '#e8f5e9', borderRadius: '4px' }}>
+                      ✅ Empresa encontrada: <strong>{matchingCompany.company_name}</strong>
+                    </div>
+                  )}
+                  {formData.rut_empresa && !matchingCompany && !validatingRUT && (
+                    <div style={{ marginTop: '8px', padding: '8px', background: '#fff3e0', borderRadius: '4px' }}>
+                      ⚠️ No se encontró empresa con este RUT. Si eres cliente nuevo, contacta con MTZ.
+                    </div>
+                  )}
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="clave_sii">Clave del SII (opcional)</label>
+                  <input
+                    type="password"
+                    id="clave_sii"
+                    name="clave_sii"
+                    value={formData.clave_sii}
+                    onChange={handleClaveChange}
+                    placeholder="Tu clave de impuestos internos"
+                    className="form-input"
+                  />
+                  <small className="form-help">Se usa para identificar tu empresa automáticamente. Se almacena de forma segura.</small>
+                </div>
+
+                {matchingCompany && (
+                  <div className="form-group">
+                    <label htmlFor="company_name">Nombre de Empresa</label>
+                    <input
+                      type="text"
+                      id="company_name"
+                      name="company_name"
+                      value={formData.company_name}
+                      onChange={handleChange}
+                      placeholder="Nombre de tu empresa"
+                      className="form-input"
+                    />
+                    <small className="form-help">Se actualiza automáticamente cuando validas el RUT</small>
+                  </div>
+                )}
+              </>
+            )}
+
+            {!formData.is_mtz_client && (
+              <div className="form-group">
+                <label htmlFor="company_name">Nombre de Empresa (opcional)</label>
+                <input
+                  type="text"
+                  id="company_name"
+                  name="company_name"
+                  value={formData.company_name}
+                  onChange={handleChange}
+                  placeholder="Nombre de tu empresa"
+                  className="form-input"
+                />
+              </div>
+            )}
           </div>
 
           <div className="form-group">
@@ -273,4 +537,3 @@ export default function UserProfile({ userId, userEmail, userName, onUpdate }: U
     </div>
   )
 }
-

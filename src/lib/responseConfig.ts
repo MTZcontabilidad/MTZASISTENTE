@@ -188,20 +188,70 @@ export const userTypeMessages: Record<
 };
 
 /**
+ * Formatea el nombre del cliente para usar en conversaciones
+ * Usa "Don Nombre" o "Srita Nombre" según el género, o apodo si está disponible
+ */
+export function formatClientName(
+  userName?: string,
+  preferredName?: string | null,
+  useFormalAddress: boolean = true,
+  gender?: 'masculino' | 'femenino' | 'otro' | null
+): string {
+  const nameToUse = (preferredName && preferredName.trim()) || (userName && userName.trim());
+  
+  if (!nameToUse) {
+    return "estimado cliente";
+  }
+  
+  // Si no se debe usar trato formal, retornar solo el nombre
+  if (!useFormalAddress) {
+    return nameToUse;
+  }
+  
+  // Determinar el trato según el género
+  let formalTitle = "Don"; // Por defecto "Don"
+  
+  if (gender === 'femenino') {
+    formalTitle = "Srita";
+  } else if (gender === 'masculino') {
+    formalTitle = "Don";
+  } else if (gender === 'otro') {
+    // Para género "otro", usar "Don" por defecto, pero se puede personalizar
+    formalTitle = "Don";
+  }
+  // Si gender es null o undefined, usar "Don" por defecto
+  
+  return `${formalTitle} ${nameToUse}`;
+}
+
+/**
  * Genera mensajes contextuales basados en la información disponible
  */
 export function generateContextualMessages(
-  context: ResponseContext
+  context: ResponseContext,
+  options?: {
+    preferredName?: string | null;
+    useFormalAddress?: boolean;
+    gender?: 'masculino' | 'femenino' | 'otro' | null;
+  }
 ): Record<string, string> {
   const userType: UserType = context.userType || "invitado";
   const messages = userTypeMessages[userType];
+
+  // Formatear nombre del cliente
+  const formattedName = formatClientName(
+    context.userName,
+    options?.preferredName,
+    options?.useFormalAddress !== false,
+    options?.gender
+  );
 
   const contextual: Record<string, string> = {
     greeting: messages.greeting,
     welcomeMessage: messages.welcomeMessage,
     closingMessage: messages.closingMessage,
     defaultResponse: messages.defaultResponse,
-    userName: context.userName || "estimado cliente",
+    userName: formattedName,
     appreciation: "¡De nada!",
     goodbye: "Hasta luego",
   };

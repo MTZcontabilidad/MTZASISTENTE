@@ -57,7 +57,7 @@ import {
   needsSpecialSupport,
 } from "./situationDetection";
 import { generateF29GuideFromLink } from "./geminiAnalyzer";
-import { getClientPersonalizationInfo, upsertClientExtendedInfo } from "./clientExtendedInfo";
+import { getClientPersonalizationInfo, upsertClientExtendedInfo, getClientExtendedInfo } from "./clientExtendedInfo";
 import { getServiceByCode, formatServicePrice } from "./servicePricing";
 import { updateClientInfo } from "./clientInfo";
 
@@ -138,6 +138,20 @@ async function buildResponseContext(
     console.warn("No se pudo obtener información de la empresa:", error);
   }
 
+  // Formatear nombre del cliente con "Don" o "Srita" y apodo si está disponible
+  let formattedUserName: string | undefined = undefined;
+  if (clientInfo) {
+    const { formatClientName } = await import("./responseConfig");
+    formattedUserName = formatClientName(
+      userName || clientInfo?.company_name,
+      clientInfo?.preferred_name,
+      clientInfo?.use_formal_address !== false,
+      clientInfo?.gender || undefined
+    );
+  } else {
+    formattedUserName = userName || clientInfo?.company_name || undefined;
+  }
+
   // Obtener recuerdos importantes
   let memories: UserMemory[] = [];
   try {
@@ -167,7 +181,7 @@ async function buildResponseContext(
   }
 
   return {
-    userName: userName || clientInfo?.company_name || undefined,
+    userName: formattedUserName, // Usar el nombre formateado
     userType: userType || "invitado",
     companyName:
       clientInfo?.company_name || companyInfo?.company_name || undefined,
@@ -196,7 +210,126 @@ export async function generateResponse(
   const { userId, conversationId, userInput, userType, userName } = options;
 
   try {
-    // PRIMERO: Detectar situaciones difíciles y ofrecer apoyo especial
+    // PRIMERO: Verificar si hay una solicitud en progreso
+    const { 
+      detectServiceRequest, 
+      getNextQuestion, 
+      processUserResponse, 
+      isRequestComplete,
+      submitServiceRequest 
+    } = await import("./serviceRequests");
+    const { getServiceRequestState, saveServiceRequestState, clearServiceRequestState } = await import("./serviceRequestState");
+    
+    // Verificar si hay una solicitud en progreso
+    let requestState = await getServiceRequestState(conversationId);
+    
+    // Si hay una solicitud en progreso, procesar la respuesta
+    if (requestState && !requestState.isComplete) {
+      // Procesar la respuesta del usuario
+      const updatedData = processUserResponse(
+        requestState.serviceType,
+        requestState.step,
+        userInput,
+        requestState.collectedData
+      );
+      
+      // Verificar si está completa
+      const complete = isRequestComplete(requestState.serviceType, updatedData);
+      
+      // Avanzar al siguiente paso
+      const nextStep = requestState.step + 1;
+      
+      // Si está completa, crear la solicitud
+      if (complete) {
+        const submitted = await submitServiceRequest(
+          requestState.serviceType,
+          userId,
+          conversationId,
+          updatedData
+        );
+        
+        if (submitted) {
+          await clearServiceRequestState(conversationId);
+          const serviceName = requestState.serviceType === 'wheelchair' ? 'Taller de Sillas de Ruedas' : 'Transporte Inclusivo';
+          return {
+            text: `¡Perfecto! He registrado tu solicitud para el ${serviceName}. 📝\n\nNuestro equipo revisará tu solicitud y te contactará pronto al teléfono que proporcionaste.\n\n**Teléfono: +56 9 3300 3113**\n\n¿Hay algo más en lo que pueda ayudarte?`,
+          };
+        } else {
+          return {
+            text: `Hubo un error al registrar tu solicitud. Por favor, contacta directamente al teléfono: +56 9 3300 3113`,
+          };
+        }
+      }
+      
+      // Obtener siguiente pregunta
+      const question = getNextQuestion(requestState.serviceType, nextStep, updatedData);
+      
+      // Actualizar estado
+      const newState = {
+        serviceType: requestState.serviceType,
+        step: nextStep,
+        collectedData: updatedData,
+        isComplete: false
+      };
+      
+      await saveServiceRequestState(conversationId, newState);
+      
+      return {
+        text: question,
+        menu: undefined,
+      };
+    }
+    
+    // Si no hay solicitud en progreso, detectar si el usuario quiere iniciar una
+    const serviceType = detectServiceRequest(userInput);
+    
+    if (serviceType) {
+      // Iniciar nueva solicitud
+      const newState = {
+        serviceType,
+        step: 1,
+        collectedData: {},
+        isComplete: false
+      };
+      
+      await saveServiceRequestState(conversationId, newState);
+      
+      // Obtener primera pregunta
+      const question = getNextQuestion(serviceType, 1, {});
+      
+      return {
+        text: question,
+        menu: undefined,
+      };
+    }
+    
+    // SEGUNDO: Verificar si faltan datos del usuario y preguntar
+    const { detectMissingUserData } = await import("./userDataCollection");
+    const missingData = await detectMissingUserData(userId);
+    
+    // Solo preguntar si no es una respuesta directa a una pregunta previa
+    // y si el usuario no está respondiendo con datos
+    const isDataResponse = userInput.match(/\d{8,9}/) || // Teléfono
+                          userInput.split(' ').length <= 4 && userInput.length < 50; // Posible nombre
+    
+    if (missingData && !isDataResponse) {
+      // Verificar si el usuario ya respondió esta pregunta en mensajes recientes
+      const { getConversationMessages } = await import("./conversations");
+      const recentMessages = await getConversationMessages(conversationId);
+      const lastAssistantMessage = recentMessages
+        .filter(m => m.sender === 'assistant')
+        .slice(-1)[0];
+      
+      // Si el último mensaje del asistente ya preguntó por este dato, no preguntar de nuevo
+      if (!lastAssistantMessage?.text.includes(missingData.question)) {
+        return {
+          text: `Hola! 😊 Para brindarte un mejor servicio, ${missingData.question}`,
+          menu: undefined,
+        };
+      }
+    }
+    
+    // TERCERO: Detectar situaciones difíciles y ofrecer apoyo especial
     const difficultSituation = detectDifficultSituation(userInput);
     if (difficultSituation.detected && difficultSituation.needsSupport) {
       const supportMessage = generateSupportMessage(
@@ -211,7 +344,7 @@ export async function generateResponse(
       }
     }
 
-    // SEGUNDO: Detectar solicitud de documentos
+    // CUARTO: Detectar solicitud de documentos
     // IMPORTANTE: Si menciona IVA/F29/declaración, priorizar menú de trámites sobre documentos
     const inputLower = userInput.toLowerCase();
     const isIvaOrF29Request = 
@@ -252,10 +385,28 @@ export async function generateResponse(
 
           const downloadUrl = getDocumentDownloadUrl(selectedDoc);
           if (downloadUrl) {
+            // Listar todos los documentos disponibles y no disponibles
+            const availableDocs = documents.filter(d => getDocumentDownloadUrl(d));
+            const unavailableDocs = documents.filter(d => !getDocumentDownloadUrl(d));
+            
+            let responseText = `📄 ${formatDocumentName(selectedDoc)}\n\n🔗 [Descargar aquí](${downloadUrl})`;
+            
+            if (availableDocs.length > 1 || unavailableDocs.length > 0) {
+              responseText += `\n\n📋 **Documentos disponibles:**\n`;
+              availableDocs.forEach(doc => {
+                responseText += `• ✅ ${formatDocumentName(doc)}\n`;
+              });
+              
+              if (unavailableDocs.length > 0) {
+                responseText += `\n⚠️ **Documentos no disponibles aún:**\n`;
+                unavailableDocs.forEach(doc => {
+                  responseText += `• ❌ ${formatDocumentName(doc)} (en proceso)\n`;
+                });
+              }
+            }
+            
             return {
-              text: `📄 ${formatDocumentName(
-                selectedDoc
-              )}\n\n🔗 [Descargar aquí](${downloadUrl})`,
+              text: responseText,
               document: selectedDoc,
             };
           }
@@ -279,11 +430,32 @@ export async function generateResponse(
         if (!wantsDownload && !wantsPay) {
           const menu = await findRelevantMenu("documentos");
           if (menu) {
+            // Separar documentos disponibles y no disponibles
+            const availableDocs = documents.filter(d => getDocumentDownloadUrl(d));
+            const unavailableDocs = documents.filter(d => !getDocumentDownloadUrl(d));
+            
+            let responseText = `Encontré ${documents.length} documento(s) de tipo ${documentRequest.type} en tu cuenta. 😊\n\n`;
+            
+            if (availableDocs.length > 0) {
+              responseText += `✅ **Documentos disponibles para descargar:**\n`;
+              availableDocs.forEach(doc => {
+                responseText += `• ${formatDocumentName(doc)}\n`;
+              });
+              responseText += `\n`;
+            }
+            
+            if (unavailableDocs.length > 0) {
+              responseText += `⚠️ **Documentos no disponibles aún:**\n`;
+              unavailableDocs.forEach(doc => {
+                responseText += `• ${formatDocumentName(doc)} (en proceso)\n`;
+              });
+              responseText += `\n`;
+            }
+            
+            responseText += `¿Qué te gustaría hacer?\n\n• 📥 **Descargar** un documento disponible\n• 💰 **Contratar servicio** para que nuestro equipo lo prepare\n• ℹ️ **Ver información** sobre este tipo de documento\n\nSelecciona una opción:\n\n${generateMenuResponse(menu)}`;
+            
             return {
-              text: enrichWithMotivation(
-                `Encontré ${documents.length} documento(s) de tipo ${documentRequest.type} en tu cuenta. 😊\n\n¿Qué te gustaría hacer?\n\n• 📥 **Descargar** el documento\n• 💰 **Contratar servicio** para que nuestro equipo lo haga\n• ℹ️ **Ver información** sobre este tipo de documento\n\nSelecciona una opción:\n\n${generateMenuResponse(menu)}`,
-                userInput
-              ),
+              text: enrichWithMotivation(responseText, userInput),
               menu,
             };
           }
@@ -300,23 +472,53 @@ export async function generateResponse(
           };
         }
       } else {
-        // No hay documentos, mostrar menú con opciones
+        // No hay documentos, mostrar menú con opciones y lista de documentos disponibles
         const menu = await findRelevantMenu("documentos");
         if (menu) {
+          // Obtener todos los documentos del cliente para mostrar qué tiene disponible
+          const allDocuments = await getClientDocuments(userId);
+          const availableDocs = allDocuments.filter(d => getDocumentDownloadUrl(d));
+          const unavailableDocs = allDocuments.filter(d => !getDocumentDownloadUrl(d));
+          
+          let responseText = `No encontré documentos de tipo ${
+            documentRequest.type
+          } en tu cuenta, pero no te preocupes. 😊\n\n`;
+          
+          if (allDocuments.length > 0) {
+            responseText += `**Tus documentos disponibles:**\n`;
+            if (availableDocs.length > 0) {
+              responseText += `\n✅ **Para descargar:**\n`;
+              availableDocs.slice(0, 5).forEach(doc => {
+                responseText += `• ${formatDocumentName(doc)}\n`;
+              });
+              if (availableDocs.length > 5) {
+                responseText += `• ... y ${availableDocs.length - 5} más\n`;
+              }
+            }
+            
+            if (unavailableDocs.length > 0) {
+              responseText += `\n⚠️ **En proceso:**\n`;
+              unavailableDocs.slice(0, 3).forEach(doc => {
+                responseText += `• ${formatDocumentName(doc)}\n`;
+              });
+              if (unavailableDocs.length > 3) {
+                responseText += `• ... y ${unavailableDocs.length - 3} más\n`;
+              }
+            }
+            responseText += `\n`;
+          }
+          
+          responseText += `Puedo ayudarte de varias formas:\n\n• 📥 **Descargar** documentos disponibles\n• 💰 **Contratar servicio** para que nuestro equipo lo prepare\n• ℹ️ **Ver información** sobre este tipo de documento\n\nAquí tienes las opciones disponibles:\n\n${generateMenuResponse(menu)}`;
+          
           return {
-            text: enrichWithMotivation(
-              `No encontré documentos de tipo ${
-                documentRequest.type
-              } en tu cuenta, pero no te preocupes. 😊\n\nPuedo ayudarte de varias formas:\n\n• 📥 **Descargar** documentos disponibles\n• 💰 **Contratar servicio** para que nuestro equipo lo prepare\n• ℹ️ **Ver información** sobre este tipo de documento\n\nAquí tienes las opciones disponibles:\n\n${generateMenuResponse(menu)}`,
-              userInput
-            ),
+            text: enrichWithMotivation(responseText, userInput),
             menu,
           };
         }
       }
     }
 
-    // TERCERO: Detectar solicitudes sobre trámites tributarios
+    // QUINTO: Detectar solicitudes sobre trámites tributarios
     // IMPORTANTE: NO enseñamos a hacer trámites, guiamos para que MTZ los haga
     const tramiteRequest = detectarTramiteTributario(userInput);
     if (tramiteRequest) {
@@ -333,7 +535,22 @@ export async function generateResponse(
       let responseText = '';
       
       if (tramiteRequest.type === 'inicio_actividades') {
+        // Obtener información legal de la empresa si está disponible
+        const extendedInfo = await getClientExtendedInfo(userId);
+        const legalInfo = extendedInfo?.legal_info || {};
+        const hasInicioActividades = legalInfo.inicio_actividades || legalInfo.start_date;
+        
         responseText = `¡Hola! Entiendo que necesitas hacer el inicio de actividades para ${companyName}. 😊\n\n`;
+        
+        // Si ya tiene información de inicio de actividades, mencionarlo
+        if (hasInicioActividades) {
+          responseText += `Veo que ya tienes información de inicio de actividades registrada. `;
+          if (legalInfo.start_date) {
+            responseText += `Tu fecha de inicio de actividades es ${legalInfo.start_date}. `;
+          }
+          responseText += `Si necesitas actualizar esta información o realizar un nuevo trámite, `;
+        }
+        
         responseText += `En MTZ nos encargamos de todo el proceso por ti. No necesitas hacerlo tú mismo. Lo que necesito es que me proporciones algunos datos para que nuestro equipo pueda realizar el trámite:\n\n`;
         responseText += `• Nombre completo o razón social\n`;
         responseText += `• RUT\n`;
@@ -410,7 +627,7 @@ export async function generateResponse(
       };
     }
 
-    // CUARTO: Detectar solicitudes de trámites y generar menús automáticamente
+    // SEXTO: Detectar solicitudes de trámites y generar menús automáticamente
     const tramiteMenu = detectarTramiteRequest(userInput);
     if (tramiteMenu) {
       // Si es una solicitud de categorías, retornar texto especial para mostrar CategoryButtons
@@ -446,7 +663,7 @@ export async function generateResponse(
       };
     }
 
-    // QUINTO: Detectar si debería mostrar un menú interactivo
+    // SÉPTIMO: Detectar si debería mostrar un menú interactivo
     const relevantMenu = await findRelevantMenu(userInput);
     if (relevantMenu) {
       return {
@@ -458,7 +675,7 @@ export async function generateResponse(
       };
     }
 
-    // SEXTO: Generar menús para servicios comunes si se solicita
+    // OCTAVO: Generar menús para servicios comunes si se solicita
     const servicioMenu = detectarServicioRequest(userInput);
     if (servicioMenu) {
       return {
@@ -470,7 +687,7 @@ export async function generateResponse(
       };
     }
 
-    // SÉPTIMO: Buscar FAQs que coincidan
+    // NOVENO: Buscar FAQs que coincidan
     // (Sistema de trámites deshabilitado - tabla no existe en BD)
     // Si quieres habilitarlo, ejecuta supabase-tramites.sql y descomenta el código arriba
     const matchingFAQs = await findMatchingFAQs(userInput);
@@ -540,9 +757,24 @@ export async function generateResponse(
     
     // Enriquecer contexto con información personalizada del cliente
     const clientPersonalization = await getClientPersonalizationInfo(userId);
-    if (clientPersonalization.companyName) {
-      context.userName = clientPersonalization.companyName;
-    }
+    
+    // Obtener información del cliente para nombre y apodo
+    const { getOrCreateClientInfo } = await import("./clientInfo");
+    const clientInfo = await getOrCreateClientInfo(userId);
+    
+    // Usar nombre de empresa si está disponible, sino usar nombre de usuario
+    const displayName = clientPersonalization.companyName || userName || clientInfo?.company_name;
+    
+    // Formatear nombre con "Don" o "Srita" y apodo si está disponible
+    const { formatClientName } = await import("./responseConfig");
+    const formattedName = formatClientName(
+      displayName,
+      clientInfo?.preferred_name,
+      clientInfo?.use_formal_address !== false,
+      clientInfo?.gender || undefined
+    );
+    
+    context.userName = formattedName;
 
     // Obtener recuerdos para la búsqueda de plantilla
     let memories: UserMemory[] = [];
@@ -560,13 +792,33 @@ export async function generateResponse(
     const template = findBestTemplate(userInput, memories);
 
     if (!template) {
-      // Fallback: respuesta genérica
+      // Fallback: respuesta más útil y proactiva
       const messages = generateContextualMessages(context);
-      return enrichWithMotivation(messages.defaultResponse, userInput);
+      let fallbackResponse = messages.defaultResponse;
+      
+      // Agregar sugerencias útiles basadas en el input
+      const inputLower = userInput.toLowerCase();
+      if (inputLower.length < 20) {
+        // Mensaje muy corto, ofrecer ayuda
+        fallbackResponse += `\n\nPuedo ayudarte con:\n\n`;
+        fallbackResponse += `• Información sobre nuestros servicios\n`;
+        fallbackResponse += `• Solicitar servicios del taller o transporte\n`;
+        fallbackResponse += `• Trámites tributarios\n`;
+        fallbackResponse += `• Documentos y certificados\n`;
+        fallbackResponse += `• Agendar reuniones\n\n`;
+        fallbackResponse += `¿Con cuál te puedo ayudar?`;
+      }
+      
+      return enrichWithMotivation(fallbackResponse, userInput);
     }
 
-    // Generar mensajes contextuales
-    const contextualMessages = generateContextualMessages(context);
+    // Generar mensajes contextuales con información de personalización
+    const { generateContextualMessages } = await import("./responseConfig");
+    const contextualMessages = generateContextualMessages(context, {
+      preferredName: clientInfo?.preferred_name,
+      useFormalAddress: clientInfo?.use_formal_address !== false,
+      gender: clientInfo?.gender || undefined,
+    });
 
     // Agregar información de empresa si está disponible
     const companyInfo = await getCompanyInfo();
@@ -632,8 +884,32 @@ export async function generateResponse(
       userInput.toLowerCase().includes("por qué");
 
     if (isQuestion && response === contextualMessages.defaultResponse) {
-      // Si es una pregunta pero no se encontró una plantilla específica
-      response = `Entiendo tu pregunta sobre "${userInput}". ${contextualMessages.defaultResponse} ¿Podrías darme más detalles para poder ayudarte mejor?`;
+      // Si es una pregunta pero no se encontró una plantilla específica, ser más útil
+      const questionLower = userInput.toLowerCase();
+      
+      // Intentar dar respuestas más específicas según el tipo de pregunta
+      if (questionLower.includes('cómo') || questionLower.includes('como')) {
+        response = `Te explico cómo podemos ayudarte. ${contextualMessages.defaultResponse}\n\n`;
+        response += `En MTZ nos encargamos de realizar los trámites por ti, así que no necesitas hacerlo tú mismo. `;
+        response += `Solo necesitamos algunos datos y nuestro equipo se encarga de todo el proceso.\n\n`;
+        response += `¿Te gustaría que te guíe paso a paso o prefieres que nuestro equipo lo haga directamente?`;
+      } else if (questionLower.includes('qué') || questionLower.includes('que')) {
+        response = `Con gusto te explico. ${contextualMessages.defaultResponse}\n\n`;
+        response += `Puedo ayudarte con información sobre nuestros servicios, trámites, documentos y más. `;
+        response += `¿Hay algo específico sobre lo que te gustaría saber más?`;
+      } else if (questionLower.includes('cuándo') || questionLower.includes('cuando')) {
+        response = `Sobre los tiempos, ${contextualMessages.defaultResponse}\n\n`;
+        response += `Los tiempos dependen del tipo de trámite o servicio. `;
+        response += `Nuestro equipo puede darte una estimación más precisa. `;
+        response += `¿Te gustaría que te contactemos o prefieres agendar una reunión?`;
+      } else if (questionLower.includes('dónde') || questionLower.includes('donde')) {
+        response = `Te indico dónde. ${contextualMessages.defaultResponse}\n\n`;
+        response += `Nuestra oficina está en Juan Martinez 616, Iquique. `;
+        response += `También podemos atenderte a domicilio en algunos casos. `;
+        response += `¿Te gustaría agendar una visita o prefieres que vayamos a tu ubicación?`;
+      } else {
+        response = `Entiendo tu pregunta. ${contextualMessages.defaultResponse} ¿Podrías darme más detalles para poder ayudarte mejor?`;
+      }
     }
 
     // Enriquecer la respuesta final con motivación y personalización
@@ -665,12 +941,53 @@ export async function generateResponse(
     return enrichedResponse;
   } catch (error) {
     console.error("Error al generar respuesta:", error);
-    // Respuesta de fallback cuando no entiende - ofrecer opciones
+    // Respuesta de fallback cuando no entiende - ofrecer opciones más completas
     const menu = await findRelevantMenu("documentos");
+    
+    // Intentar entender mejor la intención del usuario
+    const inputLower = userInput.toLowerCase();
+    let helpfulResponse = '';
+    
+    // Detectar intenciones comunes y ofrecer ayuda específica
+    if (inputLower.includes('ayuda') || inputLower.includes('necesito')) {
+      helpfulResponse = `Entiendo que necesitas ayuda. 😊 En MTZ podemos asistirte con:\n\n`;
+      helpfulResponse += `• 📊 **Consultoría tributaria y contable** - Declaraciones, trámites, asesoría\n`;
+      helpfulResponse += `• 🪑 **Taller de Sillas de Ruedas** - Reparación, mantenimiento, adaptación\n`;
+      helpfulResponse += `• 🚐 **Transporte Inclusivo** - Fundación Te Quiero Feliz\n`;
+      helpfulResponse += `• 📋 **Trámites y documentos** - IVA, RUT, certificados\n`;
+      helpfulResponse += `• 💬 **Soporte personalizado** - Nuestro equipo está para ayudarte\n\n`;
+      helpfulResponse += `¿Con cuál de estos servicios puedo ayudarte? Puedes escribirme directamente o usar las opciones del menú.`;
+    } else if (inputLower.includes('información') || inputLower.includes('informacion') || inputLower.includes('saber')) {
+      helpfulResponse = `Con gusto te proporciono información. 😊\n\n`;
+      helpfulResponse += `Puedo ayudarte con información sobre:\n\n`;
+      helpfulResponse += `• Nuestros servicios de contabilidad y asesoría tributaria\n`;
+      helpfulResponse += `• El taller de sillas de ruedas y sus servicios\n`;
+      helpfulResponse += `• El transporte inclusivo de la Fundación Te Quiero Feliz\n`;
+      helpfulResponse += `• Trámites tributarios y cómo podemos ayudarte con ellos\n`;
+      helpfulResponse += `• Documentos disponibles y cómo obtenerlos\n\n`;
+      helpfulResponse += `¿Sobre qué te gustaría saber más?`;
+    } else if (inputLower.includes('contacto') || inputLower.includes('hablar') || inputLower.includes('llamar')) {
+      helpfulResponse = `¡Por supuesto! Puedes contactarnos de varias formas:\n\n`;
+      helpfulResponse += `📞 **Teléfono principal:** +56 9 9006 2213 (Carlos Alejandro Villagra Farias)\n`;
+      helpfulResponse += `🪑 **Taller de Sillas:** +56 9 3300 3113\n`;
+      helpfulResponse += `🚐 **Transporte Inclusivo:** +56 9 3300 3113\n`;
+      helpfulResponse += `📍 **Dirección:** Juan Martinez 616, Iquique\n`;
+      helpfulResponse += `💬 **WhatsApp:** +56 9 9006 2213\n\n`;
+      helpfulResponse += `También puedes agendar una reunión con nosotros o escribirme aquí y te ayudo con lo que necesites.`;
+    } else {
+      helpfulResponse = `Entiendo tu mensaje. 😊 Aunque no estoy completamente seguro de lo que necesitas específicamente, puedo ayudarte con:\n\n`;
+      helpfulResponse += `• 📊 **Servicios tributarios y contables**\n`;
+      helpfulResponse += `• 🪑 **Taller de Sillas de Ruedas**\n`;
+      helpfulResponse += `• 🚐 **Transporte Inclusivo**\n`;
+      helpfulResponse += `• 📋 **Trámites y documentos**\n`;
+      helpfulResponse += `• 💬 **Contacto directo** con nuestro equipo\n\n`;
+      helpfulResponse += `¿Podrías contarme un poco más sobre lo que necesitas? Así puedo ayudarte de la mejor manera.`;
+    }
+    
     if (menu) {
       return {
         text: enrichWithMotivation(
-          `No estoy completamente seguro de lo que necesitas, pero puedo ayudarte con varias opciones. 😊\n\n¿Te gustaría:\n\n• 📋 **Ver documentos** disponibles\n• 💰 **Contratar servicios** tributarios\n• 📅 **Agendar una reunión** con nuestro equipo\n• 💬 **Contactar** con un ejecutivo\n• ℹ️ **Obtener información** sobre nuestros servicios\n\nSelecciona una opción del menú:\n\n${generateMenuResponse(menu)}`,
+          `${helpfulResponse}\n\nTambién puedes seleccionar una opción del menú:\n\n${generateMenuResponse(menu)}`,
           userInput
         ),
         menu,
@@ -679,7 +996,7 @@ export async function generateResponse(
     
     // Respuesta de fallback en caso de error (con motivación)
     return enrichWithMotivation(
-      "Gracias por tu mensaje. Estoy aquí para ayudarte. ¿En qué puedo asistirte?\n\nSi no encuentras lo que buscas, puedes escribirme de otra forma o seleccionar una opción del menú.",
+      helpfulResponse || "Gracias por tu mensaje. Estoy aquí para ayudarte. ¿En qué puedo asistirte?\n\nSi no encuentras lo que buscas, puedes escribirme de otra forma o contactarnos directamente.",
       userInput
     );
   }

@@ -60,6 +60,9 @@ export interface ClientInfo {
   notes: string | null
   tags: string[]
   custom_fields?: Record<string, any>
+  preferred_name?: string | null // Nombre preferido o apodo
+  use_formal_address?: boolean // Si usar "Don" antes del nombre
+  gender?: 'masculino' | 'femenino' | 'otro' | null // Género para el trato formal
   created_at: string
   updated_at: string
 }
@@ -87,6 +90,7 @@ export interface ClientExtendedInfo {
   notes: string | null
   internal_notes: string | null
   metadata: Record<string, any>
+  legal_info?: Record<string, any> // Información legal: inicio_actividades, rut_empresa, razon_social, etc.
   created_at: string
   updated_at: string
 }
