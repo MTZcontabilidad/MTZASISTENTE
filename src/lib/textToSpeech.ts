@@ -216,7 +216,7 @@ class TextToSpeechService {
 
       // Configurar opciones con valores más naturales, rápidos y amigables
       // Velocidad más rápida para sonar más dinámico y amigable (1.1-1.2 es ideal)
-      utterance.rate = options.rate ?? 1.15; // Velocidad más rápida y dinámica
+      utterance.rate = options.rate ?? 1.3; // Velocidad por defecto 1.3
       // Pitch ligeramente más alto para sonar más amigable y con carisma (1.1-1.2 es ideal)
       utterance.pitch = options.pitch ?? 1.15; // Tono más alto, amigable y simpático
       utterance.volume = options.volume ?? 1.0;
