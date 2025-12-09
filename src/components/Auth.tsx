@@ -52,32 +52,36 @@ function Auth({ onAuthSuccess }: AuthProps) {
       // En producción: usar la URL actual (Vercel)
       const getRedirectUrl = () => {
         const origin = window.location.origin
-        const pathname = window.location.pathname
+        const pathname = window.location.pathname || '/'
         
-        // Detectar si estamos en desarrollo
-        const isDev = import.meta.env.DEV || 
-                      origin.includes('localhost') || 
-                      origin.includes('127.0.0.1')
+        // Detectar si estamos en producción (Vercel o cualquier dominio que no sea localhost)
+        const isProduction = origin.includes('vercel.app') || 
+                            origin.includes('vercel.com') ||
+                            (!origin.includes('localhost') && 
+                             !origin.includes('127.0.0.1') && 
+                             !origin.includes('0.0.0.0'))
         
-        if (isDev) {
-          // En desarrollo, siempre usar localhost:5173
-          // Verificar si el servidor está corriendo en el puerto actual
-          const currentPort = window.location.port
-          if (currentPort === '5173' || !currentPort) {
-            return `${origin}${pathname}`
-          }
-          // Si estamos en otro puerto, usar 5173
-          return `http://localhost:5173${pathname}`
+        // Si estamos en producción, SIEMPRE usar la URL actual
+        if (isProduction) {
+          return `${origin}${pathname}`
         }
         
-        // En producción, usar la URL actual completa
-        return `${origin}${pathname}`
+        // Si estamos en desarrollo (localhost), usar localhost:5173
+        // Verificar si el servidor está corriendo en el puerto actual
+        const currentPort = window.location.port
+        if (currentPort === '5173' || !currentPort) {
+          return `${origin}${pathname}`
+        }
+        // Si estamos en otro puerto, usar 5173
+        return `http://localhost:5173${pathname}`
       }
       
       const redirectUrl = getRedirectUrl()
-      console.log('Redirect URL:', redirectUrl)
-      console.log('Current origin:', window.location.origin)
-      console.log('Is DEV:', import.meta.env.DEV)
+      console.log('🔐 OAuth Redirect Configuration:')
+      console.log('  - Current origin:', window.location.origin)
+      console.log('  - Redirect URL:', redirectUrl)
+      console.log('  - Is DEV mode:', import.meta.env.DEV)
+      console.log('  - Is Production:', redirectUrl.includes('vercel.app') || redirectUrl.includes('vercel.com'))
       
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
