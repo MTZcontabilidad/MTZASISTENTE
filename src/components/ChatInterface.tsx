@@ -89,6 +89,7 @@ function ChatInterface() {
   // Se ejecuta cada vez que el componente se monta (incluyendo cuando vuelves del admin panel)
   useEffect(() => {
     let mounted = true;
+    let isCancelled = false;
 
     // Resetear estados al montar para evitar estados inconsistentes
     setLoading(false);
@@ -96,12 +97,15 @@ function ChatInterface() {
 
     const loadConversation = async () => {
       try {
+        if (!mounted || isCancelled) return;
+        
         setLoadingHistory(true);
         const {
           data: { user },
         } = await supabase.auth.getUser();
-        if (!user || !mounted) {
-          if (mounted) {
+        
+        if (!user || !mounted || isCancelled) {
+          if (mounted && !isCancelled) {
             setLoadingHistory(false);
           }
           return;
@@ -115,6 +119,8 @@ function ChatInterface() {
             .eq("id", user.id)
             .maybeSingle();
 
+          if (!mounted || isCancelled) return;
+
           if (profile) {
             setUserType(profile.user_type as UserType);
             setUserName(profile.full_name || undefined);
@@ -125,14 +131,21 @@ function ChatInterface() {
           setCurrentUserId(user.id);
         } catch (error) {
           console.warn("No se pudo obtener perfil del usuario:", error);
+          if (!mounted || isCancelled) return;
         }
 
         // Obtener o crear conversación activa
         const activeConvId = await getActiveConversation(user.id);
+        
+        if (!mounted || isCancelled) return;
+        
         setConversationId(activeConvId);
 
         // Cargar mensajes históricos
         const historyMessages = await getConversationMessages(activeConvId);
+        
+        if (!mounted || isCancelled) return;
+        
         const mappedMessages = historyMessages.map((msg) => ({
           ...msg,
           timestamp: new Date(msg.created_at),
@@ -143,7 +156,7 @@ function ChatInterface() {
         setMessages(mappedMessages);
 
         // Si no hay mensajes, mostrar mensaje de bienvenida automático
-        if (mappedMessages.length === 0 && activeConvId) {
+        if (mappedMessages.length === 0 && activeConvId && mounted && !isCancelled) {
           // Obtener información de la empresa para personalizar el mensaje
           const { getCompanyInfo } = await import("../lib/companyConfig");
           const { generateContextualMessages } = await import("../lib/responseConfig");
@@ -178,7 +191,7 @@ function ChatInterface() {
             "assistant"
           );
           
-          if (welcomeMsgData) {
+          if (welcomeMsgData && mounted && !isCancelled) {
             setMessages([
               {
                 ...welcomeMsgData,
@@ -192,11 +205,15 @@ function ChatInterface() {
         }
 
         // Cargar recuerdos importantes para contexto futuro
-        const memories = await getUserMemories(user.id, activeConvId);
-        if (memories.length > 0) {
-          console.log("Recuerdos cargados:", memories.length);
+        if (mounted && !isCancelled) {
+          const memories = await getUserMemories(user.id, activeConvId);
+          if (memories.length > 0 && mounted && !isCancelled) {
+            console.log("Recuerdos cargados:", memories.length);
+          }
         }
       } catch (error: any) {
+        if (!mounted || isCancelled) return;
+        
         console.error("Error al cargar conversación:", error);
         // Si hay error crítico, permitir usar la app sin conversación
         if (error?.code === "42P01") {
@@ -205,7 +222,7 @@ function ChatInterface() {
           );
         }
       } finally {
-        if (mounted) {
+        if (mounted && !isCancelled) {
           setLoadingHistory(false);
         }
       }
@@ -214,6 +231,7 @@ function ChatInterface() {
     loadConversation();
 
     return () => {
+      isCancelled = true;
       mounted = false;
       // Limpiar estados al desmontar para evitar problemas al remontar
       setLoading(false);
@@ -579,6 +597,22 @@ function ChatInterface() {
     }
   };
 
+  // Detectar si el usuario quiere ver reuniones
+  useEffect(() => {
+    const lastMessage = messages[messages.length - 1];
+    if (
+      lastMessage &&
+      lastMessage.sender === "user" &&
+      (lastMessage.text.toLowerCase().includes("reunión") ||
+        lastMessage.text.toLowerCase().includes("reunion") ||
+        lastMessage.text.toLowerCase().includes("agendar") ||
+        lastMessage.text.toLowerCase().includes("reservar") ||
+        lastMessage.text.toLowerCase().includes("cita"))
+    ) {
+      setShowMeetings(true);
+    }
+  }, [messages]);
+
   // Filtrar mensajes según búsqueda
   const filteredMessages = searchQuery.trim()
     ? messages.filter((msg) =>
@@ -598,22 +632,6 @@ function ChatInterface() {
       </div>
     );
   }
-
-  // Detectar si el usuario quiere ver reuniones
-  useEffect(() => {
-    const lastMessage = messages[messages.length - 1];
-    if (
-      lastMessage &&
-      lastMessage.sender === "user" &&
-      (lastMessage.text.toLowerCase().includes("reunión") ||
-        lastMessage.text.toLowerCase().includes("reunion") ||
-        lastMessage.text.toLowerCase().includes("agendar") ||
-        lastMessage.text.toLowerCase().includes("reservar") ||
-        lastMessage.text.toLowerCase().includes("cita"))
-    ) {
-      setShowMeetings(true);
-    }
-  }, [messages]);
 
   return (
     <div className="chat-interface">

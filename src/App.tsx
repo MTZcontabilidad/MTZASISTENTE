@@ -476,6 +476,8 @@ function App() {
           return
         }
         
+        if (!mounted) return // Verificar nuevamente después de async
+        
         console.log('Auth state changed (evento crítico):', event, session?.user?.email)
         
         // Solo procesar SIGNED_IN y SIGNED_OUT
@@ -483,26 +485,36 @@ function App() {
           // Solo cargar si NO hay usuario actual o es diferente
           const currentUser = userRef.current
           if (!currentUser || currentUser.id !== session.user.id) {
+            if (!mounted) return
+            
             if (!isLoadingRef.current) {
               isLoadingRef.current = true
-              setLoading(true)
+              if (mounted) setLoading(true)
             }
             try {
               await loadUserProfile(session.user.id)
+              // Verificar mounted después de async
+              if (!mounted) return
             } catch (error) {
+              if (!mounted) return
               console.error('Error en loadUserProfile desde onAuthStateChange:', error)
-              setLoading(false)
-              isLoadingRef.current = false
+              if (mounted) {
+                setLoading(false)
+                isLoadingRef.current = false
+              }
             }
           } else {
             console.log('Usuario ya cargado, omitiendo recarga')
           }
         } else if (event === 'SIGNED_OUT') {
+          if (!mounted) return
           sessionCache.clear()
-          setUser(null)
-          userRef.current = null
-          setLoading(false)
-          isLoadingRef.current = false
+          if (mounted) {
+            setUser(null)
+            userRef.current = null
+            setLoading(false)
+            isLoadingRef.current = false
+          }
         }
       }
     )
