@@ -171,7 +171,7 @@ function App() {
               email: userEmail,
               full_name: authUser.user_metadata?.full_name || userEmail.split('@')[0] || '',
               avatar_url: authUser.user_metadata?.avatar_url || null,
-              role: isAdmin ? 'admin' : 'invitado',
+              role: isAdmin ? 'admin' : 'user',
               user_type: 'invitado'
             }))
             .then(() => console.log('Perfil creado en background'))
@@ -275,10 +275,27 @@ function App() {
             // Si falla, usar false
             isAdmin = false
           }
+          // Intentar obtener el role desde el perfil
+          let fallbackRole: UserRole = 'invitado'
+          try {
+            const { data: fallbackProfile } = await supabase
+              .from('user_profiles')
+              .select('role')
+              .eq('id', fallbackUser.id)
+              .maybeSingle()
+            if (fallbackProfile?.role) {
+              fallbackRole = fallbackProfile.role as UserRole
+            } else {
+              fallbackRole = isAdmin ? 'admin' : 'invitado'
+            }
+          } catch {
+            fallbackRole = isAdmin ? 'admin' : 'invitado'
+          }
+          
           setUser({
             id: fallbackUser.id,
             email: fallbackUser.email || '',
-            role: isAdmin ? 'admin' : 'invitado',
+            role: fallbackRole,
             user_type: 'invitado'
           })
           // Por defecto mostrar chat, admin puede cambiar al panel cuando quiera
@@ -681,10 +698,11 @@ function App() {
           .maybeSingle()
 
         // Establecer usuario como invitado
+        // Usar el role del perfil o 'user' como fallback (no 'invitado' que no es un role válido)
         const guestUser: User = {
           id: data.user.id,
           email: profileData?.email || uniqueEmail,
-          role: (profileData?.role as UserRole) || 'invitado',
+          role: (profileData?.role as UserRole) || 'user',
           user_type: (profileData?.user_type as any) || 'invitado'
         }
 

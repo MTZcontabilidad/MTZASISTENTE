@@ -276,9 +276,10 @@ class TextToSpeechService {
       .replace(/#/g, "") // Remover numerales
       .replace(/\^/g, "") // Remover símbolos de potencia
       .replace(/&/g, " y ") // Reemplazar & con "y"
-      .replace(/\+/g, " más ") // Reemplazar + con "más" solo si es necesario
-      .replace(/=/g, " igual ") // Reemplazar = con "igual" solo si es necesario
-      .replace(/\|/g, " o ") // Reemplazar | con "o"
+      // Remover símbolos matemáticos y operadores que no se deben pronunciar
+      .replace(/\+/g, "") // Remover + (no pronunciar "más")
+      .replace(/=/g, "") // Remover = (no pronunciar "igual")
+      .replace(/\|/g, "") // Remover | (no pronunciar "o")
       .replace(/\\/g, "") // Remover backslashes
       .replace(/\//g, " ") // Reemplazar slashes con espacios
       .trim();
