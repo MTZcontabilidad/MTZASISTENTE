@@ -80,11 +80,8 @@ class SpeechToTextService {
     this.recognition.maxAlternatives = 3; // Más alternativas para mejor precisión
     
     // Configuraciones adicionales para mejor compatibilidad móvil
-    // Algunos navegadores móviles requieren estas configuraciones
-    if ('grammars' in this.recognition) {
-      // Solo si está disponible (no todos los navegadores lo soportan)
-      (this.recognition as any).grammars = null;
-    }
+    // No establecer grammars ya que puede causar errores en algunos navegadores
+    // Si se necesita grammars, debe ser un SpeechGrammarList válido, no null
   }
 
   /**

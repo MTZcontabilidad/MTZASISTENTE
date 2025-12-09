@@ -427,6 +427,16 @@ function AdminPanel() {
     if (activeTab === "company") return fetchCompanyInfo;
     if (activeTab === "documents") return fetchAllDocuments;
     if (activeTab === "meetings") return fetchMeetings;
+    if (activeTab === "requests") {
+      return () => {
+        fetchUsers();
+        fetchMeetings();
+      };
+    }
+    if (activeTab === "wheelchair" || activeTab === "transport") {
+      // Los paneles de Taller y Transporte manejan su propia actualización
+      return () => {};
+    }
     return () => {};
   };
 
@@ -436,6 +446,11 @@ function AdminPanel() {
     if (activeTab === "company") return loadingCompany;
     if (activeTab === "documents") return loadingDocuments;
     if (activeTab === "meetings") return loadingMeetings;
+    if (activeTab === "requests") return loading || loadingMeetings;
+    if (activeTab === "wheelchair" || activeTab === "transport") {
+      // Los paneles de Taller y Transporte manejan su propio estado de carga
+      return false;
+    }
     return false;
   };
 

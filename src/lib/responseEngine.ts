@@ -303,7 +303,59 @@ export async function generateResponse(
       };
     }
     
-    // SEGUNDO: Verificar si faltan datos del usuario y preguntar
+    // SEGUNDO: Detectar saludos y preguntas simples para responder de manera más útil
+    const inputLower = userInput.toLowerCase().trim();
+    const isGreeting = 
+      inputLower === 'hola' || 
+      inputLower === 'hola!' || 
+      inputLower === 'hola.' ||
+      inputLower.startsWith('hola ') ||
+      inputLower === 'buenos días' ||
+      inputLower === 'buenos dias' ||
+      inputLower === 'buenas tardes' ||
+      inputLower === 'buenas noches' ||
+      inputLower === 'hi' ||
+      inputLower === 'hello';
+    
+    const isSimpleQuestion = 
+      inputLower === 'en que puedes ayudarme' ||
+      inputLower === 'en qué puedes ayudarme' ||
+      inputLower === 'que puedes hacer' ||
+      inputLower === 'qué puedes hacer' ||
+      inputLower === 'que haces' ||
+      inputLower === 'qué haces' ||
+      inputLower === 'ayuda' ||
+      inputLower === 'necesito ayuda' ||
+      inputLower === 'que servicios' ||
+      inputLower === 'qué servicios';
+    
+    if (isGreeting || isSimpleQuestion) {
+      // Obtener información del cliente para personalizar
+      const { getOrCreateClientInfo } = await import("./clientInfo");
+      const { formatClientName } = await import("./responseConfig");
+      const clientInfo = await getOrCreateClientInfo(userId);
+      
+      const formattedName = formatClientName(
+        userName || clientInfo?.company_name || undefined,
+        clientInfo?.preferred_name || undefined,
+        clientInfo?.use_formal_address !== false,
+        clientInfo?.gender || undefined
+      );
+      
+      if (isGreeting) {
+        return {
+          text: `${formattedName ? `¡Hola, ${formattedName}!` : '¡Hola!'} 👋\n\nSoy **Arise**, tu asistente virtual de MTZ. Estoy aquí para ayudarte con:\n\n• 📊 Consultoría tributaria y contable\n• 🚐 Fundación Te Quiero Feliz (transporte inclusivo)\n• 🪑 Taller de Sillas de Ruedas MMC\n• 📋 Trámites y documentos\n• 💬 Soporte personalizado\n• 📅 Agendar reuniones\n\n¿En qué puedo ayudarte hoy?`,
+          menu: undefined,
+        };
+      } else if (isSimpleQuestion) {
+        return {
+          text: `¡Por supuesto! 😊 Puedo ayudarte con:\n\n• 📊 **Consultoría tributaria y contable** - Declaraciones, trámites, asesoría\n• 🪑 **Taller de Sillas de Ruedas** - Reparación, mantenimiento, adaptación\n• 🚐 **Transporte Inclusivo** - Fundación Te Quiero Feliz\n• 📋 **Trámites y documentos** - IVA, RUT, certificados\n• 💬 **Soporte personalizado** - Nuestro equipo está para ayudarte\n• 📅 **Agendar reuniones** - Coordina una cita con nosotros\n\n¿Con cuál de estos servicios puedo ayudarte? Puedes escribirme directamente o usar las opciones del menú.`,
+          menu: undefined,
+        };
+      }
+    }
+    
+    // TERCERO: Verificar si faltan datos del usuario y preguntar
     const { detectMissingUserData } = await import("./userDataCollection");
     const missingData = await detectMissingUserData(userId);
     
@@ -329,7 +381,7 @@ export async function generateResponse(
       }
     }
     
-    // TERCERO: Detectar situaciones difíciles y ofrecer apoyo especial
+    // CUARTO: Detectar situaciones difíciles y ofrecer apoyo especial
     const difficultSituation = detectDifficultSituation(userInput);
     if (difficultSituation.detected && difficultSituation.needsSupport) {
       const supportMessage = generateSupportMessage(
@@ -344,9 +396,8 @@ export async function generateResponse(
       }
     }
 
-    // CUARTO: Detectar solicitud de documentos
+    // QUINTO: Detectar solicitud de documentos
     // IMPORTANTE: Si menciona IVA/F29/declaración, priorizar menú de trámites sobre documentos
-    const inputLower = userInput.toLowerCase();
     const isIvaOrF29Request = 
       inputLower.includes('iva') || 
       inputLower.includes('f29') || 
