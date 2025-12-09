@@ -28,6 +28,7 @@ export default function VoiceControls({
   const [pitch, setPitch] = useState(1.0);
   const [volume, setVolume] = useState(1.0);
   const [selectedVoice, setSelectedVoice] = useState<string>("");
+  const [useGeminiTTS, setUseGeminiTTS] = useState<boolean>(true); // Habilitado por defecto
 
   const {
     speak,
@@ -64,9 +65,16 @@ export default function VoiceControls({
       const voice = selectedVoice 
         ? availableVoices.find(v => v.name === selectedVoice) || undefined
         : undefined;
-      speak(textToRead, { rate, pitch, volume, voice: voice || undefined });
+      speak(textToRead, { 
+        rate, 
+        pitch, 
+        volume, 
+        voice: voice || undefined,
+        useGemini: useGeminiTTS, // Usar Gemini TTS si está habilitado
+        geminiVoice: useGeminiTTS ? 'es-CL-Neural2-A' : undefined // Voz neural más natural
+      });
     }
-  }, [textToRead, autoRead, ttsEnabled, rate, pitch, volume, speak, isSpeaking, selectedVoice, availableVoices]);
+  }, [textToRead, autoRead, ttsEnabled, rate, pitch, volume, speak, isSpeaking, selectedVoice, availableVoices, useGeminiTTS]);
 
   // Enviar transcript cuando está completo
   useEffect(() => {
@@ -273,6 +281,25 @@ export default function VoiceControls({
               />
               Leer respuestas automáticamente
             </label>
+          </div>
+
+          {/* Usar Gemini TTS (voz más natural) */}
+          <div className="voice-setting checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={useGeminiTTS}
+                onChange={(e) => {
+                  setUseGeminiTTS(e.target.checked);
+                }}
+              />
+              Usar voz Gemini (más natural y expresiva)
+            </label>
+            <p className="voice-info-small" style={{ marginTop: '4px', fontSize: '12px', color: '#666' }}>
+              {useGeminiTTS 
+                ? '✓ Usando voces neurales de Google Cloud (igual que Gemini)'
+                : 'Usando voces del navegador'}
+            </p>
           </div>
 
           {/* Voz actual (información) */}

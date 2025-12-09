@@ -4,6 +4,7 @@
  */
 
 import { useState, useCallback } from "react";
+import { speakWithGemini } from "./geminiTTS";
 
 interface TTSOptions {
   rate?: number; // Velocidad de habla (0.1 a 10, default: 1)
@@ -11,6 +12,8 @@ interface TTSOptions {
   volume?: number; // Volumen (0 a 1, default: 1)
   lang?: string; // Idioma (default: 'es-CL' para español de Chile)
   voice?: SpeechSynthesisVoice | null; // Voz específica
+  useGemini?: boolean; // Si debe intentar usar Gemini TTS primero (default: true)
+  geminiVoice?: string; // Voz específica de Gemini (ej: 'es-CL-Neural2-A')
 }
 
 class TextToSpeechService {
@@ -125,22 +128,45 @@ class TextToSpeechService {
 
   /**
    * Lee un texto en voz alta con opciones personalizadas
+   * Intenta usar Gemini TTS primero si está disponible, luego fallback a navegador
    */
-  speak(
+  async speak(
     text: string,
     options: TTSOptions = {}
   ): Promise<void> {
-    return new Promise((resolve, reject) => {
-      // Detener cualquier habla anterior
-      this.stop();
+    // Detener cualquier habla anterior
+    this.stop();
 
-      // Limpiar el texto (remover markdown, HTML, etc.)
-      const cleanText = this.cleanText(text);
+    // Limpiar el texto (remover markdown, HTML, etc.)
+    const cleanText = this.cleanText(text);
 
-      if (!cleanText.trim()) {
-        resolve();
-        return;
+    if (!cleanText.trim()) {
+      return;
+    }
+
+    // Intentar usar Gemini TTS si está habilitado (default: true)
+    if (options.useGemini !== false) {
+      try {
+        const geminiOptions = {
+          languageCode: options.lang || 'es-CL',
+          voiceName: options.geminiVoice || 'es-CL-Neural2-A', // Voz neural más natural
+          speakingRate: options.rate ? options.rate * 0.9 : 1.0, // Ajustar rate para Gemini
+          pitch: options.pitch ? (options.pitch - 1) * 20 : 0, // Convertir pitch a semitones
+        };
+
+        const success = await speakWithGemini(cleanText, geminiOptions);
+        if (success) {
+          this.isSpeaking = false; // Gemini maneja su propio estado
+          return;
+        }
+      } catch (error) {
+        console.log('Gemini TTS no disponible, usando TTS del navegador:', error);
+        // Continuar con TTS del navegador
       }
+    }
+
+    // Fallback a TTS del navegador
+    return new Promise((resolve, reject) => {
 
       const utterance = new SpeechSynthesisUtterance(cleanText);
 
