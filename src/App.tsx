@@ -537,7 +537,7 @@ function App() {
             id: data.user.id,
             email: `invitado_${phone}@mtz.local`,
             full_name: `Invitado ${phone}`,
-            role: 'invitado',
+            role: 'user', // Role base, user_type indica que es invitado
             user_type: 'invitado'
           }, {
             onConflict: 'id'
