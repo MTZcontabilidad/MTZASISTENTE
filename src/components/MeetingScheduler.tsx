@@ -4,8 +4,8 @@ import {
   getUserMeetings,
   createMeeting,
   cancelMeeting,
-  type Meeting,
 } from "../lib/meetings";
+import type { Meeting } from "../types";
 import type { MeetingInput } from "../types";
 import "./MeetingScheduler.css";
 

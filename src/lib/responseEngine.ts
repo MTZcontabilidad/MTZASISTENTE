@@ -283,9 +283,17 @@ export async function generateResponse(
           `Aquí tienes todas las categorías de trámites disponibles. Selecciona una categoría para ver los trámites específicos.`,
           userInput
         ),
-        menu: null, // No mostrar menú, mostrar CategoryButtons en su lugar
+        menu: undefined, // No mostrar menú, mostrar CategoryButtons en su lugar
       };
       }
+      // Si tramiteMenu es un objeto con text y menu, retornarlo directamente
+      if ('text' in tramiteMenu && 'menu' in tramiteMenu) {
+        return {
+          text: enrichWithMotivation((tramiteMenu as any).text, userInput),
+          menu: (tramiteMenu as any).menu,
+        };
+      }
+      // Si es un InteractiveMenu normal, retornarlo con texto genérico
       return {
         text: enrichWithMotivation(
           `Te ayudo con los trámites disponibles. Selecciona la opción que necesitas del menú a continuación. Cada botón te llevará directamente al portal correspondiente.`,
@@ -668,7 +676,7 @@ function detectDocumentRequest(userInput: string): {
  * Detecta si el usuario está solicitando información sobre trámites
  * y genera un menú interactivo apropiado
  */
-function detectarTramiteRequest(userInput: string): InteractiveMenu | null {
+function detectarTramiteRequest(userInput: string): InteractiveMenu | { text: string; menu: InteractiveMenu } | null {
   const inputLower = userInput.toLowerCase();
 
   // Detectar menciones específicas de carpeta tributaria (prioridad alta)

@@ -24,8 +24,8 @@ import {
   getAllMeetings,
   getPendingMeetings,
   updateMeetingStatus,
-  type Meeting,
 } from "../lib/meetings";
+import type { Meeting, MeetingStatus } from "../types";
 import { getDocumentIcon } from "../lib/documents";
 import { UserProfile, ClientInfo, UserType, UserRole } from "../types";
 import "./AdminPanel.css";
@@ -722,7 +722,7 @@ function AdminPanel() {
               const { data: { user } } = await supabase.auth.getUser();
               await updateMeetingStatus(
                 meetingId,
-                status,
+                status as MeetingStatus,
                 notes,
                 user?.id
               );

@@ -52,26 +52,41 @@ function Auth({ onAuthSuccess }: AuthProps) {
       // En producción: usar la URL actual (Vercel)
       const getRedirectUrl = () => {
         const origin = window.location.origin
-        // Si estamos en desarrollo y el puerto no es 5173, usar 5173
-        if (import.meta.env.DEV) {
-          // Si ya estamos en el puerto correcto, usar el origin actual
-          if (origin.includes(':5173') || origin.includes('localhost')) {
-            return `${origin}/`
+        const pathname = window.location.pathname
+        
+        // Detectar si estamos en desarrollo
+        const isDev = import.meta.env.DEV || 
+                      origin.includes('localhost') || 
+                      origin.includes('127.0.0.1')
+        
+        if (isDev) {
+          // En desarrollo, siempre usar localhost:5173
+          // Verificar si el servidor está corriendo en el puerto actual
+          const currentPort = window.location.port
+          if (currentPort === '5173' || !currentPort) {
+            return `${origin}${pathname}`
           }
-          // Si no, usar localhost:5173
-          return 'http://localhost:5173/'
+          // Si estamos en otro puerto, usar 5173
+          return `http://localhost:5173${pathname}`
         }
-        // En producción, usar la URL actual
-        return `${origin}/`
+        
+        // En producción, usar la URL actual completa
+        return `${origin}${pathname}`
       }
       
       const redirectUrl = getRedirectUrl()
       console.log('Redirect URL:', redirectUrl)
+      console.log('Current origin:', window.location.origin)
+      console.log('Is DEV:', import.meta.env.DEV)
       
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: redirectUrl,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          }
         }
       })
 

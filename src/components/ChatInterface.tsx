@@ -150,6 +150,7 @@ function ChatInterface() {
             userName: userName || undefined,
             companyName: companyName,
             memories: [],
+            recentMessages: [],
           };
           const contextualMessages = generateContextualMessages(context);
           
@@ -776,7 +777,7 @@ function ChatInterface() {
           </button>
         ) : (
           <button
-            onClick={handleSend}
+            onClick={() => handleSend()}
             disabled={
               !input.trim() || loading || !conversationId || loadingHistory
             }

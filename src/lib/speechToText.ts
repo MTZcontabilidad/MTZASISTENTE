@@ -11,8 +11,16 @@ interface STTOptions {
   interimResults?: boolean; // Mostrar resultados intermedios
 }
 
+// Declarar tipo para SpeechRecognition
+declare global {
+  interface Window {
+    SpeechRecognition: any;
+    webkitSpeechRecognition: any;
+  }
+}
+
 class SpeechToTextService {
-  private recognition: SpeechRecognition | null = null;
+  private recognition: any = null;
   private isListening: boolean = false;
   private isSupported: boolean = false;
 
@@ -81,7 +89,7 @@ class SpeechToTextService {
     }
 
     // Eventos
-    this.recognition.onresult = (event) => {
+    this.recognition.onresult = (event: any) => {
       let interimTranscript = "";
       let finalTranscript = "";
 
@@ -101,7 +109,7 @@ class SpeechToTextService {
       }
     };
 
-    this.recognition.onerror = (event) => {
+    this.recognition.onerror = (event: any) => {
       let errorMessage = "Error en el reconocimiento de voz";
 
       switch (event.error) {
