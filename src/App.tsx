@@ -103,7 +103,23 @@ function App() {
       }
 
       const userEmail = authUser.email || ''
-      const isAdmin = userEmail === 'mtzcontabilidad@gmail.com'
+      // Verificar si es admin desde el perfil, no hardcodeado
+      let isAdmin = false
+      
+      // Intentar obtener el role desde el perfil
+      try {
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('role')
+          .eq('id', userId)
+          .maybeSingle()
+        if (profile?.role === 'admin') {
+          isAdmin = true
+        }
+      } catch {
+        // Si falla, usar false
+        isAdmin = false
+      }
 
       // Intentar obtener el perfil
       let profileData = null
@@ -137,8 +153,9 @@ function App() {
             role: isAdmin ? 'admin' : 'invitado',
             user_type: 'invitado'
           })
+          // Por defecto mostrar chat, admin puede cambiar al panel cuando quiera
           if (isAdmin) {
-            setShowAdminPanel(true)
+            setShowAdminPanel(false) // Cambiar a false para que admin pueda entrar al chat
             setShowGuestWelcome(false)
           } else {
             setShowAdminPanel(false)
@@ -185,8 +202,11 @@ function App() {
           user_type: userData.user_type
         })
         
+        // Determinar si es admin desde el role del perfil
+        isAdmin = userRole === 'admin'
+        
         if (userRole === 'admin') {
-          setShowAdminPanel(true)
+          setShowAdminPanel(false) // Por defecto mostrar chat, admin puede cambiar
           setShowGuestWelcome(false)
         } else {
           setShowAdminPanel(false)
@@ -194,10 +214,26 @@ function App() {
           setShowGuestWelcome(false)
         }
       } else {
+        // Intentar obtener el role desde el perfil si existe
+        let userRole: UserRole = 'user'
+        try {
+          const { data: profile } = await supabase
+            .from('user_profiles')
+            .select('role')
+            .eq('id', userId)
+            .maybeSingle()
+          if (profile?.role) {
+            userRole = profile.role as UserRole
+            isAdmin = userRole === 'admin'
+          }
+        } catch {
+          // Si falla, usar role por defecto
+        }
+        
         const userData: User = {
           id: userId,
           email: userEmail,
-          role: isAdmin ? 'admin' : 'invitado',
+          role: userRole,
           user_type: 'invitado'
         }
         
@@ -211,13 +247,14 @@ function App() {
           user_type: userData.user_type
         })
         
+        // Por defecto mostrar chat, admin puede cambiar al panel cuando quiera
         if (isAdmin) {
-          setShowAdminPanel(true)
+          setShowAdminPanel(false) // Cambiar a false para que admin pueda entrar al chat
           setShowGuestWelcome(false)
         } else {
           setShowAdminPanel(false)
           // SIMPLIFICADO: Ya no mostramos welcome, vamos directo al chat
-        setShowGuestWelcome(false)
+          setShowGuestWelcome(false)
         }
       }
     } catch (error) {
@@ -225,15 +262,28 @@ function App() {
       try {
         const { data: { user: fallbackUser } } = await supabase.auth.getUser()
         if (fallbackUser) {
-          const isAdmin = fallbackUser.email === 'mtzcontabilidad@gmail.com'
+          // Verificar role desde perfil si existe
+          let isAdmin = false
+          try {
+            const { data: fallbackProfile } = await supabase
+              .from('user_profiles')
+              .select('role')
+              .eq('id', fallbackUser.id)
+              .maybeSingle()
+            isAdmin = fallbackProfile?.role === 'admin'
+          } catch {
+            // Si falla, usar false
+            isAdmin = false
+          }
           setUser({
             id: fallbackUser.id,
             email: fallbackUser.email || '',
             role: isAdmin ? 'admin' : 'invitado',
             user_type: 'invitado'
           })
+          // Por defecto mostrar chat, admin puede cambiar al panel cuando quiera
           if (isAdmin) {
-            setShowAdminPanel(true)
+            setShowAdminPanel(false) // Cambiar a false para que admin pueda entrar al chat
             setShowGuestWelcome(false)
           } else {
             setShowAdminPanel(false)
@@ -349,8 +399,9 @@ function App() {
     if (initialUser) {
       console.log('Usuario ya cargado desde caché inicial, omitiendo verificación:', initialUser.email)
       // Configurar estados según el usuario
+      // Por defecto mostrar chat, admin puede cambiar al panel cuando quiera
       if (initialUser.role === 'admin') {
-        setShowAdminPanel(true)
+        setShowAdminPanel(false) // Cambiar a false para que admin pueda entrar al chat
         setShowGuestWelcome(false)
       } else {
         setShowAdminPanel(false)
@@ -496,8 +547,9 @@ function App() {
     })
     
     // Configurar estados según el rol
+    // Por defecto mostrar chat, admin puede cambiar al panel cuando quiera
     if (role === 'admin') {
-      setShowAdminPanel(true)
+      setShowAdminPanel(false) // Cambiar a false para que admin pueda entrar al chat
       setShowGuestWelcome(false)
       } else {
         setShowAdminPanel(false)

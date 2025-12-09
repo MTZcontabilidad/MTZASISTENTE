@@ -34,7 +34,7 @@ interface UserWithClientInfo extends UserProfile {
   client_info?: ClientInfo | null;
 }
 
-type AdminTab = "users" | "faqs" | "company" | "documents" | "meetings";
+type AdminTab = "users" | "faqs" | "company" | "documents" | "meetings" | "requests";
 
 function AdminPanel() {
   const [activeTab, setActiveTab] = useState<AdminTab>("users");
@@ -198,6 +198,10 @@ function AdminPanel() {
     } else if (activeTab === "documents") {
       fetchAllDocuments();
     } else if (activeTab === "meetings") {
+      fetchMeetings();
+    } else if (activeTab === "requests") {
+      // Las requests se cargan automáticamente desde users y meetings
+      fetchUsers();
       fetchMeetings();
     }
   }, [activeTab, fetchUsers, fetchFAQs, fetchCompanyInfo, fetchAllDocuments, fetchMeetings]);
@@ -460,6 +464,12 @@ function AdminPanel() {
         >
           📅 Reuniones
         </button>
+        <button
+          className={`admin-tab ${activeTab === "requests" ? "active" : ""}`}
+          onClick={() => setActiveTab("requests")}
+        >
+          🔔 Requerimientos
+        </button>
       </div>
 
       {error && <div className="error-message">⚠️ {error}</div>}
@@ -537,6 +547,7 @@ function AdminPanel() {
                     <th>Teléfono</th>
                     <th>Tipo</th>
                     <th>Rol</th>
+                    <th>Estado</th>
                     <th>Empresa</th>
                     <th>Registro</th>
                     <th>Último acceso</th>
@@ -577,20 +588,34 @@ function AdminPanel() {
                       </td>
                       <td>
                         <span className={`role-badge ${user.role}`}>
-                          {user.role === "admin" ? "Admin" : "Usuario"}
+                          {user.role === "admin" ? "Admin" : user.role === "invitado" ? "Invitado" : "Usuario"}
+                        </span>
+                      </td>
+                      <td>
+                        <span className={`status-badge ${user.is_active !== false ? 'active' : 'inactive'}`}>
+                          {user.is_active !== false ? "✅ Activo" : "❌ Inactivo"}
                         </span>
                       </td>
                       <td>{user.client_info?.company_name || "-"}</td>
                       <td>{formatDate(user.created_at)}</td>
                       <td>{formatDate(user.last_login)}</td>
                       <td>
-                        <button
-                          onClick={() => handleEditUser(user)}
-                          className="edit-button"
-                          title="Editar usuario"
-                        >
-                          ✏️ Editar
-                        </button>
+                        <div className="action-buttons">
+                          <button
+                            onClick={() => handleEditUser(user)}
+                            className="edit-button"
+                            title="Editar usuario"
+                          >
+                            ✏️ Editar
+                          </button>
+                          <button
+                            onClick={() => handleToggleUserStatus(user)}
+                            className={`toggle-button ${user.is_active !== false ? 'deactivate' : 'activate'}`}
+                            title={user.is_active !== false ? "Desactivar usuario" : "Activar usuario"}
+                          >
+                            {user.is_active !== false ? "🚫 Desactivar" : "✅ Activar"}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -736,6 +761,14 @@ function AdminPanel() {
         />
       )}
 
+      {activeTab === "requests" && (
+        <RequestsSection
+          users={users}
+          meetings={meetings}
+          onUserClick={handleEditUser}
+        />
+      )}
+
       {/* Modal de FAQ */}
       {showFAQModal && (
         <FAQModal
@@ -789,6 +822,7 @@ function EditUserModal({ user, onClose, onSave }: EditUserModalProps) {
     user.user_type || "invitado"
   );
   const [role, setRole] = useState<UserRole>(user.role);
+  const [isActive, setIsActive] = useState<boolean>(user.is_active !== false);
   const [companyName, setCompanyName] = useState(
     user.client_info?.company_name || ""
   );
@@ -806,6 +840,7 @@ function EditUserModal({ user, onClose, onSave }: EditUserModalProps) {
         full_name: fullName,
         user_type: userType,
         role,
+        is_active: isActive,
         company_name: companyName,
         phone,
         address,
@@ -874,7 +909,23 @@ function EditUserModal({ user, onClose, onSave }: EditUserModalProps) {
                 >
                   <option value="user">Usuario</option>
                   <option value="admin">Administrador</option>
+                  <option value="invitado">Invitado</option>
                 </select>
+              </div>
+
+              <div className="form-group">
+                <label>Estado</label>
+                <div className="toggle-switch">
+                  <input
+                    type="checkbox"
+                    id="isActive"
+                    checked={isActive}
+                    onChange={(e) => setIsActive(e.target.checked)}
+                  />
+                  <label htmlFor="isActive" className="toggle-label">
+                    {isActive ? "✅ Activo" : "❌ Inactivo"}
+                  </label>
+                </div>
               </div>
             </div>
           )}
@@ -1802,6 +1853,125 @@ function MeetingsSection({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// Sección de Requerimientos
+interface RequestsSectionProps {
+  users: UserWithClientInfo[];
+  meetings: any[];
+  onUserClick: (user: UserWithClientInfo) => void;
+}
+
+function RequestsSection({ users, meetings, onUserClick }: RequestsSectionProps) {
+  // Reuniones pendientes
+  const pendingMeetings = meetings.filter(m => m.status === 'pending');
+  
+  // Usuarios inactivos
+  const inactiveUsers = users.filter(u => u.is_active === false);
+  
+  // Usuarios sin información completa
+  const incompleteUsers = users.filter(u => 
+    !u.client_info?.company_name && 
+    !u.client_info?.phone && 
+    u.user_type !== 'invitado'
+  );
+
+  return (
+    <div className="requests-section">
+      <div className="requests-grid">
+        {/* Reuniones pendientes */}
+        <div className="request-card">
+          <div className="request-header">
+            <h3>📅 Reuniones Pendientes</h3>
+            <span className="request-count">{pendingMeetings.length}</span>
+          </div>
+          {pendingMeetings.length === 0 ? (
+            <p className="no-requests">No hay reuniones pendientes</p>
+          ) : (
+            <div className="request-list">
+              {pendingMeetings.slice(0, 5).map((meeting) => {
+                const user = users.find(u => u.id === meeting.user_id);
+                return (
+                  <div key={meeting.id} className="request-item">
+                    <div className="request-info">
+                      <strong>{meeting.title}</strong>
+                      <p>{user?.email || 'Usuario desconocido'}</p>
+                      <small>{new Date(meeting.meeting_date).toLocaleDateString('es-CL')}</small>
+                    </div>
+                    <button
+                      onClick={() => user && onUserClick(user)}
+                      className="view-button"
+                      disabled={!user}
+                    >
+                      Ver
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Usuarios inactivos */}
+        <div className="request-card">
+          <div className="request-header">
+            <h3>❌ Usuarios Inactivos</h3>
+            <span className="request-count">{inactiveUsers.length}</span>
+          </div>
+          {inactiveUsers.length === 0 ? (
+            <p className="no-requests">Todos los usuarios están activos</p>
+          ) : (
+            <div className="request-list">
+              {inactiveUsers.slice(0, 5).map((user) => (
+                <div key={user.id} className="request-item">
+                  <div className="request-info">
+                    <strong>{user.full_name || user.email}</strong>
+                    <p>{user.email}</p>
+                    <small>Último acceso: {user.last_login ? new Date(user.last_login).toLocaleDateString('es-CL') : 'Nunca'}</small>
+                  </div>
+                  <button
+                    onClick={() => onUserClick(user)}
+                    className="view-button"
+                  >
+                    Ver
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Usuarios con información incompleta */}
+        <div className="request-card">
+          <div className="request-header">
+            <h3>⚠️ Información Incompleta</h3>
+            <span className="request-count">{incompleteUsers.length}</span>
+          </div>
+          {incompleteUsers.length === 0 ? (
+            <p className="no-requests">Todos los usuarios tienen información completa</p>
+          ) : (
+            <div className="request-list">
+              {incompleteUsers.slice(0, 5).map((user) => (
+                <div key={user.id} className="request-item">
+                  <div className="request-info">
+                    <strong>{user.full_name || user.email}</strong>
+                    <p>{user.email}</p>
+                    <small>Falta: {!user.client_info?.company_name && 'Empresa'} {!user.client_info?.phone && 'Teléfono'}</small>
+                  </div>
+                  <button
+                    onClick={() => onUserClick(user)}
+                    className="view-button"
+                  >
+                    Completar
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

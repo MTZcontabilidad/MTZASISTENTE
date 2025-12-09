@@ -12,6 +12,7 @@ export interface UserProfile {
   avatar_url: string | null
   role: UserRole
   user_type: UserType
+  is_active?: boolean
   created_at: string
   last_login: string | null
 }
