@@ -379,15 +379,8 @@ function ChatInterface() {
         };
         
         // Reproducir audio automáticamente si está habilitado (por defecto sí)
-        if (autoReadEnabled) {
-          // Importar y usar textToSpeech
-          const { textToSpeech } = await import("../lib/textToSpeech");
-          textToSpeech.speak(responseText, {
-            rate: 1.15,
-            pitch: 1.15,
-            useGemini: false, // Usar voz del navegador por defecto para respuestas rápidas
-          });
-        }
+        // El audio se reproduce automáticamente a través de VoiceControls cuando textToRead cambia
+        // Solo actualizamos lastAssistantMessage para que VoiceControls lo detecte
         setMessages((prev) => [...prev, newMessage]);
         // Actualizar texto para lectura de voz
         setLastAssistantMessage(responseText);
