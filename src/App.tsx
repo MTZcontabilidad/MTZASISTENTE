@@ -524,8 +524,37 @@ function App() {
     try {
       setLoading(true)
       
-      // Crear sesión anónima para invitado
-      const { data, error } = await supabase.auth.signInAnonymously()
+      // Intentar crear sesión anónima para invitado
+      // Si está deshabilitado, usar signUp con email temporal
+      let data, error
+      
+      try {
+        const result = await supabase.auth.signInAnonymously()
+        data = result.data
+        error = result.error
+      } catch (anonError: any) {
+        // Si anonymous está deshabilitado, usar signUp con email temporal
+        if (anonError.message?.includes('disabled') || anonError.message?.includes('Anonymous')) {
+          console.log('Anonymous sign-in deshabilitado, usando signUp temporal')
+          const email = `invitado_${phone}_${Date.now()}@mtz.local`
+          const password = `temp_${Math.random().toString(36).slice(2)}`
+          
+          const signUpResult = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+              data: {
+                is_guest: true,
+                phone: phone
+              }
+            }
+          })
+          data = signUpResult.data
+          error = signUpResult.error
+        } else {
+          throw anonError
+        }
+      }
       
       if (error) throw error
 
