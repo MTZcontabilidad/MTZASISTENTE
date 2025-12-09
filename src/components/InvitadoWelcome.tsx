@@ -137,15 +137,37 @@ function InvitadoWelcome({ user, onContinue }: InvitadoWelcomeProps) {
         }
       }
 
-      // Actualizar perfil
+      // Actualizar perfil con email si no es cliente (para sincronizar con teléfono)
       const updates: any = {
         user_type: userType
       }
 
-      await supabase
+      // Si no es cliente, actualizar también el email con el teléfono
+      if (isClient === false && phone.trim()) {
+        updates.email = `invitado_${phone.trim()}@mtz.local`
+        updates.full_name = `Invitado ${phone.trim()}`
+      }
+
+      const { error: profileError } = await supabase
         .from('user_profiles')
         .update(updates)
         .eq('id', user.id)
+
+      if (profileError) {
+        console.error('Error al actualizar perfil:', profileError)
+        // Intentar upsert como fallback
+        await supabase
+          .from('user_profiles')
+          .upsert({
+            id: user.id,
+            email: isClient === false ? `invitado_${phone.trim()}@mtz.local` : user.email,
+            full_name: isClient === false ? `Invitado ${phone.trim()}` : undefined,
+            role: 'user',
+            user_type: userType
+          }, {
+            onConflict: 'id'
+          })
+      }
 
       // Actualizar o crear client_info
       const { data: existing } = await supabase
@@ -162,17 +184,27 @@ function InvitadoWelcome({ user, onContinue }: InvitadoWelcomeProps) {
       }
 
       if (!existing) {
-        await supabase
+        const { error: clientInfoError } = await supabase
           .from('client_info')
           .insert({
             user_id: user.id,
             ...clientInfoData
           })
+        
+        if (clientInfoError) {
+          console.error('Error al crear client_info:', clientInfoError)
+          throw clientInfoError
+        }
       } else {
-        await supabase
+        const { error: clientInfoError } = await supabase
           .from('client_info')
           .update(clientInfoData)
           .eq('user_id', user.id)
+        
+        if (clientInfoError) {
+          console.error('Error al actualizar client_info:', clientInfoError)
+          throw clientInfoError
+        }
       }
 
       // Continuar al chat
@@ -303,10 +335,48 @@ function InvitadoWelcome({ user, onContinue }: InvitadoWelcomeProps) {
                   Solo necesitamos tu teléfono para registrarte y poder contactarte
                 </p>
               </div>
+              {error && (
+                <div className="form-error-message">
+                  {error}
+                </div>
+              )}
             </div>
           )}
 
-          {/* Sección de Servicios */}
+          {/* Botón de acción - MOVIDO ARRIBA */}
+          {(isClient !== null) && (
+            <div className="welcome-actions">
+              <button
+                onClick={handleStartChat}
+                disabled={
+                  saving || 
+                  (isClient === true && (!rut.trim() || !claveImpuestos.trim())) ||
+                  (isClient === false && !phone.trim())
+                }
+                className="start-chat-button"
+              >
+                {saving ? (
+                  <>
+                    <span className="button-spinner"></span>
+                    Guardando...
+                  </>
+                ) : (
+                  <>
+                    <span>🚀</span>
+                    Comenzar a Chatear
+                  </>
+                )}
+              </button>
+              {((isClient === true && (!rut.trim() || !claveImpuestos.trim())) ||
+                (isClient === false && !phone.trim())) && (
+                <p className="skip-text">
+                  Por favor completa los datos requeridos para continuar
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Sección de Servicios - MOVIDA ABAJO */}
           <div className="welcome-features">
             <h3 className="section-title">Nuestros Servicios</h3>
             <div className="features-grid">
@@ -355,37 +425,6 @@ function InvitadoWelcome({ user, onContinue }: InvitadoWelcomeProps) {
                 </div>
               </div>
             </div>
-          </div>
-
-          {/* Botón de acción */}
-          <div className="welcome-actions">
-            <button
-              onClick={handleStartChat}
-              disabled={
-                saving || 
-                (isClient === null) || 
-                (isClient === true && (!rut.trim() || !claveImpuestos.trim())) ||
-                (isClient === false && !phone.trim())
-              }
-              className="start-chat-button"
-            >
-              {saving ? (
-                <>
-                  <span className="button-spinner"></span>
-                  Guardando...
-                </>
-              ) : (
-                <>
-                  <span>🚀</span>
-                  Comenzar a Chatear
-                </>
-              )}
-            </button>
-            {isClient === null && (
-              <p className="skip-text">
-                Por favor selecciona si eres cliente de MTZ para continuar
-              </p>
-            )}
           </div>
         </div>
       </div>
