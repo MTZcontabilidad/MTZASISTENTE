@@ -673,12 +673,19 @@ function App() {
             onConflict: 'user_id'
           })
 
+        // Obtener el email del perfil actualizado
+        const { data: profileData } = await supabase
+          .from('user_profiles')
+          .select('email, role, user_type')
+          .eq('id', data.user.id)
+          .maybeSingle()
+
         // Establecer usuario como invitado
         const guestUser: User = {
           id: data.user.id,
-          email: `invitado_${phone}@mtz.local`,
-          role: 'invitado',
-          user_type: 'invitado'
+          email: profileData?.email || uniqueEmail,
+          role: (profileData?.role as UserRole) || 'invitado',
+          user_type: (profileData?.user_type as any) || 'invitado'
         }
 
         setUser(guestUser)
