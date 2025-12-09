@@ -449,7 +449,7 @@ export default function UserProfile({ userId, userEmail, userName, onUpdate }: U
                     </div>
                   )}
                   {formData.rut_empresa && !matchingCompany && !validatingRUT && (
-                    <div style={{ marginTop: '8px', padding: '8px', background: '#fff3e0', borderRadius: '4px' }}>
+                    <div style={{ marginTop: '8px', padding: '8px', background: 'rgba(255, 193, 7, 0.1)', border: '1px solid rgba(255, 193, 7, 0.3)', borderRadius: '4px', color: 'var(--text-primary)' }}>
                       ⚠️ No se encontró empresa con este RUT. Si eres cliente nuevo, contacta con MTZ.
                     </div>
                   )}

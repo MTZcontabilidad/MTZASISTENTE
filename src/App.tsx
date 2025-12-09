@@ -30,7 +30,7 @@ function App() {
 
   const [user, setUser] = useState<User | null>(initialUser)
   const [loading, setLoading] = useState(!initialUser) // Si hay caché, no cargar
-  const [showAdminPanel, setShowAdminPanel] = useState(false)
+  const [showAdminPanel, setShowAdminPanel] = useState(initialUser?.role === 'admin' ? true : false)
   const [showGuestWelcome, setShowGuestWelcome] = useState(false)
   const [welcomeCompleted, setWelcomeCompleted] = useState(false) // Bandera para evitar que se vuelva a mostrar
   const [devMode, setDevMode] = useState(false) // Modo de desarrollo
@@ -41,7 +41,7 @@ function App() {
   const lastCheckRef = useRef<number>(initialUser ? Date.now() : 0)
   // const sessionCheckedRef = useRef(!!initialUser) // No utilizado actualmente
   const userRef = useRef<User | null>(initialUser) // Ref para acceder al usuario actual
-  const adminPanelInitializedRef = useRef(false) // Ref para evitar resetear showAdminPanel después de la primera inicialización
+  const adminPanelInitializedRef = useRef(initialUser?.role === 'admin' ? true : false) // Ref para evitar resetear showAdminPanel después de la primera inicialización
 
   // Actualizar ref cuando cambia el usuario
   useEffect(() => {
@@ -157,7 +157,7 @@ function App() {
           // Solo inicializar showAdminPanel la primera vez
           if (!adminPanelInitializedRef.current) {
             if (isAdmin) {
-              setShowAdminPanel(false) // Cambiar a false para que admin pueda entrar al chat
+              setShowAdminPanel(true) // Los admins van directo al panel
             } else {
               setShowAdminPanel(false)
             }
@@ -210,7 +210,7 @@ function App() {
         // Solo inicializar showAdminPanel la primera vez, no resetearlo si el usuario ya lo cambió
         if (!adminPanelInitializedRef.current) {
           if (userRole === 'admin') {
-            setShowAdminPanel(false) // Por defecto mostrar chat, admin puede cambiar
+            setShowAdminPanel(true) // Los admins van directo al panel
           } else {
             setShowAdminPanel(false)
           }
@@ -254,7 +254,7 @@ function App() {
         // Solo inicializar showAdminPanel la primera vez
         if (!adminPanelInitializedRef.current) {
           if (isAdmin) {
-            setShowAdminPanel(false) // Cambiar a false para que admin pueda entrar al chat
+            setShowAdminPanel(true) // Los admins van directo al panel
           } else {
             setShowAdminPanel(false)
           }
@@ -303,17 +303,17 @@ function App() {
             role: fallbackRole,
             user_type: 'invitado'
           })
-          // Solo inicializar showAdminPanel la primera vez
-          if (!adminPanelInitializedRef.current) {
-            if (isAdmin) {
-              setShowAdminPanel(false) // Cambiar a false para que admin pueda entrar al chat
-            } else {
-              setShowAdminPanel(false)
-            }
-            adminPanelInitializedRef.current = true
+        // Solo inicializar showAdminPanel la primera vez
+        if (!adminPanelInitializedRef.current) {
+          if (isAdmin) {
+            setShowAdminPanel(true) // Los admins van directo al panel
+          } else {
+            setShowAdminPanel(false)
           }
-          setShowGuestWelcome(false)
-        } else {
+          adminPanelInitializedRef.current = true
+        }
+        setShowGuestWelcome(false)
+      } else {
           setUser(null)
         }
       } catch (fallbackError) {
@@ -577,7 +577,7 @@ function App() {
     // Solo inicializar showAdminPanel la primera vez
     if (!adminPanelInitializedRef.current) {
       if (role === 'admin') {
-        setShowAdminPanel(false) // Cambiar a false para que admin pueda entrar al chat
+        setShowAdminPanel(true) // Los admins van directo al panel
       } else {
         setShowAdminPanel(false)
       }
@@ -817,14 +817,6 @@ function App() {
               <p>Tu asistente virtual de MTZ. ¿En qué puedo ayudarte hoy?</p>
             </div>
             <div className="header-actions">
-              {user.role === 'admin' && (
-                <button
-                  onClick={() => setShowAdminPanel(!showAdminPanel)}
-                  className="admin-toggle-button"
-                >
-                  {showAdminPanel ? 'Arise' : 'Panel Admin'}
-                </button>
-              )}
               <button
                 onClick={() => {
                   // Toggle mute - esto se manejará en ChatInterface
