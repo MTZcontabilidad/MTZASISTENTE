@@ -257,19 +257,19 @@ class TextToSpeechService {
     let clean = text.replace(/<[^>]*>/g, "");
 
     // Remover markdown básico y símbolos ANTES de procesar el contenido
-    // Primero remover patrones de markdown completos
+    // PRIMERO: Remover TODOS los asteriscos (incluyendo dobles) antes de procesar markdown
     clean = clean
-      .replace(/\*\*(.*?)\*\*/g, "$1") // Negrita
-      .replace(/\*(.*?)\*/g, "$1") // Cursiva
-      .replace(/`(.*?)`/g, "$1") // Código inline
+      .replace(/\*\*/g, "") // Remover asteriscos dobles PRIMERO
+      .replace(/\*/g, "") // Remover TODOS los asteriscos sueltos
+      .replace(/`(.*?)`/g, "$1") // Código inline (sin asteriscos)
       .replace(/```[\s\S]*?```/g, "") // Bloques de código
       .replace(/#{1,6}\s/g, "") // Encabezados
       .replace(/\[([^\]]+)\]\([^\)]+\)/g, "$1") // Enlaces
       .replace(/\n{3,}/g, "\n\n"); // Múltiples saltos de línea
     
     // Luego remover TODOS los símbolos restantes que no sean necesarios para pronunciación
+    // (Ya no hay asteriscos aquí, pero mantenemos la estructura por si acaso)
     clean = clean
-      .replace(/\*/g, "") // Remover TODOS los asteriscos sueltos
       .replace(/_/g, " ") // Reemplazar guiones bajos con espacios
       .replace(/~/g, "") // Remover tildes
       .replace(/`/g, "") // Remover backticks
