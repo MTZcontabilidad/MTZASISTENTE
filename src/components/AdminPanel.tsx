@@ -20,6 +20,12 @@ import {
   setClientGoogleScript,
   type DocumentInput,
 } from "../lib/adminDocuments";
+import {
+  getAllMeetings,
+  getPendingMeetings,
+  updateMeetingStatus,
+  type Meeting,
+} from "../lib/meetings";
 import { getDocumentIcon } from "../lib/documents";
 import { UserProfile, ClientInfo, UserType, UserRole } from "../types";
 import "./AdminPanel.css";
@@ -28,7 +34,7 @@ interface UserWithClientInfo extends UserProfile {
   client_info?: ClientInfo | null;
 }
 
-type AdminTab = "users" | "faqs" | "company" | "documents";
+type AdminTab = "users" | "faqs" | "company" | "documents" | "meetings";
 
 function AdminPanel() {
   const [activeTab, setActiveTab] = useState<AdminTab>("users");
@@ -63,6 +69,11 @@ function AdminPanel() {
   const [selectedDocument, setSelectedDocument] = useState<any>(null);
   const [selectedUserForDocument, setSelectedUserForDocument] =
     useState<string>("");
+
+  // Estados para reuniones
+  const [meetings, setMeetings] = useState<any[]>([]);
+  const [loadingMeetings, setLoadingMeetings] = useState(false);
+  const [meetingFilter, setMeetingFilter] = useState<string>("all");
 
   // Funciones fetch memoizadas para evitar recreaciones innecesarias
   const fetchUsers = useCallback(async () => {
@@ -160,6 +171,22 @@ function AdminPanel() {
     }
   }, []);
 
+  // Funciones para reuniones
+  const fetchMeetings = useCallback(async () => {
+    try {
+      setLoadingMeetings(true);
+      const allMeetings = await getAllMeetings();
+      setMeetings(allMeetings);
+    } catch (err: any) {
+      console.error("Error al cargar reuniones:", err);
+      setError(
+        `Error al cargar reuniones: ${err.message || "Error desconocido"}`
+      );
+    } finally {
+      setLoadingMeetings(false);
+    }
+  }, []);
+
   // useEffect que depende de las funciones memoizadas
   useEffect(() => {
     if (activeTab === "users") {
@@ -170,8 +197,10 @@ function AdminPanel() {
       fetchCompanyInfo();
     } else if (activeTab === "documents") {
       fetchAllDocuments();
+    } else if (activeTab === "meetings") {
+      fetchMeetings();
     }
-  }, [activeTab, fetchUsers, fetchFAQs, fetchCompanyInfo, fetchAllDocuments]);
+  }, [activeTab, fetchUsers, fetchFAQs, fetchCompanyInfo, fetchAllDocuments, fetchMeetings]);
 
   const handleEditUser = (user: UserWithClientInfo) => {
     setSelectedUser(user);
@@ -368,6 +397,7 @@ function AdminPanel() {
     if (activeTab === "faqs") return fetchFAQs;
     if (activeTab === "company") return fetchCompanyInfo;
     if (activeTab === "documents") return fetchAllDocuments;
+    if (activeTab === "meetings") return fetchMeetings;
     return () => {};
   };
 
@@ -376,6 +406,7 @@ function AdminPanel() {
     if (activeTab === "faqs") return loadingFAQs;
     if (activeTab === "company") return loadingCompany;
     if (activeTab === "documents") return loadingDocuments;
+    if (activeTab === "meetings") return loadingMeetings;
     return false;
   };
 
@@ -422,6 +453,12 @@ function AdminPanel() {
           onClick={() => setActiveTab("documents")}
         >
           📄 Documentos
+        </button>
+        <button
+          className={`admin-tab ${activeTab === "meetings" ? "active" : ""}`}
+          onClick={() => setActiveTab("meetings")}
+        >
+          📅 Reuniones
         </button>
       </div>
 
@@ -671,6 +708,29 @@ function AdminPanel() {
           loading={loadingCompany}
           saving={savingCompany}
           onSave={handleSaveCompanyInfo}
+        />
+      )}
+
+      {activeTab === "meetings" && (
+        <MeetingsSection
+          meetings={meetings}
+          loading={loadingMeetings}
+          filter={meetingFilter}
+          onFilterChange={setMeetingFilter}
+          onStatusChange={async (meetingId, status, notes) => {
+            try {
+              const { data: { user } } = await supabase.auth.getUser();
+              await updateMeetingStatus(
+                meetingId,
+                status,
+                notes,
+                user?.id
+              );
+              await fetchMeetings();
+            } catch (err: any) {
+              alert(`Error: ${err.message || "Error desconocido"}`);
+            }
+          }}
         />
       )}
 
@@ -1485,6 +1545,261 @@ function DocumentModal({
           </div>
         </form>
       </div>
+    </div>
+  );
+}
+
+// Componente para sección de reuniones
+interface MeetingsSectionProps {
+  meetings: Meeting[];
+  loading: boolean;
+  filter: string;
+  onFilterChange: (filter: string) => void;
+  onStatusChange: (meetingId: string, status: string, notes?: string) => Promise<void>;
+}
+
+function MeetingsSection({
+  meetings,
+  loading,
+  filter,
+  onFilterChange,
+  onStatusChange,
+}: MeetingsSectionProps) {
+  const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null);
+  const [showActionModal, setShowActionModal] = useState(false);
+  const [actionType, setActionType] = useState<"approve" | "reject">("approve");
+  const [adminNotes, setAdminNotes] = useState("");
+  const [processing, setProcessing] = useState(false);
+
+  const filteredMeetings = meetings.filter((meeting) => {
+    if (filter === "all") return true;
+    return meeting.status === filter;
+  });
+
+  const handleAction = async () => {
+    if (!selectedMeeting) return;
+
+    setProcessing(true);
+    try {
+      await onStatusChange(
+        selectedMeeting.id,
+        actionType === "approve" ? "approved" : "rejected",
+        adminNotes || undefined
+      );
+      setShowActionModal(false);
+      setSelectedMeeting(null);
+      setAdminNotes("");
+    } catch (err) {
+      console.error("Error al procesar acción:", err);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString("es-ES", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  const getStatusBadge = (status: string) => {
+    const statusConfig: Record<string, { text: string; class: string }> = {
+      pending: { text: "⏳ Pendiente", class: "status-pending" },
+      approved: { text: "✅ Aprobada", class: "status-approved" },
+      rejected: { text: "❌ Rechazada", class: "status-rejected" },
+      cancelled: { text: "🚫 Cancelada", class: "status-cancelled" },
+      completed: { text: "✓ Completada", class: "status-completed" },
+    };
+
+    const config = statusConfig[status] || statusConfig.pending;
+    return (
+      <span className={`status-badge ${config.class}`}>{config.text}</span>
+    );
+  };
+
+  const pendingCount = meetings.filter((m) => m.status === "pending").length;
+
+  return (
+    <div className="meetings-section">
+      <div className="section-header">
+        <div>
+          <h3>📅 Gestión de Reuniones</h3>
+          {pendingCount > 0 && (
+            <span className="pending-badge">
+              {pendingCount} {pendingCount === 1 ? "reunión pendiente" : "reuniones pendientes"}
+            </span>
+          )}
+        </div>
+        <select
+          value={filter}
+          onChange={(e) => onFilterChange(e.target.value)}
+          className="filter-select"
+        >
+          <option value="all">Todas las reuniones</option>
+          <option value="pending">Pendientes</option>
+          <option value="approved">Aprobadas</option>
+          <option value="rejected">Rechazadas</option>
+          <option value="cancelled">Canceladas</option>
+          <option value="completed">Completadas</option>
+        </select>
+      </div>
+
+      {loading ? (
+        <div className="loading-state">
+          <div className="spinner-large"></div>
+          <p>Cargando reuniones...</p>
+        </div>
+      ) : filteredMeetings.length === 0 ? (
+        <div className="empty-state">
+          <p>No hay reuniones con el filtro seleccionado</p>
+        </div>
+      ) : (
+        <div className="meetings-admin-list">
+          {filteredMeetings.map((meeting) => (
+            <div key={meeting.id} className="meeting-admin-card">
+              <div className="meeting-admin-header">
+                <div>
+                  <h4>{meeting.title}</h4>
+                  <div className="meeting-admin-meta">
+                    <span>
+                      <strong>Usuario:</strong> {meeting.user_email || meeting.user_id}
+                      {meeting.user_full_name && ` (${meeting.user_full_name})`}
+                    </span>
+                    {meeting.company_name && (
+                      <span>
+                        <strong>Empresa:</strong> {meeting.company_name}
+                        {meeting.client_phone && ` - Tel: ${meeting.client_phone}`}
+                      </span>
+                    )}
+                    <span>
+                      <strong>Solicitada:</strong> {formatDate(meeting.created_at)}
+                    </span>
+                  </div>
+                </div>
+                {getStatusBadge(meeting.status)}
+              </div>
+
+              {meeting.description && (
+                <p className="meeting-description">{meeting.description}</p>
+              )}
+
+              <div className="meeting-admin-details">
+                <div className="meeting-detail">
+                  <strong>📅 Fecha y hora:</strong>
+                  <span>{formatDate(meeting.meeting_date)}</span>
+                </div>
+                <div className="meeting-detail">
+                  <strong>⏱️ Duración:</strong>
+                  <span>{meeting.duration_minutes} minutos</span>
+                </div>
+                {meeting.admin_notes && (
+                  <div className="meeting-detail">
+                    <strong>💬 Notas:</strong>
+                    <span>{meeting.admin_notes}</span>
+                  </div>
+                )}
+                {meeting.approved_at && (
+                  <div className="meeting-detail">
+                    <strong>✅ Aprobada:</strong>
+                    <span>{formatDate(meeting.approved_at)}</span>
+                  </div>
+                )}
+              </div>
+
+              {meeting.status === "pending" && (
+                <div className="meeting-admin-actions">
+                  <button
+                    onClick={() => {
+                      setSelectedMeeting(meeting);
+                      setActionType("approve");
+                      setShowActionModal(true);
+                    }}
+                    className="btn-approve"
+                  >
+                    ✅ Aprobar
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSelectedMeeting(meeting);
+                      setActionType("reject");
+                      setShowActionModal(true);
+                    }}
+                    className="btn-reject"
+                  >
+                    ❌ Rechazar
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Modal para aprobar/rechazar */}
+      {showActionModal && selectedMeeting && (
+        <div className="modal-overlay" onClick={() => setShowActionModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>
+                {actionType === "approve" ? "Aprobar Reunión" : "Rechazar Reunión"}
+              </h3>
+              <button className="modal-close" onClick={() => setShowActionModal(false)}>
+                ×
+              </button>
+            </div>
+
+            <div className="modal-form">
+              <div className="form-group">
+                <label>
+                  {actionType === "approve"
+                    ? "Notas (opcional)"
+                    : "Motivo del rechazo (opcional)"}
+                </label>
+                <textarea
+                  value={adminNotes}
+                  onChange={(e) => setAdminNotes(e.target.value)}
+                  placeholder={
+                    actionType === "approve"
+                      ? "Agrega notas adicionales sobre esta reunión..."
+                      : "Explica el motivo del rechazo..."
+                  }
+                  rows={4}
+                />
+              </div>
+
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowActionModal(false);
+                    setSelectedMeeting(null);
+                    setAdminNotes("");
+                  }}
+                  className="cancel-button"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleAction}
+                  disabled={processing}
+                  className={actionType === "approve" ? "save-button" : "delete-button"}
+                >
+                  {processing
+                    ? "Procesando..."
+                    : actionType === "approve"
+                    ? "Aprobar"
+                    : "Rechazar"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

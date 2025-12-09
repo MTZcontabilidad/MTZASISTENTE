@@ -45,6 +45,17 @@ import {
 } from "../config/tramites";
 import { getClientGoogleScript } from "./documents";
 import { UserMemory, ClientInfo, Message, UserType } from "../types";
+import {
+  enrichWithMotivation,
+  generateMotivationalMessage,
+  detectUserNeedsEncouragement,
+  getMotivationalClosing,
+} from "./personality";
+import {
+  detectDifficultSituation,
+  generateSupportMessage,
+  needsSpecialSupport,
+} from "./situationDetection";
 
 export interface ResponseOptions {
   userId: string;
@@ -181,7 +192,22 @@ export async function generateResponse(
   const { userId, conversationId, userInput, userType, userName } = options;
 
   try {
-    // PRIMERO: Detectar solicitud de documentos
+    // PRIMERO: Detectar situaciones difíciles y ofrecer apoyo especial
+    const difficultSituation = detectDifficultSituation(userInput);
+    if (difficultSituation.detected && difficultSituation.needsSupport) {
+      const supportMessage = generateSupportMessage(
+        difficultSituation,
+        userName
+      );
+      if (supportMessage) {
+        return {
+          text: supportMessage,
+          menu: undefined,
+        };
+      }
+    }
+
+    // SEGUNDO: Detectar solicitud de documentos
     const documentRequest = detectDocumentRequest(userInput);
     if (documentRequest) {
       const documents = await getDocumentsByType(userId, documentRequest.type);
@@ -229,43 +255,71 @@ export async function generateResponse(
         const menu = await findRelevantMenu("documentos");
         if (menu) {
           return {
-            text: `No encontré documentos de tipo ${
-              documentRequest.type
-            } en tu cuenta.\n\n${generateMenuResponse(menu)}`,
+            text: enrichWithMotivation(
+              `No encontré documentos de tipo ${
+                documentRequest.type
+              } en tu cuenta, pero no te preocupes. Aquí tienes otras opciones disponibles:\n\n${generateMenuResponse(menu)}`,
+              userInput
+            ),
             menu,
           };
         }
       }
     }
 
-    // SEGUNDO: Detectar solicitudes de trámites y generar menús automáticamente
+    // TERCERO: Detectar solicitudes de trámites y generar menús automáticamente
     const tramiteMenu = detectarTramiteRequest(userInput);
     if (tramiteMenu) {
+      // Si es una solicitud de categorías, retornar texto especial para mostrar CategoryButtons
+      const inputLower = userInput.toLowerCase();
+      if (
+        inputLower.includes("ver todas las categorías") ||
+        inputLower.includes("ver todas las categorias") ||
+        inputLower.includes("categorías de trámites") ||
+        inputLower.includes("categorias de tramites")
+      ) {
       return {
-        text: `Te ayudo con los trámites disponibles. Selecciona la opción que necesitas del menú a continuación. Cada botón te llevará directamente al portal correspondiente.`,
+        text: enrichWithMotivation(
+          `Aquí tienes todas las categorías de trámites disponibles. Selecciona una categoría para ver los trámites específicos.`,
+          userInput
+        ),
+        menu: null, // No mostrar menú, mostrar CategoryButtons en su lugar
+      };
+      }
+      return {
+        text: enrichWithMotivation(
+          `Te ayudo con los trámites disponibles. Selecciona la opción que necesitas del menú a continuación. Cada botón te llevará directamente al portal correspondiente.`,
+          userInput
+        ),
         menu: tramiteMenu,
       };
     }
 
-    // TERCERO: Detectar si debería mostrar un menú interactivo
+    // CUARTO: Detectar si debería mostrar un menú interactivo
     const relevantMenu = await findRelevantMenu(userInput);
     if (relevantMenu) {
       return {
-        text: generateMenuResponse(relevantMenu),
+        text: enrichWithMotivation(
+          generateMenuResponse(relevantMenu),
+          userInput
+        ),
         menu: relevantMenu,
       };
     }
 
-    // CUARTO: Generar menús para servicios comunes si se solicita
+    // QUINTO: Generar menús para servicios comunes si se solicita
     const servicioMenu = detectarServicioRequest(userInput);
     if (servicioMenu) {
       return {
-        text: `Te ayudo con nuestros servicios. Selecciona la opción que te interesa:`,
+        text: enrichWithMotivation(
+          `Te ayudo con nuestros servicios. Selecciona la opción que te interesa:`,
+          userInput
+        ),
         menu: servicioMenu,
       };
     }
 
-    // QUINTO: Buscar FAQs que coincidan
+    // SEXTO: Buscar FAQs que coincidan
     // (Sistema de trámites deshabilitado - tabla no existe en BD)
     // Si quieres habilitarlo, ejecuta supabase-tramites.sql y descomenta el código arriba
     const matchingFAQs = await findMatchingFAQs(userInput);
@@ -279,6 +333,9 @@ export async function generateResponse(
 
       // Personalizar la respuesta de la FAQ con contexto si es necesario
       let faqAnswer = bestFAQ.answer;
+      
+      // Detectar si el usuario necesita ánimo
+      const needs = detectUserNeedsEncouragement(userInput);
 
       // Reemplazar variables básicas si existen
       const companyInfo = await getCompanyInfo();
@@ -315,7 +372,11 @@ export async function generateResponse(
         }
       }
 
-      return faqAnswer.trim();
+      // Enriquecer la respuesta FAQ con motivación
+      return enrichWithMotivation(faqAnswer.trim(), userInput, {
+        hasErrors: needs.isFrustrated,
+        isComplexTask: false,
+      });
     }
 
     // Construir contexto
@@ -344,7 +405,7 @@ export async function generateResponse(
     if (!template) {
       // Fallback: respuesta genérica
       const messages = generateContextualMessages(context);
-      return messages.defaultResponse;
+      return enrichWithMotivation(messages.defaultResponse, userInput);
     }
 
     // Generar mensajes contextuales
@@ -418,11 +479,32 @@ export async function generateResponse(
       response = `Entiendo tu pregunta sobre "${userInput}". ${contextualMessages.defaultResponse} ¿Podrías darme más detalles para poder ayudarte mejor?`;
     }
 
-    return response.trim();
+    // Enriquecer la respuesta final con motivación
+    const needs = detectUserNeedsEncouragement(userInput);
+    
+    // Si hay una situación difícil pero no se detectó antes, agregar mensaje de apoyo
+    const situation = detectDifficultSituation(userInput);
+    if (situation.detected && !situation.needsSupport) {
+      // Situación leve, agregar mensaje de apoyo sutil
+      response += " Recuerda que en MTZ estamos aquí para apoyarte y ser tu respaldo en lo que necesites.";
+    }
+    
+    const enrichedResponse = enrichWithMotivation(response.trim(), userInput, {
+      isFirstTime: context.memories.length === 0,
+      hasErrors: needs.isFrustrated,
+      isComplexTask: userInput.toLowerCase().includes("trámite") || 
+                     userInput.toLowerCase().includes("proceso") ||
+                     userInput.toLowerCase().includes("cómo"),
+    });
+
+    return enrichedResponse;
   } catch (error) {
     console.error("Error al generar respuesta:", error);
-    // Respuesta de fallback en caso de error
-    return "Gracias por tu mensaje. Estoy aquí para ayudarte. ¿En qué puedo asistirte?";
+    // Respuesta de fallback en caso de error (con motivación)
+    return enrichWithMotivation(
+      "Gracias por tu mensaje. Estoy aquí para ayudarte. ¿En qué puedo asistirte?",
+      userInput
+    );
   }
 }
 
@@ -589,6 +671,24 @@ function detectDocumentRequest(userInput: string): {
 function detectarTramiteRequest(userInput: string): InteractiveMenu | null {
   const inputLower = userInput.toLowerCase();
 
+  // Detectar menciones específicas de carpeta tributaria (prioridad alta)
+  if (
+    inputLower.includes("carpeta tributaria") ||
+    inputLower.includes("carpeta del sii") ||
+    inputLower.includes("carpeta sii") ||
+    (inputLower.includes("carpeta") && inputLower.includes("tributaria")) ||
+    (inputLower.includes("necesito") && inputLower.includes("carpeta")) ||
+    (inputLower.includes("obtener") && inputLower.includes("carpeta"))
+  ) {
+    const carpetaTramite = buscarTramites("carpeta tributaria");
+    if (carpetaTramite.length > 0) {
+      return {
+        text: `Te ayudo a obtener tu carpeta tributaria electrónica del SII. Haz clic en el botón de abajo para acceder directamente al portal del SII donde podrás:\n\n• Descargar documentos tributarios\n• Acreditar renta\n• Solicitar créditos\n• Acreditar tamaño de empresa\n• Generar carpetas personalizadas\n\n**Nota:** Necesitarás tu clave del SII para acceder. Si no la tienes, puedes recuperarla en el mismo portal.`,
+        menu: generarMenuTramites(carpetaTramite, "sii"),
+      };
+    }
+  }
+
   // Detectar menciones de SII
   if (
     inputLower.includes("sii") ||
@@ -623,8 +723,9 @@ function detectarTramiteRequest(userInput: string): InteractiveMenu | null {
   if (
     inputLower.includes("tesorería") ||
     inputLower.includes("tesoreria") ||
-    inputLower.includes("pago") ||
-    inputLower.includes("certificado tributario")
+    (inputLower.includes("pago") && inputLower.includes("contribuciones")) ||
+    inputLower.includes("certificado tributario") ||
+    inputLower.includes("certificado de deuda")
   ) {
     const tramites = getTramitesPorCategoria("tesoreria");
     if (tramites.length > 0) {
@@ -632,7 +733,52 @@ function detectarTramiteRequest(userInput: string): InteractiveMenu | null {
     }
   }
 
-  // Detectar solicitud genérica de trámites
+  // Detectar menciones de Municipalidad Iquique
+  if (
+    inputLower.includes("municipalidad iquique") ||
+    inputLower.includes("iquique") ||
+    (inputLower.includes("permiso") && inputLower.includes("circulación")) ||
+    (inputLower.includes("permiso") && inputLower.includes("circulacion"))
+  ) {
+    const tramites = getTramitesPorCategoria("municipalidad-iquique");
+    if (tramites.length > 0) {
+      return generarMenuTramites(tramites, "municipalidad-iquique");
+    }
+  }
+
+  // Detectar menciones de Municipalidad Alto Hospicio
+  if (
+    inputLower.includes("municipalidad alto hospicio") ||
+    inputLower.includes("alto hospicio") ||
+    (inputLower.includes("infracciones") && inputLower.includes("tránsito")) ||
+    (inputLower.includes("infracciones") && inputLower.includes("transito"))
+  ) {
+    const tramites = getTramitesPorCategoria("municipalidad-alto-hospicio");
+    if (tramites.length > 0) {
+      return generarMenuTramites(tramites, "municipalidad-alto-hospicio");
+    }
+  }
+
+  // Detectar solicitud genérica de trámites o categorías
+  // Si el usuario pregunta por categorías o quiere ver todos los trámites, retornar null
+  // para que se muestre CategoryButtons en el chat
+  const solicitudCategorias = 
+    inputLower.includes("ver trámites") ||
+    inputLower.includes("trámites disponibles") ||
+    inputLower.includes("categorías") ||
+    inputLower.includes("categorias") ||
+    inputLower.includes("qué trámites") ||
+    inputLower.includes("que tramites") ||
+    (inputLower.includes("ver") && inputLower.includes("categoría")) ||
+    (inputLower.includes("ver") && inputLower.includes("categoria")) ||
+    inputLower === "trámites" ||
+    inputLower === "tramites";
+
+  if (solicitudCategorias) {
+    // Retornar null para que el chat muestre CategoryButtons
+    return null;
+  }
+
   if (
     inputLower.includes("trámite") ||
     inputLower.includes("tramite") ||

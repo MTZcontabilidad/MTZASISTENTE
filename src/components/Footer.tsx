@@ -7,7 +7,7 @@ function Footer() {
       <div className="footer-content">
         <div className="footer-section">
           <h4>MTZ Asistente</h4>
-          <p>Tu asistente virtual para servicios contables, transporte inclusivo y más.</p>
+          <p>Tu asistente virtual para MTZ Consultores Tributarios, Fundación Te Quiero Feliz, Taller de Sillas de Ruedas MMC y más.</p>
         </div>
 
         <div className="footer-section">

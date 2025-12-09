@@ -5,7 +5,6 @@ import Auth from './components/Auth'
 import ChatInterface from './components/ChatInterface'
 import AdminPanel from './components/AdminPanel'
 import InvitadoWelcome from './components/InvitadoWelcome'
-import Footer from './components/Footer'
 import DevModeSelector from './components/DevModeSelector'
 import './App.css'
 import type { UserRole, UserType } from './types'
@@ -606,7 +605,6 @@ function App() {
         ) : (
           <ChatInterface />
         )}
-        <Footer />
       </div>
     </div>
   )

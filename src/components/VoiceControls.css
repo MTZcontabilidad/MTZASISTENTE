@@ -1,0 +1,326 @@
+.voice-controls-container {
+  position: fixed;
+  bottom: 100px;
+  right: 24px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+.voice-controls-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.voice-control-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: linear-gradient(
+    135deg,
+    var(--bg-secondary) 0%,
+    rgba(26, 26, 36, 0.95) 100%
+  );
+  border: 2px solid var(--border-color);
+  border-radius: 12px;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  min-width: 100px;
+  justify-content: center;
+}
+
+.voice-control-button:hover {
+  border-color: var(--neon-blue);
+  background: linear-gradient(
+    135deg,
+    rgba(0, 212, 255, 0.15) 0%,
+    rgba(0, 153, 204, 0.1) 100%
+  );
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 212, 255, 0.4);
+}
+
+.voice-control-button.active {
+  border-color: var(--neon-blue);
+  background: linear-gradient(
+    135deg,
+    rgba(0, 212, 255, 0.25) 0%,
+    rgba(0, 153, 204, 0.15) 100%
+  );
+  box-shadow: 0 4px 16px rgba(0, 212, 255, 0.5);
+}
+
+.voice-control-button.speaking {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.voice-control-button.listening {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    box-shadow: 0 4px 16px rgba(0, 212, 255, 0.5);
+  }
+  50% {
+    box-shadow: 0 4px 24px rgba(0, 212, 255, 0.8);
+  }
+}
+
+.voice-control-button.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.voice-control-button.disabled:hover {
+  transform: none;
+  border-color: var(--border-color);
+  background: linear-gradient(
+    135deg,
+    var(--bg-secondary) 0%,
+    rgba(26, 26, 36, 0.95) 100%
+  );
+}
+
+.voice-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.voice-label {
+  font-size: 13px;
+}
+
+.voice-settings-panel {
+  background: linear-gradient(
+    135deg,
+    var(--bg-secondary) 0%,
+    rgba(26, 26, 36, 0.98) 100%
+  );
+  border: 2px solid var(--border-color);
+  border-radius: 16px;
+  padding: 20px;
+  min-width: 280px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.voice-settings-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 16px 0;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.voice-setting {
+  margin-bottom: 16px;
+}
+
+.voice-setting:last-child {
+  margin-bottom: 0;
+}
+
+.voice-setting label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.voice-setting input[type="range"] {
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--bg-tertiary);
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.voice-setting input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--neon-blue);
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 212, 255, 0.5);
+  transition: all 0.2s ease;
+}
+
+.voice-setting input[type="range"]::-webkit-slider-thumb:hover {
+  background: var(--neon-blue-light);
+  box-shadow: 0 2px 10px rgba(0, 212, 255, 0.8);
+  transform: scale(1.1);
+}
+
+.voice-setting input[type="range"]::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--neon-blue);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 6px rgba(0, 212, 255, 0.5);
+  transition: all 0.2s ease;
+}
+
+.voice-setting input[type="range"]::-moz-range-thumb:hover {
+  background: var(--neon-blue-light);
+  box-shadow: 0 2px 10px rgba(0, 212, 255, 0.8);
+  transform: scale(1.1);
+}
+
+.voice-setting.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.voice-setting.checkbox label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.voice-setting.checkbox input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--neon-blue);
+}
+
+.voice-setting.info {
+  padding: 12px;
+  background: rgba(0, 212, 255, 0.1);
+  border-radius: 8px;
+  border: 1px solid rgba(0, 212, 255, 0.2);
+}
+
+.voice-setting.info p {
+  margin: 4px 0;
+  font-size: 12px;
+  color: var(--text-primary);
+}
+
+.voice-info-small {
+  font-size: 11px !important;
+  opacity: 0.7;
+}
+
+.voice-transcript {
+  background: linear-gradient(
+    135deg,
+    rgba(0, 212, 255, 0.15) 0%,
+    rgba(0, 153, 204, 0.1) 100%
+  );
+  border: 2px solid var(--neon-blue);
+  border-radius: 12px;
+  padding: 12px 16px;
+  min-width: 250px;
+  max-width: 400px;
+  box-shadow: 0 4px 16px rgba(0, 212, 255, 0.3);
+  animation: slideUp 0.3s ease-out;
+}
+
+.transcript-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--neon-blue);
+  margin: 0 0 6px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.transcript-text {
+  font-size: 14px;
+  color: var(--text-primary);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.voice-error {
+  background: rgba(255, 68, 68, 0.15);
+  border: 2px solid rgba(255, 68, 68, 0.5);
+  border-radius: 12px;
+  padding: 12px 16px;
+  color: #ff4444;
+  font-size: 13px;
+  font-weight: 600;
+  min-width: 250px;
+  animation: slideUp 0.3s ease-out;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .voice-controls-container {
+    bottom: 80px;
+    right: 12px;
+  }
+
+  .voice-control-button {
+    padding: 10px 12px;
+    min-width: 80px;
+    font-size: 12px;
+  }
+
+  .voice-label {
+    display: none;
+  }
+
+  .voice-settings-panel {
+    min-width: 240px;
+    padding: 16px;
+  }
+
+  .voice-transcript {
+    min-width: 200px;
+    max-width: 300px;
+  }
+}
+
+@media (max-width: 480px) {
+  .voice-controls-container {
+    bottom: 70px;
+    right: 8px;
+  }
+
+  .voice-control-button {
+    padding: 8px 10px;
+    min-width: 60px;
+  }
+
+  .voice-icon {
+    font-size: 16px;
+  }
+}
+

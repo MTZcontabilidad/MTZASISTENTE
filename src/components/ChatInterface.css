@@ -195,6 +195,12 @@
   font-size: 15px;
 }
 
+/* Estilos para CategoryButtons wrapper */
+.category-buttons-wrapper {
+  margin-top: 16px;
+  margin-bottom: 8px;
+}
+
 /* Estilos para markdown en mensajes */
 .message-content .chat-link {
   color: var(--neon-blue);
@@ -362,6 +368,17 @@
   background: rgba(0, 212, 255, 0.15);
 }
 
+.support-button {
+  /* Hereda estilos de action-button */
+}
+
+.support-button:hover {
+  border-color: var(--neon-blue);
+  color: var(--neon-blue);
+  background: rgba(0, 212, 255, 0.1);
+  transform: scale(1.05);
+}
+
 .message-input {
   flex: 1;
   padding: 16px 24px;
@@ -450,6 +467,57 @@
 
 .send-button-loading {
   animation: pulse 1.5s ease-in-out infinite;
+}
+
+/* Botón de detener respuesta */
+.stop-button {
+  padding: 16px 28px;
+  background: linear-gradient(
+    135deg,
+    #ff6b6b 0%,
+    #ee5a6f 100%
+  );
+  border: 2px solid #ff6b6b;
+  border-radius: 28px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+  color: #fff;
+  box-shadow: 0 0 20px rgba(255, 107, 107, 0.4);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  min-width: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.stop-button:hover {
+  border-color: #ff5252;
+  box-shadow: 0 0 30px rgba(255, 107, 107, 0.6);
+  transform: translateY(-2px);
+  background: linear-gradient(
+    135deg,
+    #ff5252 0%,
+    #ff6b6b 100%
+  );
+}
+
+.stop-button:active {
+  transform: translateY(0);
+}
+
+.stop-button-icon {
+  display: inline-block;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.stop-button-text {
+  font-size: 14px;
 }
 
 @keyframes pulse {
@@ -588,15 +656,27 @@
   .search-bar {
     padding: 12px 16px;
     gap: 8px;
+    flex-wrap: wrap;
   }
 
   .search-input {
     padding: 10px 16px;
     font-size: 13px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .search-close-button {
+    padding: 8px 14px;
+    font-size: 14px;
+    min-width: 38px;
   }
 
   .search-results-count {
     font-size: 11px;
+    width: 100%;
+    text-align: center;
+    margin-top: 4px;
   }
 
   .input-actions {
@@ -611,22 +691,23 @@
   }
 
   .scroll-to-bottom-button {
-    bottom: 80px;
-    right: 20px;
-    width: 40px;
-    height: 40px;
-    font-size: 16px;
+    bottom: 90px;
+    right: 16px;
+    width: 42px;
+    height: 42px;
+    font-size: 18px;
   }
+
   .messages-container {
-    padding: 20px 16px;
-    gap: 16px;
+    padding: 16px 12px;
+    gap: 14px;
   }
 
   .message-content {
-    max-width: 80%;
-    min-width: 140px;
-    padding: 14px 18px;
-    border-radius: 14px;
+    max-width: 82%;
+    min-width: 120px;
+    padding: 14px 16px;
+    border-radius: 16px;
   }
 
   .message-content p {
@@ -648,23 +729,43 @@
   }
 
   .input-container {
-    padding: 16px 16px;
-    gap: 12px;
+    padding: 14px 12px;
+    gap: 10px;
     border-top-width: 1px;
   }
 
   .message-input {
-    padding: 14px 18px;
+    padding: 12px 16px;
     font-size: 14px;
-    min-height: 52px;
+    min-height: 50px;
     border-radius: 24px;
   }
 
   .send-button {
-    padding: 14px 24px;
-    font-size: 14px;
+    padding: 12px 20px;
+    font-size: 13px;
+    min-width: 90px;
+    border-radius: 24px;
+  }
+
+  .send-button-icon,
+  .send-button-loading {
+    font-size: 16px;
+  }
+
+  .stop-button {
+    padding: 12px 18px;
+    font-size: 13px;
     min-width: 100px;
     border-radius: 24px;
+  }
+
+  .stop-button-icon {
+    font-size: 16px;
+  }
+
+  .stop-button-text {
+    font-size: 12px;
   }
 
   .empty-state {
@@ -703,13 +804,22 @@
 
   .search-input {
     font-size: 12px;
-    padding: 8px 14px;
+    padding: 8px 12px;
+    flex: 1;
+    min-width: 0;
   }
 
   .search-close-button {
-    padding: 6px 12px;
-    font-size: 14px;
-    min-width: 36px;
+    padding: 6px 10px;
+    font-size: 13px;
+    min-width: 34px;
+  }
+
+  .search-results-count {
+    font-size: 10px;
+    width: 100%;
+    text-align: center;
+    margin-top: 4px;
   }
 
   .input-actions {
@@ -717,22 +827,23 @@
   }
 
   .scroll-to-bottom-button {
-    bottom: 70px;
-    right: 15px;
-    width: 36px;
-    height: 36px;
-    font-size: 14px;
+    bottom: 80px;
+    right: 12px;
+    width: 38px;
+    height: 38px;
+    font-size: 16px;
   }
+
   .messages-container {
-    padding: 16px 12px;
-    gap: 14px;
+    padding: 14px 10px;
+    gap: 12px;
   }
 
   .message-content {
-    max-width: 85%;
-    min-width: 120px;
-    padding: 12px 16px;
-    border-radius: 12px;
+    max-width: 88%;
+    min-width: 100px;
+    padding: 12px 14px;
+    border-radius: 14px;
   }
 
   .message-content p {
@@ -746,27 +857,48 @@
   }
 
   .input-container {
-    padding: 12px 12px;
-    gap: 10px;
-    flex-direction: column;
-    align-items: stretch;
+    padding: 12px 10px;
+    gap: 8px;
+    flex-direction: row;
+    align-items: flex-end;
   }
 
   .message-input {
-    padding: 12px 16px;
-    font-size: 14px;
-    min-height: 48px;
-    max-height: 120px;
-    width: 100%;
-    border-radius: 20px;
+    padding: 11px 14px;
+    font-size: 13px;
+    min-height: 46px;
+    max-height: 100px;
+    flex: 1;
+    border-radius: 22px;
   }
 
   .send-button {
-    width: 100%;
-    padding: 14px 20px;
-    font-size: 14px;
-    min-width: auto;
-    border-radius: 20px;
+    padding: 11px 16px;
+    font-size: 13px;
+    min-width: 80px;
+    border-radius: 22px;
+    flex-shrink: 0;
+  }
+
+  .send-button-icon,
+  .send-button-loading {
+    font-size: 15px;
+  }
+
+  .stop-button {
+    padding: 11px 14px;
+    font-size: 12px;
+    min-width: 90px;
+    border-radius: 22px;
+    gap: 6px;
+  }
+
+  .stop-button-icon {
+    font-size: 15px;
+  }
+
+  .stop-button-text {
+    font-size: 11px;
   }
 
   .empty-state {
@@ -845,4 +977,54 @@
     width: auto;
     min-width: 100px;
   }
+}
+
+/* Vista de reuniones */
+.meetings-view {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--bg-primary);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.meetings-view-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 2px solid var(--border-color);
+  background: var(--bg-secondary);
+}
+
+.meetings-view-header h3 {
+  margin: 0;
+  color: var(--neon-blue);
+  font-size: 20px;
+}
+
+.close-button {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 24px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.close-button:hover {
+  background: var(--bg-tertiary);
+  color: var(--neon-blue);
+}
+
+.action-button.active {
+  background: var(--bg-tertiary);
+  color: var(--neon-blue);
 }

@@ -23,7 +23,7 @@ export interface MTZService {
 export const MTZ_SERVICES: MTZService[] = [
   {
     id: 'contabilidad',
-    name: 'Empresa de Contabilidad MTZ',
+    name: 'MTZ Consultores Tributarios',
     description: 'Servicios contables profesionales y asesoría fiscal para tu negocio',
     icon: '🏢',
     features: [
@@ -41,7 +41,7 @@ export const MTZ_SERVICES: MTZService[] = [
   },
   {
     id: 'transporte',
-    name: 'Fundación de Transporte Inclusivo',
+    name: 'Fundación Te Quiero Feliz',
     description: 'Transporte accesible para personas con movilidad reducida',
     icon: '🚐',
     features: [
@@ -59,7 +59,7 @@ export const MTZ_SERVICES: MTZService[] = [
   },
   {
     id: 'taller',
-    name: 'Taller de Sillas de Ruedas',
+    name: 'Taller de Sillas de Ruedas MMC',
     description: 'Reparación, mantenimiento y adaptación de sillas de ruedas',
     icon: '🦽',
     features: [

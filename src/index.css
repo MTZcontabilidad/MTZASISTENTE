@@ -78,11 +78,11 @@ body::before {
 /* Responsive para root */
 @media (max-width: 1024px) {
   #root {
-    padding: 15px;
+    padding: 12px;
   }
 
   #root:has(.admin-mode) {
-    padding: 8px;
+    padding: 6px;
   }
 }
 
@@ -103,6 +103,14 @@ body::before {
 
 @media (max-width: 480px) {
   #root {
+    padding: 0;
+  }
+
+  #root:has(.admin-mode) {
+    padding: 0;
+  }
+
+  #root:has(.guest-welcome-mode) {
     padding: 0;
   }
 }

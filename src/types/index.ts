@@ -77,3 +77,34 @@ export interface ConversationSummary {
   last_message_at: string | null
 }
 
+// Tipos para el sistema de reuniones
+export type MeetingStatus = 'pending' | 'approved' | 'rejected' | 'cancelled' | 'completed'
+
+export interface Meeting {
+  id: string
+  user_id: string
+  title: string
+  description: string | null
+  meeting_date: string
+  duration_minutes: number
+  status: MeetingStatus
+  admin_notes: string | null
+  created_at: string
+  updated_at: string
+  approved_at: string | null
+  approved_by: string | null
+  // Campos adicionales para joins
+  user_email?: string
+  user_full_name?: string | null
+  approver_email?: string | null
+  company_name?: string | null
+  client_phone?: string | null
+}
+
+export interface MeetingInput {
+  title: string
+  description?: string
+  meeting_date: string
+  duration_minutes?: number
+}
+

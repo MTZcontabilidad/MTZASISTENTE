@@ -14,6 +14,11 @@ import {
 import { markdownToHtml, hasMarkdown } from "../lib/markdown";
 import { Message, UserType } from "../types";
 import InteractiveMenu from "./InteractiveMenu";
+import QuickActions from "./QuickActions";
+import CategoryButtons from "./CategoryButtons";
+import MeetingScheduler from "./MeetingScheduler";
+import VoiceControls from "./VoiceControls";
+import HumanSupportOptions from "./HumanSupportOptions";
 import "./ChatInterface.css";
 
 interface MessageWithMenu extends Message {
@@ -33,6 +38,13 @@ function ChatInterface() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
   const [showScrollButton, setShowScrollButton] = useState(false);
+  const [showMeetings, setShowMeetings] = useState(false);
+  const [showHumanSupport, setShowHumanSupport] = useState(false);
+  const [abortController, setAbortController] = useState<AbortController | null>(null);
+  const [autoReadEnabled, setAutoReadEnabled] = useState(false);
+  const [lastAssistantMessage, setLastAssistantMessage] = useState<string>("");
+  const [welcomePlayed, setWelcomePlayed] = useState(false);
+  const welcomeSpeechRef = useRef<SpeechSynthesisUtterance | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -115,14 +127,59 @@ function ChatInterface() {
 
         // Cargar mensajes históricos
         const historyMessages = await getConversationMessages(activeConvId);
-        setMessages(
-          historyMessages.map((msg) => ({
-            ...msg,
-            timestamp: new Date(msg.created_at),
-            menu: undefined,
-            document: undefined,
-          }))
-        );
+        const mappedMessages = historyMessages.map((msg) => ({
+          ...msg,
+          timestamp: new Date(msg.created_at),
+          menu: undefined,
+          document: undefined,
+        }));
+        
+        setMessages(mappedMessages);
+
+        // Si no hay mensajes, mostrar mensaje de bienvenida automático
+        if (mappedMessages.length === 0 && activeConvId) {
+          // Obtener información de la empresa para personalizar el mensaje
+          const { getCompanyInfo } = await import("../lib/companyConfig");
+          const { generateContextualMessages } = await import("../lib/responseConfig");
+          const companyInfo = await getCompanyInfo();
+          const companyName = companyInfo?.company_name || "MTZ";
+          
+          // Generar mensaje contextual usando la configuración de respuestas
+          const context = {
+            userType: userType || "invitado",
+            userName: userName || undefined,
+            companyName: companyName,
+            memories: [],
+          };
+          const contextualMessages = generateContextualMessages(context);
+          
+          // Crear mensaje de bienvenida personalizado
+          const greeting = contextualMessages.greeting;
+          const welcomeMsg = contextualMessages.welcomeMessage;
+          const displayName = contextualMessages.userName;
+          
+          const welcomeMessage = `${greeting}, ${displayName}! 👋\n\n${welcomeMsg}. Soy el asistente virtual del equipo ${companyName} y estoy aquí para ayudarte con:\n\n• 📊 Consultas sobre MTZ Consultores Tributarios\n• 🚐 Información sobre Fundación Te Quiero Feliz\n• 🪑 Consultas sobre Taller de Sillas de Ruedas MMC\n• 📋 Información sobre trámites y documentos\n• 💬 Soporte y atención al cliente\n• 📅 Agendar reuniones con nuestro equipo\n\nSi en algún momento necesitas hablar directamente con un ejecutivo, puedes usar el botón 💬 que encontrarás en la barra de mensajes.\n\n¿En qué puedo ayudarte hoy?`;
+          
+          // Crear mensaje de bienvenida en la base de datos
+          const welcomeMsgData = await createMessage(
+            activeConvId,
+            user.id,
+            welcomeMessage,
+            "assistant"
+          );
+          
+          if (welcomeMsgData) {
+            setMessages([
+              {
+                ...welcomeMsgData,
+                timestamp: new Date(welcomeMsgData.created_at),
+              },
+            ]);
+            
+            // Reproducir mensaje de bienvenida en audio
+            playWelcomeAudio(greeting, welcomeMsg, displayName);
+          }
+        }
 
         // Cargar recuerdos importantes para contexto futuro
         const memories = await getUserMemories(user.id, activeConvId);
@@ -153,11 +210,13 @@ function ChatInterface() {
     };
   }, []); // Array vacío - se ejecuta cada vez que el componente se monta
 
-  const handleSend = async () => {
+  const handleSend = async (customMessage?: string) => {
+    const messageToSend = customMessage || input.trim();
+    
     // Verificaciones más estrictas
-    if (!input.trim() || loading || !conversationId || loadingHistory) {
+    if (!messageToSend || loading || !conversationId || loadingHistory) {
       console.log("handleSend bloqueado:", {
-        hasInput: !!input.trim(),
+        hasInput: !!messageToSend,
         loading,
         conversationId,
         loadingHistory,
@@ -174,8 +233,14 @@ function ChatInterface() {
       return;
     }
 
-    const currentInput = input.trim();
-    setInput("");
+    const currentInput = messageToSend;
+    if (!customMessage) {
+      setInput("");
+    }
+    
+    // Crear AbortController para poder cancelar la respuesta
+    const controller = new AbortController();
+    setAbortController(controller);
     setLoading(true);
 
     try {
@@ -211,9 +276,25 @@ function ChatInterface() {
         );
       }
 
+      // Verificar si se canceló la operación
+      if (controller.signal.aborted) {
+        return;
+      }
+
       // Generar respuesta inteligente usando el motor de respuestas
       // Simular tiempo de procesamiento para mejor UX
-      await new Promise((resolve) => setTimeout(resolve, 800));
+      await new Promise((resolve) => {
+        const timeout = setTimeout(resolve, 800);
+        controller.signal.addEventListener('abort', () => {
+          clearTimeout(timeout);
+          resolve(undefined);
+        });
+      });
+
+      // Verificar nuevamente si se canceló
+      if (controller.signal.aborted) {
+        return;
+      }
 
       const assistantResponse = await generateResponse({
         userId: user.id,
@@ -251,17 +332,22 @@ function ChatInterface() {
       );
 
       if (assistantMsg) {
-        setMessages((prev) => [
-          ...prev,
-          {
-            ...assistantMsg,
-            timestamp: new Date(assistantMsg.created_at),
-            menu: responseMenu,
-            document: responseDocument,
-          },
-        ]);
+        const newMessage = {
+          ...assistantMsg,
+          timestamp: new Date(assistantMsg.created_at),
+          menu: responseMenu,
+          document: responseDocument,
+        };
+        setMessages((prev) => [...prev, newMessage]);
+        // Actualizar texto para lectura de voz
+        setLastAssistantMessage(responseText);
       }
     } catch (error) {
+      // No mostrar error si fue cancelado intencionalmente
+      if (controller.signal.aborted) {
+        return;
+      }
+      
       console.error("Error:", error);
       const errorMessage: Message = {
         id: Date.now().toString(),
@@ -278,8 +364,131 @@ function ChatInterface() {
       setMessages((prev) => [...prev, errorMessage]);
     } finally {
       setLoading(false);
+      setAbortController(null);
     }
   };
+
+  const handleStopResponse = () => {
+    if (abortController) {
+      abortController.abort();
+      setLoading(false);
+      setAbortController(null);
+      
+      // Agregar mensaje indicando que se detuvo
+      const stopMessage: Message = {
+        id: Date.now().toString(),
+        conversation_id: conversationId,
+        text: "Respuesta detenida. ¿Necesitas ayuda de un ejecutivo?",
+        sender: "assistant",
+        user_id: currentUserId || "",
+        created_at: new Date().toISOString(),
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, stopMessage]);
+    }
+  };
+
+  // Función para reproducir mensaje de bienvenida en audio
+  const playWelcomeAudio = (greeting: string, welcomeMsg: string, displayName: string) => {
+    // Verificar si ya se reprodujo el mensaje de bienvenida
+    if (welcomePlayed) {
+      return;
+    }
+
+    // Verificar si el navegador soporta Speech Synthesis
+    if (!('speechSynthesis' in window)) {
+      console.warn('Tu navegador no soporta síntesis de voz');
+      return;
+    }
+
+    // Cancelar cualquier síntesis anterior
+    window.speechSynthesis.cancel();
+
+    // Crear mensaje de audio corto y natural
+    // Mensaje más simple y directo como pidió el usuario
+    const audioText = userName 
+      ? `¡Bienvenido, ${displayName}! Un gusto tenerte aquí. Soy el asistente virtual del equipo MTZ. ¿En qué puedo ayudarte?`
+      : `¡Bienvenido! Un gusto tenerte aquí. Soy el asistente virtual del equipo MTZ. ¿En qué puedo ayudarte?`;
+
+    // Esperar un momento para que las voces se carguen si es necesario
+    const speakWithVoice = () => {
+      // Crear utterance
+      const utterance = new SpeechSynthesisUtterance(audioText);
+      
+      // Configurar voz en español
+      utterance.lang = 'es-ES';
+      utterance.rate = 0.95; // Velocidad natural
+      utterance.pitch = 1.0; // Tono normal
+      utterance.volume = 1.0; // Volumen máximo
+
+      // Intentar usar una voz en español
+      const voices = window.speechSynthesis.getVoices();
+      const spanishVoice = voices.find(voice => 
+        voice.lang.includes('es') && (voice.name.includes('Spanish') || voice.name.includes('Español') || voice.name.includes('es-ES'))
+      );
+      
+      if (spanishVoice) {
+        utterance.voice = spanishVoice;
+      }
+
+      // Guardar referencia para poder cancelar si es necesario
+      welcomeSpeechRef.current = utterance;
+
+      // Reproducir
+      window.speechSynthesis.speak(utterance);
+      setWelcomePlayed(true);
+
+      // Limpiar referencia cuando termine
+      utterance.onend = () => {
+        welcomeSpeechRef.current = null;
+      };
+
+      utterance.onerror = (error) => {
+        console.warn('Error al reproducir audio de bienvenida:', error);
+        welcomeSpeechRef.current = null;
+      };
+    };
+
+    // Si las voces ya están cargadas, reproducir inmediatamente
+    if (window.speechSynthesis.getVoices().length > 0) {
+      speakWithVoice();
+    } else {
+      // Esperar a que las voces se carguen
+      window.speechSynthesis.onvoiceschanged = () => {
+        speakWithVoice();
+      };
+      // Timeout de seguridad
+      setTimeout(() => {
+        if (!welcomePlayed) {
+          speakWithVoice();
+        }
+      }, 500);
+    }
+  };
+
+  // Cargar voces disponibles cuando estén listas
+  useEffect(() => {
+    const loadVoices = () => {
+      // Las voces pueden tardar en cargarse
+      if (window.speechSynthesis.getVoices().length > 0) {
+        return;
+      }
+      // Intentar cargar voces después de un delay
+      setTimeout(() => {
+        window.speechSynthesis.getVoices();
+      }, 100);
+    };
+
+    loadVoices();
+    window.speechSynthesis.onvoiceschanged = loadVoices;
+
+    return () => {
+      // Limpiar al desmontar
+      if (welcomeSpeechRef.current) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -311,8 +520,41 @@ function ChatInterface() {
     );
   }
 
+  // Detectar si el usuario quiere ver reuniones
+  useEffect(() => {
+    const lastMessage = messages[messages.length - 1];
+    if (
+      lastMessage &&
+      lastMessage.sender === "user" &&
+      (lastMessage.text.toLowerCase().includes("reunión") ||
+        lastMessage.text.toLowerCase().includes("reunion") ||
+        lastMessage.text.toLowerCase().includes("agendar") ||
+        lastMessage.text.toLowerCase().includes("reservar") ||
+        lastMessage.text.toLowerCase().includes("cita"))
+    ) {
+      setShowMeetings(true);
+    }
+  }, [messages]);
+
   return (
     <div className="chat-interface">
+      {/* Vista de reuniones */}
+      {showMeetings && currentUserId && (
+        <div className="meetings-view">
+          <div className="meetings-view-header">
+            <h3>📅 Mis Reuniones</h3>
+            <button
+              onClick={() => setShowMeetings(false)}
+              className="close-button"
+              aria-label="Cerrar reuniones"
+            >
+              ✕
+            </button>
+          </div>
+          <MeetingScheduler userId={currentUserId} />
+        </div>
+      )}
+
       {/* Barra de búsqueda */}
       {showSearch && (
         <div className="search-bar">
@@ -366,6 +608,19 @@ function ChatInterface() {
               <>
                 <p>Comienza una conversación escribiendo un mensaje</p>
                 <p className="empty-subtitle">Esta es tu conversación personal</p>
+                {/* Mostrar acciones rápidas cuando no hay mensajes */}
+                <QuickActions
+                  onActionClick={(actionId) => {
+                    console.log("Acción rápida seleccionada:", actionId);
+                  }}
+                  onSendMessage={(message) => {
+                    setInput(message);
+                    // Auto-enviar después de un pequeño delay
+                    setTimeout(() => {
+                      handleSend(message);
+                    }, 300);
+                  }}
+                />
               </>
             )}
           </div>
@@ -382,6 +637,26 @@ function ChatInterface() {
                 ) : (
                   <p>{message.text}</p>
                 )}
+
+                {/* Mostrar CategoryButtons si el mensaje indica solicitud de categorías */}
+                {(message.text.toLowerCase().includes("ver todas las categorías") ||
+                  message.text.toLowerCase().includes("ver todas las categorias") ||
+                  message.text.toLowerCase().includes("categorías de trámites") ||
+                  message.text.toLowerCase().includes("categorias de tramites") ||
+                  message.text.toLowerCase().includes("ver categorías") ||
+                  message.text.toLowerCase().includes("ver categorias")) &&
+                message.sender === "user" ? (
+                  <div className="category-buttons-wrapper">
+                    <CategoryButtons
+                      onCategorySelect={(categoryId) => {
+                        console.log("Categoría seleccionada:", categoryId);
+                      }}
+                      onTramiteSelect={(tramiteId) => {
+                        console.log("Trámite seleccionado:", tramiteId);
+                      }}
+                    />
+                  </div>
+                ) : null}
 
                 {/* Mostrar menú interactivo si existe */}
                 {message.menu && message.menu.options && currentUserId && (
@@ -448,6 +723,14 @@ function ChatInterface() {
         <div ref={messagesEndRef} />
       </div>
 
+      {/* Modal de soporte humano */}
+      {showHumanSupport && (
+        <HumanSupportOptions
+          onClose={() => setShowHumanSupport(false)}
+          userMessage={input.trim() || undefined}
+        />
+      )}
+
       <div className="input-container">
         <div className="input-actions">
           <button
@@ -457,6 +740,14 @@ function ChatInterface() {
             aria-label="Buscar"
           >
             🔍
+          </button>
+          <button
+            onClick={() => setShowHumanSupport(true)}
+            className="action-button support-button"
+            title="Contactar con ejecutivo o agendar reunión"
+            aria-label="Soporte humano"
+          >
+            💬
           </button>
         </div>
         <textarea
@@ -473,22 +764,47 @@ function ChatInterface() {
           disabled={loading || loadingHistory || !conversationId}
           className="message-input"
         />
-        <button
-          onClick={handleSend}
-          disabled={
-            !input.trim() || loading || !conversationId || loadingHistory
-          }
-          className="send-button"
-          type="button"
-          title="Enviar mensaje (Enter)"
-        >
-          {loading ? (
-            <span className="send-button-loading">⏳</span>
-          ) : (
+        {loading ? (
+          <button
+            onClick={handleStopResponse}
+            className="stop-button"
+            type="button"
+            title="Detener respuesta"
+          >
+            <span className="stop-button-icon">⏹</span>
+            <span className="stop-button-text">Detener</span>
+          </button>
+        ) : (
+          <button
+            onClick={handleSend}
+            disabled={
+              !input.trim() || loading || !conversationId || loadingHistory
+            }
+            className="send-button"
+            type="button"
+            title="Enviar mensaje (Enter)"
+          >
             <span className="send-button-icon">➤</span>
-          )}
-        </button>
+          </button>
+        )}
       </div>
+
+      {/* Controles de voz para accesibilidad */}
+      <VoiceControls
+        onTranscript={(text) => {
+          // Cuando se recibe texto del micrófono, enviarlo como mensaje
+          if (text.trim()) {
+            setInput(text);
+            // Auto-enviar después de un pequeño delay
+            setTimeout(() => {
+              handleSend(text);
+            }, 300);
+          }
+        }}
+        autoRead={autoReadEnabled}
+        onAutoReadChange={setAutoReadEnabled}
+        textToRead={lastAssistantMessage}
+      />
     </div>
   );
 }

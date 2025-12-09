@@ -54,7 +54,7 @@ export const responseTemplates: ResponseTemplate[] = [
       "hello",
     ],
     template:
-      "{{greeting}}, {{userName}}! {{welcomeMessage}} ¿En qué puedo ayudarte hoy?",
+      "{{greeting}}, {{userName}}! {{welcomeMessage}} ¿En qué puedo ayudarte hoy? ¡Estoy aquí para apoyarte en todo lo que necesites!",
     priority: 10,
   },
 
@@ -69,7 +69,7 @@ export const responseTemplates: ResponseTemplate[] = [
       "hasta pronto",
     ],
     template:
-      "{{goodbye}}, {{userName}}. {{closingMessage}} ¡Que tengas un excelente día!",
+      "{{goodbye}}, {{userName}}. {{closingMessage}} ¡Que tengas un excelente día! Recuerda que siempre puedes contar conmigo cuando lo necesites. ¡Tú puedes con todo!",
     priority: 10,
   },
 
@@ -77,7 +77,7 @@ export const responseTemplates: ResponseTemplate[] = [
   {
     triggers: ["servicio", "servicios", "qué ofrecen", "qué hacen", "empresa"],
     template:
-      "{{companyInfo}} Ofrecemos servicios de contabilidad y asesoría. ¿Te gustaría conocer más detalles sobre algún servicio en particular? Puedo ayudarte con consultas sobre trámites, documentos o asesoría personalizada.",
+      "{{companyInfo}} Ofrecemos servicios de contabilidad y asesoría. Nuestra misión es ayudar a las personas, y queremos ser tu apoyo y respaldo en tus decisiones importantes. ¿Te gustaría conocer más detalles sobre algún servicio en particular? Puedo ayudarte con consultas sobre trámites, documentos o asesoría personalizada. ¡Juntos encontraremos la mejor solución para ti!",
     priority: 8,
   },
 
@@ -121,7 +121,7 @@ export const responseTemplates: ResponseTemplate[] = [
   {
     triggers: ["gracias", "thank you", "muchas gracias", "te agradezco"],
     template:
-      "{{appreciation}} ¡Es un placer ayudarte, {{userName}}! Si necesitas algo más, estaré aquí.",
+      "{{appreciation}} ¡Es un placer ayudarte, {{userName}}! Si necesitas algo más, estaré aquí. ¡Sigue así, estás haciendo un gran trabajo!",
     priority: 7,
   },
 
@@ -140,7 +140,7 @@ export const responseTemplates: ResponseTemplate[] = [
   {
     triggers: [],
     template:
-      "{{defaultResponse}} Si necesitas ayuda con algo específico, no dudes en preguntarme.",
+      "{{defaultResponse}} Si necesitas ayuda con algo específico, no dudes en preguntarme. ¡Estoy aquí para apoyarte y juntos encontraremos la solución!",
     priority: 1,
   },
 ];
@@ -162,28 +162,28 @@ export const userTypeMessages: Record<
     welcomeMessage: "Bienvenido a MTZ Asistente",
     closingMessage: "Fue un placer ayudarte",
     defaultResponse:
-      "Gracias por contactarnos. Estoy aquí para ayudarte con cualquier consulta sobre nuestros servicios.",
+      "Gracias por contactarnos. Estoy aquí para ayudarte con cualquier consulta sobre nuestros servicios. ¡Juntos encontraremos la mejor solución para ti!",
   },
   cliente_nuevo: {
     greeting: "¡Hola",
     welcomeMessage: "Es un gusto tenerte como cliente",
     closingMessage: "Estamos aquí para apoyarte",
     defaultResponse:
-      "Como cliente nuevo, estoy aquí para ayudarte con cualquier consulta. ¿En qué puedo asistirte?",
+      "Como cliente nuevo, estoy aquí para ayudarte con cualquier consulta. ¿En qué puedo asistirte? ¡Tú puedes con esto y estoy aquí para apoyarte en cada paso!",
   },
   cliente_existente: {
     greeting: "¡Hola",
     welcomeMessage: "Es un placer verte de nuevo",
     closingMessage: "Seguimos aquí para ti",
     defaultResponse:
-      "Como cliente existente, conozco tu historial. ¿Cómo puedo ayudarte hoy?",
+      "Como cliente existente, conozco tu historial. ¿Cómo puedo ayudarte hoy? ¡Siempre es un gusto trabajar contigo!",
   },
   inclusion: {
     greeting: "¡Hola",
     welcomeMessage: "Bienvenido a MTZ Asistente",
     closingMessage: "Fue un placer ayudarte",
     defaultResponse:
-      "Gracias por contactarnos. Estoy aquí para ayudarte con cualquier consulta sobre nuestros servicios.",
+      "Gracias por contactarnos. Estoy aquí para ayudarte con cualquier consulta sobre nuestros servicios. ¡Estamos juntos en esto!",
   },
 };
 
@@ -215,7 +215,7 @@ export function generateContextualMessages(
 
   // Información de contacto
   contextual.contactInfo =
-    "Puedes contactarnos directamente a través de WhatsApp al +56990062213 (Carlos Alejandro Villagra Farias). Nuestra oficina de contabilidad está ubicada en Juan Martinez 616, Iquique. ";
+    "Puedes contactarnos directamente a través de WhatsApp al +56990062213 (Carlos Alejandro Villagra Farias). Nuestra oficina de contabilidad está ubicada en Juan Martinez 616, Iquique. En MTZ, nuestra misión es ayudar a las personas, y queremos ser tu apoyo y respaldo. ";
 
   // Mensaje personalizado basado en memoria
   if (context.memories.length > 0) {

@@ -38,20 +38,20 @@ export const MTZ_LINKS: MTZLinks = {
 
   contabilidad: {
     url: "https://www.mtzcontabilidad.com/servicios/contabilidad", // Actualizar
-    nombre: "Empresa de Contabilidad MTZ",
+    nombre: "MTZ Consultores Tributarios",
     descripcion:
       "Servicios contables profesionales y asesoría fiscal para tu negocio",
   },
 
   transporte: {
     url: "https://www.mtzcontabilidad.com/servicios/transporte-inclusivo", // Actualizar
-    nombre: "Fundación de Transporte Inclusivo",
+    nombre: "Fundación Te Quiero Feliz",
     descripcion: "Transporte accesible para personas con movilidad reducida",
   },
 
   taller: {
     url: "https://www.mtzcontabilidad.com/servicios/taller-sillas", // Actualizar
-    nombre: "Taller de Sillas de Ruedas",
+    nombre: "Taller de Sillas de Ruedas MMC",
     descripcion: "Reparación, mantenimiento y adaptación de sillas de ruedas",
   },
 };

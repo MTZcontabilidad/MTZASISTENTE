@@ -660,34 +660,38 @@
 /* Móviles grandes */
 @media (max-width: 768px) {
   .admin-panel {
-    padding: 16px 20px;
+    padding: 14px 16px;
     overflow-x: hidden;
   }
 
   .admin-header {
     flex-direction: column;
     align-items: flex-start;
-    gap: 16px;
+    gap: 14px;
     padding-bottom: 16px;
+    margin-bottom: 20px;
   }
 
   .admin-header > div:first-child {
-    min-width: 100%;
+    width: 100%;
+    min-width: 0;
   }
 
   .admin-header h2 {
-    font-size: 22px;
+    font-size: 20px;
+    line-height: 1.3;
   }
 
   .admin-subtitle {
-    font-size: 14px;
+    font-size: 13px;
+    line-height: 1.4;
   }
 
   .refresh-button {
     width: 100%;
     justify-content: center;
-    padding: 12px 20px;
-    font-size: 14px;
+    padding: 11px 18px;
+    font-size: 13px;
   }
 
   .admin-tabs {
@@ -697,10 +701,11 @@
   }
 
   .admin-tab {
-    padding: 14px 20px;
-    font-size: 14px;
-    flex: 1;
-    min-width: calc(33.333% - 6px);
+    padding: 10px 18px;
+    font-size: 13px;
+    flex: 0 0 auto;
+    min-width: auto;
+    white-space: nowrap;
   }
 
   .admin-stats {
@@ -1590,5 +1595,223 @@
     padding: 8px 12px;
     font-size: 12px;
     margin-left: 4px;
+  }
+}
+
+/* Estilos para sección de reuniones */
+.meetings-section {
+  padding: 20px 0;
+}
+
+.meetings-section .section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.meetings-section .section-header h3 {
+  margin: 0;
+  color: var(--neon-blue);
+  font-size: 24px;
+}
+
+.pending-badge {
+  display: inline-block;
+  background: rgba(255, 193, 7, 0.2);
+  color: #ffc107;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  margin-left: 12px;
+  border: 1px solid rgba(255, 193, 7, 0.3);
+}
+
+.meetings-admin-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.meeting-admin-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--neon-blue-dark);
+  border-radius: 12px;
+  padding: 20px;
+  transition: all 0.3s ease;
+}
+
+.meeting-admin-card:hover {
+  border-color: var(--neon-blue);
+  box-shadow: 0 4px 20px rgba(0, 212, 255, 0.1);
+}
+
+.meeting-admin-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+  gap: 16px;
+}
+
+.meeting-admin-header h4 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 18px;
+  flex: 1;
+}
+
+.meeting-admin-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.meeting-admin-meta span {
+  display: flex;
+  gap: 8px;
+}
+
+.meeting-admin-meta strong {
+  color: var(--neon-blue);
+  min-width: 100px;
+}
+
+.meeting-description {
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+  line-height: 1.6;
+  font-size: 14px;
+}
+
+.meeting-admin-details {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--neon-blue-dark);
+}
+
+.meeting-admin-details .meeting-detail {
+  display: flex;
+  gap: 8px;
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.meeting-admin-details .meeting-detail strong {
+  color: var(--neon-blue);
+  min-width: 140px;
+}
+
+.meeting-admin-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--neon-blue-dark);
+}
+
+.btn-approve {
+  background: linear-gradient(135deg, #4caf50 0%, #388e3c 100%);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
+}
+
+.btn-approve:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
+}
+
+.btn-approve:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-reject {
+  background: transparent;
+  color: #f44336;
+  border: 2px solid #f44336;
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.btn-reject:hover:not(:disabled) {
+  background: rgba(244, 67, 54, 0.1);
+}
+
+.btn-reject:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.status-pending {
+  background: rgba(255, 193, 7, 0.2);
+  color: #ffc107;
+  border: 1px solid rgba(255, 193, 7, 0.3);
+}
+
+.status-approved {
+  background: rgba(76, 175, 80, 0.2);
+  color: #4caf50;
+  border: 1px solid rgba(76, 175, 80, 0.3);
+}
+
+.status-rejected {
+  background: rgba(244, 67, 54, 0.2);
+  color: #f44336;
+  border: 1px solid rgba(244, 67, 54, 0.3);
+}
+
+.status-cancelled {
+  background: rgba(158, 158, 158, 0.2);
+  color: #9e9e9e;
+  border: 1px solid rgba(158, 158, 158, 0.3);
+}
+
+.status-completed {
+  background: rgba(33, 150, 243, 0.2);
+  color: #2196f3;
+  border: 1px solid rgba(33, 150, 243, 0.3);
+}
+
+@media (max-width: 768px) {
+  .meeting-admin-header {
+    flex-direction: column;
+  }
+
+  .meeting-admin-actions {
+    flex-direction: column;
+  }
+
+  .meeting-admin-actions button {
+    width: 100%;
   }
 }
