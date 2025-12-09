@@ -653,6 +653,8 @@ function App() {
           <InvitadoWelcome 
             user={user} 
             onContinue={async () => {
+              // Marcar que el welcome fue completado
+              setWelcomeCompleted(true)
               // Cerrar el welcome inmediatamente - NO volver a mostrarlo
               setShowGuestWelcome(false)
               
@@ -671,23 +673,20 @@ function App() {
                     user_type: profile.user_type as any
                   }
                   setUser(updatedUser)
-                  // Actualizar caché
+                  // Actualizar caché y userRef para evitar que se vuelva a mostrar
+                  userRef.current = updatedUser
                   sessionCache.set({
                     id: user.id,
                     email: user.email,
                     role: user.role,
                     user_type: profile.user_type as any
                   })
-                  
-                  // Forzar que NO se muestre el welcome de nuevo
-                  // Actualizar userRef para evitar que se vuelva a mostrar
-                  userRef.current = updatedUser
                 }
               } catch (error) {
                 console.error('Error al actualizar user_type:', error)
               }
               
-              // Asegurar que no se vuelva a mostrar el welcome
+              // Asegurar que NO se vuelva a mostrar el welcome
               setShowGuestWelcome(false)
             }} 
           />
