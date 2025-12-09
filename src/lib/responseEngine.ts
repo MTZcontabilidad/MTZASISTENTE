@@ -687,9 +687,31 @@ function detectDocumentRequest(userInput: string): {
 
 /**
  * Detecta si el usuario está preguntando sobre el F29 (Formulario 29)
+ * o si está confirmando que completó un paso
  */
 function detectarF29Request(userInput: string): boolean {
   const inputLower = userInput.toLowerCase();
+  
+  // Detectar confirmaciones de paso completado (no activar guía, solo continuar)
+  const confirmaciones = [
+    'ya lo hice',
+    'ya lo hice',
+    'listo',
+    'completado',
+    'terminé',
+    'termine',
+    'siguiente',
+    'continuar',
+    'avanzar',
+    'listo para el siguiente',
+    'ya está',
+    'ya esta',
+  ];
+  
+  // Si es una confirmación, no activar la guía (se manejará en el componente)
+  if (confirmaciones.some(conf => inputLower.includes(conf))) {
+    return false;
+  }
   
   // Detectar menciones específicas del F29
   const f29Keywords = [

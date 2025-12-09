@@ -636,7 +636,12 @@ function App() {
 
   // Si es invitado y debe ver la bienvenida, mostrar sin header ni footer (pantalla completa)
   // IMPORTANTE: Los admins NUNCA ven esta página, incluso si tienen user_type = 'invitado'
-  if (showGuestWelcome && user.user_type === 'invitado' && user.role !== 'admin') {
+  // Solo mostrar si showGuestWelcome es true Y el usuario es invitado Y no ha completado el welcome
+  if (showGuestWelcome && 
+      user && 
+      user.user_type === 'invitado' && 
+      user.role !== 'admin' && 
+      !welcomeCompleted) {
     return (
       <div className="app guest-welcome-mode">
         <div className="container guest-container">

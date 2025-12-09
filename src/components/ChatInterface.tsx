@@ -317,6 +317,7 @@ function ChatInterface() {
       let responseText: string;
       let responseMenu: any = undefined;
       let responseDocument: any = undefined;
+      let showF29Guide: boolean = false;
 
       if (
         typeof assistantResponse === "object" &&
@@ -327,6 +328,7 @@ function ChatInterface() {
         responseText = responseWithMenu.text;
         responseMenu = responseWithMenu.menu;
         responseDocument = responseWithMenu.document;
+        showF29Guide = responseWithMenu.showF29Guide || false;
       } else {
         // Respuesta de texto simple
         responseText = assistantResponse as string;
@@ -346,6 +348,7 @@ function ChatInterface() {
           timestamp: new Date(assistantMsg.created_at),
           menu: responseMenu,
           document: responseDocument,
+          showF29Guide: showF29Guide,
         };
         setMessages((prev) => [...prev, newMessage]);
         // Actualizar texto para lectura de voz
@@ -728,6 +731,19 @@ function ChatInterface() {
                     guideImage={message.menu.guide_image}
                     onActionComplete={(action, result) => {
                       console.log("Acción completada:", action, result);
+                    }}
+                  />
+                )}
+
+                {/* Mostrar guía F29 si está activada */}
+                {message.showF29Guide && (
+                  <F29Guide
+                    onStepComplete={(step) => {
+                      console.log(`Paso ${step} completado`);
+                    }}
+                    onComplete={() => {
+                      console.log("Guía F29 completada");
+                      // Opcional: enviar mensaje de confirmación
                     }}
                   />
                 )}
