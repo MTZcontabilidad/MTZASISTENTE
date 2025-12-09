@@ -49,35 +49,69 @@ class TextToSpeechService {
    */
   private selectBestVoice() {
     // Lista de nombres de voces preferidas (más naturales)
-    // Estas voces suelen sonar mejor en diferentes navegadores
+    // PRIORIZAR VOCES DE CHILE Y LATINOAMÉRICA sobre España
     const preferredVoiceNames = [
-      "Microsoft Sabina - Spanish (Mexico)", // Windows - muy natural
+      "Microsoft Sabina - Spanish (Mexico)", // Windows - muy natural, latino
       "Google español", // Chrome - buena calidad
-      "Microsoft Pablo - Spanish (Spain)", // Windows
-      "Microsoft Helena - Spanish (Spain)", // Windows
-      "Microsoft Laura - Spanish (Spain)", // Windows
-      "es-ES-Standard-A", // Google Cloud TTS (si está disponible)
-      "es-MX-Standard-A", // Google Cloud TTS
-      "es-CL-Standard-A", // Google Cloud TTS
+      "es-CL-Standard-A", // Google Cloud TTS - CHILE (prioridad)
+      "es-CL-Neural2-A", // Google Cloud TTS - CHILE neural (prioridad)
+      "es-MX-Standard-A", // Google Cloud TTS - México
+      "es-AR-Standard-A", // Google Cloud TTS - Argentina
+      "es-CO-Standard-A", // Google Cloud TTS - Colombia
+      "Microsoft Pablo - Spanish (Spain)", // Windows - España (última opción)
+      "Microsoft Helena - Spanish (Spain)", // Windows - España
+      "Microsoft Laura - Spanish (Spain)", // Windows - España
+      "es-ES-Standard-A", // Google Cloud TTS - España (última opción)
     ];
 
-    // Primero buscar voces preferidas por nombre
+    // Primero buscar voces preferidas por nombre, priorizando Chile
     for (const preferredName of preferredVoiceNames) {
       const voice = this.availableVoices.find((v) =>
         v.name.includes(preferredName) || preferredName.includes(v.name)
       );
       if (voice && voice.lang.startsWith("es")) {
-        this.preferredVoice = voice;
-        return;
+        // Priorizar voces de Chile (es-CL)
+        if (voice.lang.startsWith("es-CL")) {
+          this.preferredVoice = voice;
+          return;
+        }
+        // Si no hay de Chile, usar esta voz temporalmente
+        if (!this.preferredVoice) {
+          this.preferredVoice = voice;
+        }
       }
     }
 
-    // Priorizar voces en español de Chile o español latinoamericano
-    const preferredLangCodes = ["es-CL", "es-MX", "es-AR", "es-CO", "es-ES", "es"];
+    // Si encontramos una voz de Chile en la búsqueda anterior, usarla
+    if (this.preferredVoice && this.preferredVoice.lang.startsWith("es-CL")) {
+      return;
+    }
+
+    // Priorizar voces en español de Chile o español latinoamericano (SIN España)
+    const preferredLangCodes = ["es-CL", "es-MX", "es-AR", "es-CO", "es-US", "es"];
     
     // Buscar voces preferidas (priorizar voces locales que suelen ser mejores)
     for (const langCode of preferredLangCodes) {
-      // Primero buscar voces locales
+      // Primero buscar voces locales de Chile (máxima prioridad)
+      if (langCode === "es-CL") {
+        const chileLocalVoice = this.availableVoices.find(
+          (v) => v.lang.startsWith("es-CL") && v.localService
+        );
+        if (chileLocalVoice) {
+          this.preferredVoice = chileLocalVoice;
+          return;
+        }
+        // Cualquier voz de Chile
+        const chileVoice = this.availableVoices.find(
+          (v) => v.lang.startsWith("es-CL")
+        );
+        if (chileVoice) {
+          this.preferredVoice = chileVoice;
+          return;
+        }
+      }
+      
+      // Para otros países latinoamericanos
       const localVoice = this.availableVoices.find(
         (v) => v.lang.startsWith(langCode) && v.localService
       );
@@ -97,11 +131,21 @@ class TextToSpeechService {
     }
 
     // Si no hay voces preferidas, buscar cualquier voz en español
+    // PERO evitar voces de España si hay otras opciones
     const spanishVoice = this.availableVoices.find((v) =>
-      v.lang.startsWith("es")
+      v.lang.startsWith("es") && !v.lang.startsWith("es-ES")
     );
     if (spanishVoice) {
       this.preferredVoice = spanishVoice;
+      return;
+    }
+    
+    // Último recurso: cualquier voz en español (incluyendo España)
+    const anySpanishVoice = this.availableVoices.find((v) =>
+      v.lang.startsWith("es")
+    );
+    if (anySpanishVoice) {
+      this.preferredVoice = anySpanishVoice;
       return;
     }
 

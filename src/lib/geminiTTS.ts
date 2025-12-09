@@ -89,7 +89,7 @@ export async function textToSpeechWithGemini(
     const {
       text,
       languageCode = 'es-CL',
-      voiceName = 'es-CL-Standard-A', // Voz estándar en español de Chile
+      voiceName = 'es-CL-Neural2-A', // Voz neural de Chile - más natural y sin acento español
       speakingRate = 1.0,
       pitch = 0,
       volumeGainDb = 0,

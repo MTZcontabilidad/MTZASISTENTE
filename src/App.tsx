@@ -215,7 +215,7 @@ function App() {
         }
       } else {
         // Intentar obtener el role desde el perfil si existe
-        let userRole: UserRole = 'user'
+        let userRole: UserRole = 'invitado'
         try {
           const { data: profile } = await supabase
             .from('user_profiles')

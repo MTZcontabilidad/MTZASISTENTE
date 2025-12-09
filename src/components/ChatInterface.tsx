@@ -436,31 +436,62 @@ function ChatInterface() {
       utterance.volume = 1.0; // Volumen máximo
 
       // Intentar usar la mejor voz en español disponible
+      // PRIORIZAR VOCES DE CHILE Y LATINOAMÉRICA sobre España
       const voices = window.speechSynthesis.getVoices();
       
-      // Priorizar voces más naturales
+      // Priorizar voces más naturales de Chile y Latinoamérica
       const preferredVoiceNames = [
-        "Microsoft Sabina",
+        "Microsoft Sabina", // México - latino
         "Google español",
-        "Microsoft Pablo",
-        "Microsoft Helena",
-        "Microsoft Laura"
+        "es-CL", // Chile - máxima prioridad
+        "es-MX", // México
+        "es-AR", // Argentina
+        "es-CO", // Colombia
+        "Microsoft Pablo", // España - última opción
+        "Microsoft Helena", // España
+        "Microsoft Laura" // España
       ];
       
       let spanishVoice = null;
       
-      // Buscar voces preferidas primero
-      for (const preferredName of preferredVoiceNames) {
-        const voice = voices.find(v => 
-          v.name.includes(preferredName) && v.lang.startsWith('es')
-        );
-        if (voice) {
-          spanishVoice = voice;
-          break;
+      // PRIMERO: Buscar voces de Chile (es-CL) - máxima prioridad
+      const chileVoice = voices.find(voice => 
+        voice.lang.startsWith('es-CL')
+      );
+      if (chileVoice) {
+        spanishVoice = chileVoice;
+      }
+      
+      // SEGUNDO: Si no hay de Chile, buscar otras voces latinoamericanas
+      if (!spanishVoice) {
+        for (const preferredName of preferredVoiceNames) {
+          const voice = voices.find(v => {
+            if (v.name.includes(preferredName) && v.lang.startsWith('es')) {
+              // Evitar voces de España si hay otras opciones
+              return !v.lang.startsWith('es-ES');
+            }
+            return false;
+          });
+          if (voice) {
+            spanishVoice = voice;
+            break;
+          }
         }
       }
       
-      // Si no se encontró una preferida, buscar cualquier voz en español
+      // TERCERO: Si no se encontró una preferida, buscar cualquier voz en español latino
+      if (!spanishVoice) {
+        spanishVoice = voices.find(voice => 
+          voice.lang.startsWith('es') && 
+          !voice.lang.startsWith('es-ES') && 
+          voice.localService
+        ) || voices.find(voice => 
+          voice.lang.startsWith('es') && 
+          !voice.lang.startsWith('es-ES')
+        );
+      }
+      
+      // ÚLTIMO RECURSO: Cualquier voz en español (incluyendo España)
       if (!spanishVoice) {
         spanishVoice = voices.find(voice => 
           voice.lang.startsWith('es') && voice.localService
