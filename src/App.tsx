@@ -171,7 +171,7 @@ function App() {
               email: userEmail,
               full_name: authUser.user_metadata?.full_name || userEmail.split('@')[0] || '',
               avatar_url: authUser.user_metadata?.avatar_url || null,
-              role: isAdmin ? 'admin' : 'user',
+              role: isAdmin ? 'admin' : 'invitado',
               user_type: 'invitado'
             }))
             .then(() => console.log('Perfil creado en background'))
@@ -667,7 +667,7 @@ function App() {
               id: data.user.id,
               email: uniqueEmail,
               full_name: `Invitado ${phone}`,
-              role: 'user',
+              role: 'invitado',
               user_type: 'invitado',
               is_active: true
             }, {
@@ -702,7 +702,7 @@ function App() {
         const guestUser: User = {
           id: data.user.id,
           email: profileData?.email || uniqueEmail,
-          role: (profileData?.role as UserRole) || 'user',
+          role: (profileData?.role as UserRole) || 'invitado',
           user_type: (profileData?.user_type as any) || 'invitado'
         }
 
