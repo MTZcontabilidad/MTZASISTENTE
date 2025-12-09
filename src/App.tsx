@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from './lib/supabase'
 import { sessionCache } from './lib/sessionCache'
 import Auth from './components/Auth'
@@ -45,6 +45,295 @@ function App() {
   useEffect(() => {
     userRef.current = user
   }, [user])
+
+  // loadUserProfile debe estar definido antes de checkUser
+  const loadUserProfile = useCallback(async (userId: string) => {
+    let loadingStopped = false
+    
+    // Función helper para asegurar que loading se detenga
+    const stopLoading = () => {
+      if (!loadingStopped) {
+        loadingStopped = true
+        isLoadingRef.current = false
+        setLoading(false)
+      }
+    }
+
+    try {
+      console.log('Cargando perfil para usuario:', userId)
+      
+      // Obtener información del usuario autenticado con timeout más largo
+      let authUser
+      try {
+        const getUserPromise = supabase.auth.getUser()
+        const getUserTimeout = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('getUser timeout')), 5000)
+        )
+        
+        const result = await Promise.race([getUserPromise, getUserTimeout]) as any
+        if (result.error || !result.data?.user) {
+          throw new Error('No se pudo obtener usuario')
+        }
+        authUser = result.data.user
+      } catch (error: any) {
+        console.error('Error al obtener usuario:', error)
+        const cachedUser = sessionCache.get()
+        if (cachedUser && cachedUser.id === userId) {
+          console.log('Usando usuario desde caché después de error getUser')
+          setUser({
+            id: cachedUser.id,
+            email: cachedUser.email,
+            role: cachedUser.role as UserRole,
+            user_type: cachedUser.user_type as any
+          })
+          stopLoading()
+          return
+        }
+        setUser({
+          id: userId,
+          email: '',
+          role: 'invitado',
+          user_type: 'invitado'
+        })
+        setShowGuestWelcome(true)
+        stopLoading()
+        return
+      }
+
+      const userEmail = authUser.email || ''
+      const isAdmin = userEmail === 'mtzcontabilidad@gmail.com'
+
+      // Intentar obtener el perfil
+      let profileData = null
+      try {
+        const profilePromise = supabase
+          .from('user_profiles')
+          .select('id, email, role, user_type')
+          .eq('id', userId)
+          .maybeSingle()
+
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Profile timeout')), 2000)
+        )
+
+        const result = await Promise.race([profilePromise, timeoutPromise]) as any
+        
+        if (result.error && result.error.code !== 'PGRST116') {
+          throw result.error
+        }
+        
+        profileData = result.data
+      } catch (error: any) {
+        if (error.code === 'PGRST116' || 
+            error.message === 'Profile timeout' || 
+            error.message?.includes('timeout') ||
+            error.message === 'Timeout') {
+          console.log('Perfil no encontrado o timeout, usando datos básicos')
+          setUser({
+            id: userId,
+            email: userEmail,
+            role: isAdmin ? 'admin' : 'invitado',
+            user_type: 'invitado'
+          })
+          if (isAdmin) {
+            setShowAdminPanel(true)
+            setShowGuestWelcome(false)
+          } else {
+            setShowAdminPanel(false)
+            setShowGuestWelcome(true)
+          }
+          stopLoading()
+          
+          Promise.resolve(supabase
+            .from('user_profiles')
+            .insert({
+              id: userId,
+              email: userEmail,
+              full_name: authUser.user_metadata?.full_name || userEmail.split('@')[0] || '',
+              avatar_url: authUser.user_metadata?.avatar_url || null,
+              role: isAdmin ? 'admin' : 'invitado',
+              user_type: 'invitado'
+            }))
+            .then(() => console.log('Perfil creado en background'))
+            .catch((err: unknown) => console.log('Error al crear perfil en background:', err))
+          
+          return
+        }
+        console.warn('Error al obtener perfil, usando fallback:', error)
+      }
+
+      // Si encontramos el perfil, usarlo
+      if (profileData) {
+        const userRole = profileData.role as UserRole
+        const userType = profileData.user_type || 'invitado'
+        const userData: User = {
+          id: profileData.id,
+          email: profileData.email,
+          role: userRole,
+          user_type: userType
+        }
+        
+        setUser(userData)
+        
+        sessionCache.set({
+          id: userData.id,
+          email: userData.email,
+          role: userData.role,
+          user_type: userData.user_type
+        })
+        
+        if (userRole === 'admin') {
+          setShowAdminPanel(true)
+          setShowGuestWelcome(false)
+        } else {
+          setShowAdminPanel(false)
+          setShowGuestWelcome(userType === 'invitado')
+        }
+      } else {
+        const userData: User = {
+          id: userId,
+          email: userEmail,
+          role: isAdmin ? 'admin' : 'invitado',
+          user_type: 'invitado'
+        }
+        
+        setUser(userData)
+        userRef.current = userData
+        
+        sessionCache.set({
+          id: userData.id,
+          email: userData.email,
+          role: userData.role,
+          user_type: userData.user_type
+        })
+        
+        if (isAdmin) {
+          setShowAdminPanel(true)
+          setShowGuestWelcome(false)
+        } else {
+          setShowAdminPanel(false)
+          setShowGuestWelcome(true)
+        }
+      }
+    } catch (error) {
+      console.error('Error al cargar perfil:', error)
+      try {
+        const { data: { user: fallbackUser } } = await supabase.auth.getUser()
+        if (fallbackUser) {
+          const isAdmin = fallbackUser.email === 'mtzcontabilidad@gmail.com'
+          setUser({
+            id: fallbackUser.id,
+            email: fallbackUser.email || '',
+            role: isAdmin ? 'admin' : 'invitado',
+            user_type: 'invitado'
+          })
+          if (isAdmin) {
+            setShowAdminPanel(true)
+            setShowGuestWelcome(false)
+          } else {
+            setShowAdminPanel(false)
+            setShowGuestWelcome(true)
+          }
+        } else {
+          setUser(null)
+        }
+      } catch (fallbackError) {
+        console.error('Error en fallback:', fallbackError)
+        setUser(null)
+      }
+    } finally {
+      stopLoading()
+    }
+  }, [])
+
+  const checkUser = useCallback(async () => {
+    // Evitar múltiples verificaciones simultáneas
+    if (isLoadingRef.current) {
+      console.log('Ya hay una verificación en curso, omitiendo...')
+      return
+    }
+
+    // Si hay usuario cargado y caché válido, NO verificar
+    if (user && sessionCache.isValid()) {
+      console.log('Usuario cargado y caché válido, omitiendo verificación')
+      return
+    }
+
+    try {
+      isLoadingRef.current = true
+      lastCheckRef.current = Date.now()
+      
+      console.log('Verificando sesión...')
+      
+      // Timeout para getSession (más largo para evitar falsos negativos)
+      const sessionPromise = supabase.auth.getSession()
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Session timeout')), 5000)
+      )
+      
+      const { data: { session }, error } = await Promise.race([
+        sessionPromise,
+        timeoutPromise
+      ]) as any
+      
+      if (error) {
+        console.error('Error al obtener sesión:', error)
+        // Si hay error pero hay usuario en caché, mantenerlo
+        const cachedUser = sessionCache.get()
+        if (cachedUser && sessionCache.isValid()) {
+          console.log('Manteniendo usuario desde caché después de error')
+          isLoadingRef.current = false
+          return
+        }
+        setLoading(false)
+        setUser(null)
+        isLoadingRef.current = false
+        return
+      }
+      
+      console.log('Sesión obtenida:', session ? 'Sí' : 'No')
+      if (session?.user) {
+        // Solo cargar si el usuario es diferente al actual
+        if (!user || user.id !== session.user.id) {
+          console.log('Usuario encontrado:', session.user.email)
+          await loadUserProfile(session.user.id)
+        } else {
+          console.log('Usuario ya cargado, omitiendo recarga')
+          isLoadingRef.current = false
+          setLoading(false)
+        }
+      } else {
+        console.log('No hay sesión activa')
+        sessionCache.clear()
+        setLoading(false)
+        setUser(null)
+        isLoadingRef.current = false
+      }
+    } catch (error: any) {
+      console.error('Error al verificar sesión:', error)
+      // Si hay error pero hay usuario en caché, mantenerlo
+      const cachedUser = sessionCache.get()
+      if (cachedUser && sessionCache.isValid()) {
+        console.log('Manteniendo usuario desde caché después de timeout')
+        isLoadingRef.current = false
+        return
+      }
+      setLoading(false)
+      setUser(null)
+      isLoadingRef.current = false
+    }
+  }, [user, loadUserProfile])
+
+  // Función para recargar después del login
+  const handleAuthSuccess = useCallback(async () => {
+    setLoading(true)
+    try {
+      await checkUser()
+    } catch (error) {
+      console.error('Error en handleAuthSuccess:', error)
+      setLoading(false)
+    }
+  }, [checkUser])
 
   useEffect(() => {
     let mounted = true
@@ -151,7 +440,7 @@ function App() {
       // No hay listener que remover ya que está deshabilitado
       subscription.unsubscribe()
     }
-  }, []) // IMPORTANTE: Array vacío - solo se ejecuta una vez al montar
+  }, [checkUser, initialUser, loadUserProfile]) // Dependencias correctas
 
   // Efecto separado para manejar cambios en el usuario sin recargar
   useEffect(() => {
@@ -166,317 +455,6 @@ function App() {
       lastCheckRef.current = Date.now()
     }
   }, [user?.id]) // Solo actualizar caché cuando cambia el ID del usuario
-
-  // Función para recargar después del login
-  const handleAuthSuccess = async () => {
-    setLoading(true)
-    try {
-      await checkUser()
-    } catch (error) {
-      console.error('Error en handleAuthSuccess:', error)
-      setLoading(false)
-    }
-  }
-
-  const checkUser = async () => {
-    // Evitar múltiples verificaciones simultáneas
-    if (isLoadingRef.current) {
-      console.log('Ya hay una verificación en curso, omitiendo...')
-      return
-    }
-
-    // Si hay usuario cargado y caché válido, NO verificar
-    if (user && sessionCache.isValid()) {
-      console.log('Usuario cargado y caché válido, omitiendo verificación')
-      return
-    }
-
-    try {
-      isLoadingRef.current = true
-      lastCheckRef.current = Date.now()
-      
-      console.log('Verificando sesión...')
-      
-      // Timeout para getSession (más largo para evitar falsos negativos)
-      const sessionPromise = supabase.auth.getSession()
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Session timeout')), 5000)
-      )
-      
-      const { data: { session }, error } = await Promise.race([
-        sessionPromise,
-        timeoutPromise
-      ]) as any
-      
-      if (error) {
-        console.error('Error al obtener sesión:', error)
-        // Si hay error pero hay usuario en caché, mantenerlo
-        const cachedUser = sessionCache.get()
-        if (cachedUser && sessionCache.isValid()) {
-          console.log('Manteniendo usuario desde caché después de error')
-          isLoadingRef.current = false
-          return
-        }
-        setLoading(false)
-        setUser(null)
-        isLoadingRef.current = false
-        return
-      }
-      
-      console.log('Sesión obtenida:', session ? 'Sí' : 'No')
-      if (session?.user) {
-        // Solo cargar si el usuario es diferente al actual
-        if (!user || user.id !== session.user.id) {
-          console.log('Usuario encontrado:', session.user.email)
-          await loadUserProfile(session.user.id)
-        } else {
-          console.log('Usuario ya cargado, omitiendo recarga')
-          isLoadingRef.current = false
-          setLoading(false)
-        }
-      } else {
-        console.log('No hay sesión activa')
-        sessionCache.clear()
-        setLoading(false)
-        setUser(null)
-        isLoadingRef.current = false
-      }
-    } catch (error: any) {
-      console.error('Error al verificar sesión:', error)
-      // Si hay error pero hay usuario en caché, mantenerlo
-      const cachedUser = sessionCache.get()
-      if (cachedUser && sessionCache.isValid()) {
-        console.log('Manteniendo usuario desde caché después de timeout')
-        isLoadingRef.current = false
-        return
-      }
-      setLoading(false)
-      setUser(null)
-      isLoadingRef.current = false
-    }
-  }
-
-  const loadUserProfile = async (userId: string) => {
-    let loadingStopped = false
-    
-    // Función helper para asegurar que loading se detenga
-    const stopLoading = () => {
-      if (!loadingStopped) {
-        loadingStopped = true
-        isLoadingRef.current = false
-        setLoading(false)
-      }
-    }
-
-    try {
-      console.log('Cargando perfil para usuario:', userId)
-      
-      // Obtener información del usuario autenticado con timeout más largo
-      let authUser
-      try {
-        const getUserPromise = supabase.auth.getUser()
-        const getUserTimeout = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('getUser timeout')), 5000) // Aumentado a 5 segundos
-        )
-        
-        const result = await Promise.race([getUserPromise, getUserTimeout]) as any
-        if (result.error || !result.data?.user) {
-          throw new Error('No se pudo obtener usuario')
-        }
-        authUser = result.data.user
-      } catch (error: any) {
-        console.error('Error al obtener usuario:', error)
-        // Si hay usuario en caché, usarlo
-        const cachedUser = sessionCache.get()
-        if (cachedUser && cachedUser.id === userId) {
-          console.log('Usando usuario desde caché después de error getUser')
-          setUser({
-            id: cachedUser.id,
-            email: cachedUser.email,
-            role: cachedUser.role as UserRole,
-            user_type: cachedUser.user_type as any
-          })
-          stopLoading()
-          return
-        }
-        // Fallback: usar userId directamente
-        // const isAdmin = false // No utilizado actualmente
-        setUser({
-          id: userId,
-          email: '',
-          role: 'invitado',
-          user_type: 'invitado'
-        })
-        setShowGuestWelcome(true)
-        stopLoading()
-        return
-      }
-
-      const userEmail = authUser.email || ''
-      const isAdmin = userEmail === 'mtzcontabilidad@gmail.com'
-
-      // Intentar obtener el perfil (con timeout más corto)
-      let profileData = null
-      try {
-        const profilePromise = supabase
-          .from('user_profiles')
-          .select('id, email, role, user_type')
-          .eq('id', userId)
-          .maybeSingle()
-
-        // Timeout de 2 segundos para la consulta (más agresivo)
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Profile timeout')), 2000)
-        )
-
-        const result = await Promise.race([profilePromise, timeoutPromise]) as any
-        
-        // Verificar si hay error (pero no es "no encontrado")
-        if (result.error && result.error.code !== 'PGRST116') {
-          throw result.error
-        }
-        
-        profileData = result.data
-      } catch (error: any) {
-        // Si no existe el perfil o hay timeout, usar datos básicos
-        if (error.code === 'PGRST116' || 
-            error.message === 'Profile timeout' || 
-            error.message?.includes('timeout') ||
-            error.message === 'Timeout') {
-          console.log('Perfil no encontrado o timeout, usando datos básicos')
-          // Usar datos del auth directamente
-          setUser({
-            id: userId,
-            email: userEmail,
-            role: isAdmin ? 'admin' : 'invitado',
-            user_type: 'invitado'
-          })
-          // LÓGICA: Admin va directo al Panel Admin, usuarios normales a InvitadoWelcome
-          if (isAdmin) {
-            setShowAdminPanel(true)
-            setShowGuestWelcome(false) // Admin NUNCA ve InvitadoWelcome
-          } else {
-            setShowAdminPanel(false)
-            setShowGuestWelcome(true)
-          }
-          stopLoading()
-          
-          // Intentar crear perfil en background (no bloquea)
-          Promise.resolve(supabase
-            .from('user_profiles')
-            .insert({
-              id: userId,
-              email: userEmail,
-              full_name: authUser.user_metadata?.full_name || userEmail.split('@')[0] || '',
-              avatar_url: authUser.user_metadata?.avatar_url || null,
-              role: isAdmin ? 'admin' : 'invitado',
-              user_type: 'invitado'
-            }))
-            .then(() => console.log('Perfil creado en background'))
-            .catch((err: unknown) => console.log('Error al crear perfil en background:', err))
-          
-          return
-        }
-        // Si es otro error, continuar con el flujo normal
-        console.warn('Error al obtener perfil, usando fallback:', error)
-      }
-
-      // Si encontramos el perfil, usarlo
-      if (profileData) {
-        const userRole = profileData.role as UserRole
-        const userType = profileData.user_type || 'invitado'
-        const userData: User = {
-          id: profileData.id,
-          email: profileData.email,
-          role: userRole,
-          user_type: userType
-        }
-        
-        setUser(userData)
-        
-        // Guardar en caché
-        sessionCache.set({
-          id: userData.id,
-          email: userData.email,
-          role: userData.role,
-          user_type: userData.user_type
-        })
-        
-        // LÓGICA DE NAVEGACIÓN:
-        // - Si es ADMIN → Panel Admin por defecto (nunca ver InvitadoWelcome)
-        // - Si es usuario normal e invitado → InvitadoWelcome
-        // - Si es usuario normal y no invitado → Chat
-        if (userRole === 'admin') {
-          setShowAdminPanel(true) // Admin va directo al Panel Admin
-          setShowGuestWelcome(false) // Admin NUNCA ve InvitadoWelcome
-        } else {
-          setShowAdminPanel(false)
-          // Solo usuarios normales que son invitados ven la bienvenida
-          setShowGuestWelcome(userType === 'invitado')
-        }
-      } else {
-        // No tiene perfil (usuario nuevo)
-        const userData: User = {
-          id: userId,
-          email: userEmail,
-          role: isAdmin ? 'admin' : 'invitado',
-          user_type: 'invitado'
-        }
-        
-        setUser(userData)
-        userRef.current = userData // Actualizar ref
-        
-        // Guardar en caché
-        sessionCache.set({
-          id: userData.id,
-          email: userData.email,
-          role: userData.role,
-          user_type: userData.user_type
-        })
-        
-        // LÓGICA: Si es admin sin perfil, crear perfil y mostrar Panel Admin
-        // Si es usuario normal sin perfil, mostrar InvitadoWelcome
-        if (isAdmin) {
-          setShowAdminPanel(true) // Admin va directo al Panel Admin
-          setShowGuestWelcome(false) // Admin NUNCA ve InvitadoWelcome
-        } else {
-          setShowAdminPanel(false)
-          setShowGuestWelcome(true) // Usuario nuevo ve InvitadoWelcome
-        }
-      }
-    } catch (error) {
-      console.error('Error al cargar perfil:', error)
-      // Fallback: intentar obtener datos básicos del auth
-      try {
-        const { data: { user: fallbackUser } } = await supabase.auth.getUser()
-        if (fallbackUser) {
-          const isAdmin = fallbackUser.email === 'mtzcontabilidad@gmail.com'
-          setUser({
-            id: fallbackUser.id,
-            email: fallbackUser.email || '',
-            role: isAdmin ? 'admin' : 'invitado',
-            user_type: 'invitado'
-          })
-          // LÓGICA: Admin va directo al Panel Admin, usuarios normales a InvitadoWelcome
-          if (isAdmin) {
-            setShowAdminPanel(true)
-            setShowGuestWelcome(false) // Admin NUNCA ve InvitadoWelcome
-          } else {
-            setShowAdminPanel(false)
-            setShowGuestWelcome(true)
-          }
-        } else {
-          setUser(null)
-        }
-      } catch (fallbackError) {
-        console.error('Error en fallback:', fallbackError)
-        setUser(null)
-      }
-    } finally {
-      // Asegurar que SIEMPRE se detenga la carga
-      stopLoading()
-    }
-  }
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -564,10 +542,34 @@ function App() {
           </div>
           <InvitadoWelcome 
             user={user} 
-            onContinue={() => {
+            onContinue={async () => {
               setShowGuestWelcome(false)
-              // Recargar perfil para verificar si cambió el tipo
-              loadUserProfile(user.id)
+              // Actualizar el estado del usuario sin recargar todo el perfil
+              // Solo verificar el user_type actualizado
+              try {
+                const { data: profile } = await supabase
+                  .from('user_profiles')
+                  .select('user_type')
+                  .eq('id', user.id)
+                  .maybeSingle()
+                
+                if (profile && user) {
+                  // Actualizar solo el user_type sin recargar todo
+                  setUser({
+                    ...user,
+                    user_type: profile.user_type as any
+                  })
+                  // Actualizar caché
+                  sessionCache.set({
+                    id: user.id,
+                    email: user.email,
+                    role: user.role,
+                    user_type: profile.user_type as any
+                  })
+                }
+              } catch (error) {
+                console.error('Error al actualizar user_type:', error)
+              }
             }} 
           />
         </div>

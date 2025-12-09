@@ -150,6 +150,47 @@
   opacity: 0.7;
 }
 
+.logo-fallback {
+  width: 120px;
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--neon-blue) 0%, var(--neon-blue-dark) 100%);
+  border-radius: 50%;
+  color: #000;
+  font-size: 48px;
+  font-weight: 800;
+  text-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 0 30px rgba(0, 212, 255, 0.5);
+}
+
+.auth-features {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 32px;
+  padding: 20px;
+  background: rgba(0, 212, 255, 0.05);
+  border-radius: 12px;
+  border: 1px solid rgba(0, 212, 255, 0.1);
+}
+
+.feature-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.feature-icon {
+  font-size: 20px;
+  width: 24px;
+  text-align: center;
+}
+
 /* Tablets */
 @media (max-width: 1024px) {
   .auth-container {

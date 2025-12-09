@@ -115,10 +115,35 @@ function Auth({ onAuthSuccess }: AuthProps) {
               src="https://mtz-alpha.vercel.app/logo-mtz.png" 
               alt="MTZ Logo" 
               className="logo-image"
+              onError={(e) => {
+                // Fallback si la imagen no carga
+                const target = e.target as HTMLImageElement
+                target.style.display = 'none'
+                const parent = target.parentElement
+                if (parent) {
+                  parent.innerHTML = '<div class="logo-fallback">MTZ</div>'
+                }
+              }}
             />
           </div>
           <h2>Bienvenido a MTZ Asistente</h2>
-          <p className="auth-subtitle">Inicia sesión con tu cuenta de Google para continuar</p>
+          <p className="auth-subtitle">
+            Tu asistente virtual para consultoría tributaria, transporte inclusivo y servicios especializados
+          </p>
+          <div className="auth-features">
+            <div className="feature-item">
+              <span className="feature-icon">🏢</span>
+              <span>MTZ Consultores Tributarios</span>
+            </div>
+            <div className="feature-item">
+              <span className="feature-icon">🚐</span>
+              <span>Fundación Te Quiero Feliz</span>
+            </div>
+            <div className="feature-item">
+              <span className="feature-icon">🪑</span>
+              <span>Taller de Sillas de Ruedas MMC</span>
+            </div>
+          </div>
           <button
             onClick={handleGoogleLogin}
             disabled={loading}

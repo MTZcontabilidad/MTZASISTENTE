@@ -16,63 +16,171 @@ interface InvitadoWelcomeProps {
 }
 
 function InvitadoWelcome({ user, onContinue }: InvitadoWelcomeProps) {
-  const [name, setName] = useState('')
-  const [company, setCompany] = useState('')
-  const [phone, setPhone] = useState('')
   const [isClient, setIsClient] = useState<boolean | null>(null) // null = no respondido
+  const [rut, setRut] = useState('')
+  const [claveImpuestos, setClaveImpuestos] = useState('')
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [foundCompany, setFoundCompany] = useState<string | null>(null)
+
+  // Función para formatear RUT (12345678-9)
+  const formatRut = (value: string): string => {
+    // Remover todo excepto números y K
+    const cleaned = value.replace(/[^0-9kK]/g, '')
+    
+    if (cleaned.length === 0) return ''
+    
+    // Si tiene más de 1 carácter, separar número del dígito verificador
+    if (cleaned.length > 1) {
+      const number = cleaned.slice(0, -1)
+      const dv = cleaned.slice(-1).toUpperCase()
+      return `${number}-${dv}`
+    }
+    
+    return cleaned.toUpperCase()
+  }
+
+  // Función para buscar y validar empresa por RUT y clave de impuestos
+  const buscarEmpresaPorRut = async (rutValue: string, claveValue?: string): Promise<{ company_name: string; id: string; clave_impuestos: string | null } | null> => {
+    try {
+      let query = supabase
+        .from('companies')
+        .select('id, company_name, rut, clave_impuestos')
+        .eq('rut', rutValue)
+        .eq('is_active', true)
+
+      // Si se proporciona la clave, validarla también
+      if (claveValue && claveValue.trim()) {
+        query = query.eq('clave_impuestos', claveValue.trim())
+      }
+
+      const { data, error } = await query.maybeSingle()
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error al buscar empresa:', error)
+        return null
+      }
+
+      if (data) {
+        // Si se proporcionó clave y la empresa tiene clave, validar que coincidan
+        if (claveValue && data.clave_impuestos) {
+          if (data.clave_impuestos !== claveValue.trim()) {
+            return null // Clave no coincide
+          }
+        }
+        return { 
+          company_name: data.company_name, 
+          id: data.id,
+          clave_impuestos: data.clave_impuestos
+        }
+      }
+
+      return null
+    } catch (error) {
+      console.error('Error al buscar empresa:', error)
+      return null
+    }
+  }
+
+  const handleRutChange = async (value: string) => {
+    const formatted = formatRut(value)
+    setRut(formatted)
+    setError(null)
+    setFoundCompany(null)
+
+    // Si el RUT está completo (tiene formato 12345678-9), buscar empresa (sin validar clave aún)
+    if (formatted.includes('-') && formatted.length >= 10) {
+      const empresa = await buscarEmpresaPorRut(formatted)
+      if (empresa) {
+        setFoundCompany(empresa.company_name)
+      } else {
+        setFoundCompany(null)
+      }
+    }
+  }
 
   const handleStartChat = async () => {
     setSaving(true)
+    setError(null)
+
     try {
-      // Determinar el tipo de usuario basado en si es cliente
       let userType: 'invitado' | 'cliente_nuevo' | 'cliente_existente' = 'invitado'
+      let companyName: string | null = null
+
+      // Si es cliente, validar RUT y clave
       if (isClient === true) {
-        userType = 'cliente_nuevo' // Nuevo cliente
+        if (!rut.trim()) {
+          setError('Por favor ingresa el RUT de tu empresa')
+          setSaving(false)
+          return
+        }
+
+        if (!claveImpuestos.trim()) {
+          setError('Por favor ingresa la clave de impuestos internos')
+          setSaving(false)
+          return
+        }
+
+        // Buscar y validar empresa por RUT y clave de impuestos
+        const empresa = await buscarEmpresaPorRut(rut.trim(), claveImpuestos.trim())
+        
+        if (empresa) {
+          // Empresa encontrada y clave válida - asignar automáticamente
+          companyName = empresa.company_name
+          userType = 'cliente_existente' // Cliente existente porque la empresa ya está en el sistema
+        } else {
+          // Empresa no encontrada o clave incorrecta
+          setError('RUT o clave de impuestos incorrectos. Por favor verifica tus datos.')
+          setSaving(false)
+          return
+        }
       }
 
-      // Actualizar perfil con información básica
-      const updates: any = {}
-      if (name.trim()) updates.full_name = name.trim()
-      updates.user_type = userType
-      
-      // Si hay información de empresa o es cliente, actualizar client_info
-      if (company.trim() || phone.trim() || isClient === true) {
+      // Actualizar perfil
+      const updates: any = {
+        user_type: userType
+      }
+
+      await supabase
+        .from('user_profiles')
+        .update(updates)
+        .eq('id', user.id)
+
+      // Actualizar o crear client_info
+      if (isClient === true) {
         const { data: existing } = await supabase
           .from('client_info')
           .select('id')
           .eq('user_id', user.id)
           .maybeSingle()
 
+        const clientInfoData: any = {
+          rut: rut.trim() || null,
+          clave_impuestos: claveImpuestos.trim() || null,
+          company_name: companyName || null
+        }
+
         if (!existing) {
           await supabase
             .from('client_info')
             .insert({
               user_id: user.id,
-              company_name: company.trim() || null,
-              phone: phone.trim() || null
+              ...clientInfoData
             })
         } else {
           await supabase
             .from('client_info')
-            .update({
-              company_name: company.trim() || null,
-              phone: phone.trim() || null
-            })
+            .update(clientInfoData)
             .eq('user_id', user.id)
         }
       }
 
-      // Actualizar perfil
-      await supabase
-        .from('user_profiles')
-        .update(updates)
-        .eq('id', user.id)
-    } catch (error) {
-      console.error('Error al guardar información:', error)
-    } finally {
-      setSaving(false)
+      // Continuar al chat
       onContinue()
+    } catch (error: any) {
+      console.error('Error al guardar información:', error)
+      setError('Error al guardar la información. Por favor intenta nuevamente.')
+      setSaving(false)
     }
   }
 
@@ -89,52 +197,90 @@ function InvitadoWelcome({ user, onContinue }: InvitadoWelcomeProps) {
           </div>
           <h1 className="welcome-title">¡Bienvenido a MTZ Asistente!</h1>
           <p className="welcome-subtitle">
-            Estamos aquí para ayudarte. Cuéntanos un poco sobre ti para personalizar tu experiencia.
+            Estamos aquí para ayudarte. Primero, cuéntanos si eres cliente de MTZ.
           </p>
         </div>
 
         <div className="welcome-form">
+          {/* Sección: ¿Es cliente MTZ? */}
           <div className="form-section">
-            <h3 className="section-title">Información Básica</h3>
-            <div className="form-grid">
-              <div className="form-group">
-                <label htmlFor="name">Nombre completo (opcional)</label>
-                <input
-                  id="name"
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Tu nombre"
-                  className="form-input"
-                />
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="company">Empresa (opcional)</label>
-                <input
-                  id="company"
-                  type="text"
-                  value={company}
-                  onChange={(e) => setCompany(e.target.value)}
-                  placeholder="Nombre de tu empresa"
-                  className="form-input"
-                />
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="phone">Teléfono (opcional)</label>
-                <input
-                  id="phone"
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="Tu teléfono de contacto"
-                  className="form-input"
-                />
-              </div>
+            <h3 className="section-title">¿Eres cliente de MTZ?</h3>
+            <div className="client-options">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsClient(true)
+                  setError(null)
+                  setRut('')
+                  setClaveImpuestos('')
+                  setFoundCompany(null)
+                }}
+                className={`client-option-button ${isClient === true ? 'selected' : ''}`}
+              >
+                <span className="option-icon">✅</span>
+                <span>Sí, soy cliente</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsClient(false)
+                  setError(null)
+                  setRut('')
+                  setClaveImpuestos('')
+                  setFoundCompany(null)
+                }}
+                className={`client-option-button ${isClient === false ? 'selected' : ''}`}
+              >
+                <span className="option-icon">❌</span>
+                <span>No, no soy cliente</span>
+              </button>
             </div>
           </div>
 
+          {/* Formulario de RUT y Clave (solo si es cliente) */}
+          {isClient === true && (
+            <div className="form-section">
+              <h3 className="section-title">Datos de tu Empresa</h3>
+              <div className="form-grid">
+                <div className="form-group">
+                  <label htmlFor="rut">RUT de la Empresa *</label>
+                  <input
+                    id="rut"
+                    type="text"
+                    value={rut}
+                    onChange={(e) => handleRutChange(e.target.value)}
+                    placeholder="12345678-9"
+                    className="form-input"
+                    maxLength={12}
+                  />
+                  {foundCompany && (
+                    <p className="form-success-message">
+                      ✅ Empresa encontrada: <strong>{foundCompany}</strong>
+                    </p>
+                  )}
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="clave-impuestos">Clave de Impuestos Internos *</label>
+                  <input
+                    id="clave-impuestos"
+                    type="password"
+                    value={claveImpuestos}
+                    onChange={(e) => setClaveImpuestos(e.target.value)}
+                    placeholder="Ingresa tu clave del SII"
+                    className="form-input"
+                  />
+                </div>
+              </div>
+              {error && (
+                <div className="form-error-message">
+                  {error}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Sección de Servicios */}
           <div className="welcome-features">
             <h3 className="section-title">Nuestros Servicios</h3>
             <div className="features-grid">
@@ -185,37 +331,11 @@ function InvitadoWelcome({ user, onContinue }: InvitadoWelcomeProps) {
             </div>
           </div>
 
-          <div className="form-section">
-            <h3 className="section-title">¿Eres cliente de MTZ?</h3>
-            <div className="client-options">
-              <button
-                type="button"
-                onClick={() => setIsClient(true)}
-                className={`client-option-button ${isClient === true ? 'selected' : ''}`}
-              >
-                <span className="option-icon">✅</span>
-                <span>Sí, soy cliente</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsClient(false)}
-                className={`client-option-button ${isClient === false ? 'selected' : ''}`}
-              >
-                <span className="option-icon">❌</span>
-                <span>No, no soy cliente</span>
-              </button>
-            </div>
-            {isClient === true && (
-              <p className="client-note">
-                Como cliente, tendrás acceso a información y servicios personalizados
-              </p>
-            )}
-          </div>
-
+          {/* Botón de acción */}
           <div className="welcome-actions">
             <button
               onClick={handleStartChat}
-              disabled={saving}
+              disabled={saving || isClient === null}
               className="start-chat-button"
             >
               {saving ? (
@@ -230,9 +350,11 @@ function InvitadoWelcome({ user, onContinue }: InvitadoWelcomeProps) {
                 </>
               )}
             </button>
-            <p className="skip-text">
-              Puedes omitir estos datos y completarlos más tarde
-            </p>
+            {isClient === null && (
+              <p className="skip-text">
+                Por favor selecciona si eres cliente de MTZ para continuar
+              </p>
+            )}
           </div>
         </div>
       </div>
