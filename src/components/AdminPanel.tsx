@@ -21,7 +21,7 @@ import {
   type DocumentInput,
 } from "../lib/adminDocuments";
 import { getDocumentIcon } from "../lib/documents";
-import { UserProfile, ClientInfo, UserType } from "../types";
+import { UserProfile, ClientInfo, UserType, UserRole } from "../types";
 import "./AdminPanel.css";
 
 interface UserWithClientInfo extends UserProfile {
@@ -181,7 +181,7 @@ function AdminPanel() {
   const handleSaveUser = async (updates: {
     full_name?: string;
     user_type?: UserType;
-    role?: "user" | "admin";
+    role?: UserRole;
     company_name?: string;
     phone?: string;
     address?: string;
@@ -726,7 +726,7 @@ function EditUserModal({ user, onClose, onSave }: EditUserModalProps) {
   const [userType, setUserType] = useState<UserType>(
     user.user_type || "invitado"
   );
-  const [role, setRole] = useState<"user" | "admin">(user.role);
+  const [role, setRole] = useState<UserRole>(user.role);
   const [companyName, setCompanyName] = useState(
     user.client_info?.company_name || ""
   );
@@ -808,7 +808,7 @@ function EditUserModal({ user, onClose, onSave }: EditUserModalProps) {
                 <label>Rol</label>
                 <select
                   value={role}
-                  onChange={(e) => setRole(e.target.value as "user" | "admin")}
+                  onChange={(e) => setRole(e.target.value as UserRole)}
                 >
                   <option value="user">Usuario</option>
                   <option value="admin">Administrador</option>

@@ -36,7 +36,7 @@ function App() {
   // Refs para evitar recargas innecesarias
   const isLoadingRef = useRef(false)
   const lastCheckRef = useRef<number>(initialUser ? Date.now() : 0)
-  const sessionCheckedRef = useRef(!!initialUser)
+  // const sessionCheckedRef = useRef(!!initialUser) // No utilizado actualmente
   const userRef = useRef<User | null>(initialUser) // Ref para acceder al usuario actual
 
   // Actualizar ref cuando cambia el usuario
@@ -83,10 +83,10 @@ function App() {
 
     // Listener de visibilidad COMPLETAMENTE DESHABILITADO
     // NO hacer NADA al cambiar de pestaña - confiar completamente en el caché
-    const handleVisibilityChange = () => {
-      // NO HACER NADA - completamente deshabilitado
-      return
-    }
+    // const handleVisibilityChange = () => { // No utilizado actualmente
+    //   // NO HACER NADA - completamente deshabilitado
+    //   return
+    // }
 
     // NO agregar el listener - está completamente deshabilitado
     // document.addEventListener('visibilitychange', handleVisibilityChange)
@@ -298,7 +298,7 @@ function App() {
           return
         }
         // Fallback: usar userId directamente
-        const isAdmin = false
+        // const isAdmin = false // No utilizado actualmente
         setUser({
           id: userId,
           email: '',
@@ -346,7 +346,7 @@ function App() {
           setUser({
             id: userId,
             email: userEmail,
-            role: isAdmin ? 'admin' : 'user',
+            role: isAdmin ? 'admin' : 'invitado',
             user_type: 'invitado'
           })
           // LÓGICA: Admin va directo al Panel Admin, usuarios normales a InvitadoWelcome
@@ -360,7 +360,7 @@ function App() {
           stopLoading()
           
           // Intentar crear perfil en background (no bloquea)
-          supabase
+          Promise.resolve(supabase
             .from('user_profiles')
             .insert({
               id: userId,
@@ -369,9 +369,9 @@ function App() {
               avatar_url: authUser.user_metadata?.avatar_url || null,
               role: isAdmin ? 'admin' : 'invitado',
               user_type: 'invitado'
-            })
+            }))
             .then(() => console.log('Perfil creado en background'))
-            .catch(err => console.log('Error al crear perfil en background:', err))
+            .catch((err: unknown) => console.log('Error al crear perfil en background:', err))
           
           return
         }

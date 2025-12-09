@@ -266,7 +266,7 @@ export async function findMatchingFAQs(userInput: string): Promise<FAQResponse[]
     // Filtrar FAQs que coincidan con triggers o contenido
     const matching = data.filter(faq => {
       // Verificar triggers
-      const hasTrigger = faq.triggers.some(trigger => 
+      const hasTrigger = faq.triggers.some((trigger: string) => 
         inputLower.includes(trigger.toLowerCase())
       )
       

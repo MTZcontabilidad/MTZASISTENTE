@@ -2,14 +2,15 @@ import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { MTZ_SERVICES } from '../config/services'
 import { getWhatsAppLink, openLink } from '../config/links'
+import { UserRole, UserType } from '../types'
 import './InvitadoWelcome.css'
 
 interface InvitadoWelcomeProps {
   user: {
     id: string
     email: string
-    role: 'user' | 'admin'
-    user_type?: 'invitado' | 'cliente_nuevo' | 'cliente_existente'
+    role: UserRole
+    user_type?: UserType
   }
   onContinue: () => void
 }
