@@ -224,55 +224,90 @@ export async function generateResponse(
     
     const documentRequest = detectDocumentRequest(userInput);
     if (documentRequest && !isIvaOrF29Request) {
+      // Detectar intención: ¿quiere descargar, pagar, o solo información?
+      const wantsDownload = inputLower.includes('descargar') || inputLower.includes('bajar') || inputLower.includes('obtener');
+      const wantsPay = inputLower.includes('pagar') || inputLower.includes('precio') || inputLower.includes('costo') || inputLower.includes('inversión') || inputLower.includes('inversion');
+      const wantsInfo = inputLower.includes('información') || inputLower.includes('informacion') || inputLower.includes('saber') || inputLower.includes('conocer');
+      
       const documents = await getDocumentsByType(userId, documentRequest.type);
 
       if (documents.length > 0) {
-        // Si hay documentos, mostrar el más reciente o el del período solicitado
-        let selectedDoc = documents[0];
+        // Si hay documentos y quiere descargar, mostrar directamente
+        if (wantsDownload) {
+          let selectedDoc = documents[0];
 
-        if (documentRequest.period) {
-          const periodDoc = documents.find(
-            (d) => d.period === documentRequest.period
-          );
-          if (periodDoc) selectedDoc = periodDoc;
-        } else if (documentRequest.year && documentRequest.month) {
-          const dateDoc = documents.find(
-            (d) =>
-              d.year === documentRequest.year &&
-              d.month === documentRequest.month
-          );
-          if (dateDoc) selectedDoc = dateDoc;
+          if (documentRequest.period) {
+            const periodDoc = documents.find(
+              (d) => d.period === documentRequest.period
+            );
+            if (periodDoc) selectedDoc = periodDoc;
+          } else if (documentRequest.year && documentRequest.month) {
+            const dateDoc = documents.find(
+              (d) =>
+                d.year === documentRequest.year &&
+                d.month === documentRequest.month
+            );
+            if (dateDoc) selectedDoc = dateDoc;
+          }
+
+          const downloadUrl = getDocumentDownloadUrl(selectedDoc);
+          if (downloadUrl) {
+            return {
+              text: `📄 ${formatDocumentName(
+                selectedDoc
+              )}\n\n🔗 [Descargar aquí](${downloadUrl})`,
+              document: selectedDoc,
+            };
+          }
         }
-
-        const downloadUrl = getDocumentDownloadUrl(selectedDoc);
-        if (downloadUrl) {
-          return {
-            text: `📄 ${formatDocumentName(
-              selectedDoc
-            )}\n\n🔗 [Descargar aquí](${downloadUrl})`,
-            document: selectedDoc,
-          };
-        } else {
-          // Si no hay URL, mostrar menú de documentos
+        
+        // Si quiere pagar o contratar servicio, mostrar información de precios
+        if (wantsPay) {
           const menu = await findRelevantMenu("documentos");
           if (menu) {
             return {
-              text: `Tienes ${documents.length} documento(s) de tipo ${
-                documentRequest.type
-              }.\n\n${generateMenuResponse(menu)}`,
+              text: enrichWithMotivation(
+                `Entiendo que necesitas información sobre precios para ${documentRequest.type}. 😊\n\nNuestro equipo puede ayudarte con esto. Para darte un presupuesto preciso, necesitaría saber:\n\n• ¿Qué período necesitas?\n• ¿Es para una declaración o trámite específico?\n• ¿Tienes alguna urgencia?\n\nMientras tanto, aquí tienes opciones disponibles:\n\n${generateMenuResponse(menu)}`,
+                userInput
+              ),
               menu,
             };
           }
         }
+        
+        // Si solo quiere información o no está claro, preguntar qué necesita
+        if (!wantsDownload && !wantsPay) {
+          const menu = await findRelevantMenu("documentos");
+          if (menu) {
+            return {
+              text: enrichWithMotivation(
+                `Encontré ${documents.length} documento(s) de tipo ${documentRequest.type} en tu cuenta. 😊\n\n¿Qué te gustaría hacer?\n\n• 📥 **Descargar** el documento\n• 💰 **Contratar servicio** para que nuestro equipo lo haga\n• ℹ️ **Ver información** sobre este tipo de documento\n\nSelecciona una opción:\n\n${generateMenuResponse(menu)}`,
+                userInput
+              ),
+              menu,
+            };
+          }
+        }
+        
+        // Fallback: mostrar menú
+        const menu = await findRelevantMenu("documentos");
+        if (menu) {
+          return {
+            text: `Tienes ${documents.length} documento(s) de tipo ${
+              documentRequest.type
+            }.\n\n${generateMenuResponse(menu)}`,
+            menu,
+          };
+        }
       } else {
-        // No hay documentos, mostrar menú
+        // No hay documentos, mostrar menú con opciones
         const menu = await findRelevantMenu("documentos");
         if (menu) {
           return {
             text: enrichWithMotivation(
               `No encontré documentos de tipo ${
                 documentRequest.type
-              } en tu cuenta, pero no te preocupes. Aquí tienes otras opciones disponibles:\n\n${generateMenuResponse(menu)}`,
+              } en tu cuenta, pero no te preocupes. 😊\n\nPuedo ayudarte de varias formas:\n\n• 📥 **Descargar** documentos disponibles\n• 💰 **Contratar servicio** para que nuestro equipo lo prepare\n• ℹ️ **Ver información** sobre este tipo de documento\n\nAquí tienes las opciones disponibles:\n\n${generateMenuResponse(menu)}`,
               userInput
             ),
             menu,
@@ -630,9 +665,21 @@ export async function generateResponse(
     return enrichedResponse;
   } catch (error) {
     console.error("Error al generar respuesta:", error);
+    // Respuesta de fallback cuando no entiende - ofrecer opciones
+    const menu = await findRelevantMenu("documentos");
+    if (menu) {
+      return {
+        text: enrichWithMotivation(
+          `No estoy completamente seguro de lo que necesitas, pero puedo ayudarte con varias opciones. 😊\n\n¿Te gustaría:\n\n• 📋 **Ver documentos** disponibles\n• 💰 **Contratar servicios** tributarios\n• 📅 **Agendar una reunión** con nuestro equipo\n• 💬 **Contactar** con un ejecutivo\n• ℹ️ **Obtener información** sobre nuestros servicios\n\nSelecciona una opción del menú:\n\n${generateMenuResponse(menu)}`,
+          userInput
+        ),
+        menu,
+      };
+    }
+    
     // Respuesta de fallback en caso de error (con motivación)
     return enrichWithMotivation(
-      "Gracias por tu mensaje. Estoy aquí para ayudarte. ¿En qué puedo asistirte?",
+      "Gracias por tu mensaje. Estoy aquí para ayudarte. ¿En qué puedo asistirte?\n\nSi no encuentras lo que buscas, puedes escribirme de otra forma o seleccionar una opción del menú.",
       userInput
     );
   }

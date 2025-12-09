@@ -3,7 +3,7 @@
  * Permite activar/desactivar lectura de respuestas y entrada por voz
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useTextToSpeech, getTextToSpeechService } from "../lib/textToSpeech";
 import { useSpeechToText } from "../lib/speechToText";
 import "./VoiceControls.css";
@@ -25,7 +25,7 @@ export default function VoiceControls({
   const [ttsEnabled, setTtsEnabled] = useState(autoRead);
   const [sttEnabled, setSttEnabled] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [rate, setRate] = useState(0.9); // Velocidad más natural por defecto
+  const [rate, setRate] = useState(1.3); // Velocidad por defecto 1.3
   const [pitch, setPitch] = useState(1.0);
   const [volume, setVolume] = useState(1.0);
   const [selectedVoice, setSelectedVoice] = useState<string>("");
@@ -184,7 +184,34 @@ export default function VoiceControls({
       {/* Panel de configuración */}
       {showSettings && (
         <div className="voice-settings-panel">
-          <h4 className="voice-settings-title">Configuración de Voz</h4>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', paddingBottom: '12px', borderBottom: '1px solid var(--border-color)' }}>
+            <h4 className="voice-settings-title" style={{ margin: 0 }}>Configuración de Voz</h4>
+            <button
+              onClick={() => setShowSettings(false)}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--text-primary)',
+                fontSize: '20px',
+                cursor: 'pointer',
+                padding: '4px 8px',
+                borderRadius: '4px',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(255, 68, 68, 0.2)';
+                e.currentTarget.style.color = '#ff4444';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent';
+                e.currentTarget.style.color = 'var(--text-primary)';
+              }}
+              aria-label="Cerrar configuración"
+              title="Cerrar"
+            >
+              ✕
+            </button>
+          </div>
 
           {/* Velocidad */}
           <div className="voice-setting">

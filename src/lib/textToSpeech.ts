@@ -194,7 +194,7 @@ class TextToSpeechService {
         const geminiOptions = {
           languageCode: options.lang || 'es-CL',
           voiceName: options.geminiVoice || 'es-CL-Neural2-A', // Voz neural más natural
-          speakingRate: options.rate ? options.rate * 0.95 : 1.15, // Más rápido y dinámico
+          speakingRate: options.rate ? options.rate * 0.95 : 1.3, // Velocidad por defecto 1.3
           pitch: options.pitch ? (options.pitch - 1) * 20 : 3, // Pitch más alto (amigable y con carisma)
         };
 

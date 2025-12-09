@@ -20,6 +20,8 @@ import MeetingScheduler from "./MeetingScheduler";
 import VoiceControls from "./VoiceControls";
 import HumanSupportOptions from "./HumanSupportOptions";
 import UserProfile from "./UserProfile";
+import VoiceSettingsDropdown from "./VoiceSettingsDropdown";
+import { useSpeechToText } from "../lib/speechToText";
 import "./ChatInterface.css";
 
 interface MessageWithMenu extends Message {
@@ -51,6 +53,27 @@ function ChatInterface() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  
+  // Speech-to-text para el botón de micrófono
+  const {
+    start: startListening,
+    stop: stopListening,
+    abort: abortListening,
+    isListening,
+    transcript: voiceTranscript,
+    error: sttError,
+    isSupported: sttSupported,
+  } = useSpeechToText();
+  
+  const [sttEnabled, setSttEnabled] = useState(false);
+  
+  // Cuando se recibe transcript del micrófono, ponerlo en el input
+  useEffect(() => {
+    if (voiceTranscript && !isListening) {
+      setInput(voiceTranscript);
+      setSttEnabled(false);
+    }
+  }, [voiceTranscript, isListening]);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -903,6 +926,10 @@ function ChatInterface() {
           >
             💬
           </button>
+          <VoiceSettingsDropdown
+            autoRead={autoReadEnabled}
+            onAutoReadChange={setAutoReadEnabled}
+          />
         </div>
         <textarea
           ref={inputRef}
@@ -918,6 +945,24 @@ function ChatInterface() {
           disabled={loading || loadingHistory || !conversationId}
           className="message-input"
         />
+        <button
+          onClick={() => {
+            if (isListening) {
+              stopListening();
+              setSttEnabled(false);
+            } else {
+              startListening({ lang: "es-CL", continuous: false });
+              setSttEnabled(true);
+            }
+          }}
+          className={`action-button voice-input-button ${isListening ? 'listening' : ''}`}
+          type="button"
+          title={isListening ? "Detener grabación" : "Grabar audio"}
+          aria-label={isListening ? "Detener grabación" : "Grabar audio"}
+          disabled={loading || loadingHistory || !conversationId}
+        >
+          {isListening ? '⏹' : '🎙️'}
+        </button>
         {loading ? (
           <button
             onClick={handleStopResponse}

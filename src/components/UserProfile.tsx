@@ -153,14 +153,38 @@ export default function UserProfile({ userId, userEmail, userName, onUpdate }: U
         <form onSubmit={handleSubmit} className="user-profile-form">
           <div className="form-group">
             <label htmlFor="email">Correo Electrónico</label>
-            <input
-              type="email"
-              id="email"
-              value={userEmail}
-              disabled
-              className="form-input disabled"
-            />
-            <small className="form-help">No se puede modificar</small>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <input
+                type="email"
+                id="email"
+                value={userEmail}
+                disabled
+                className="form-input disabled"
+                style={{ flex: 1 }}
+              />
+              <button
+                type="button"
+                onClick={async () => {
+                  const { error } = await supabase.auth.signInWithOAuth({
+                    provider: 'google',
+                    options: {
+                      redirectTo: window.location.origin,
+                    }
+                  });
+                  if (error) {
+                    setError('Error al iniciar sesión con Google');
+                  }
+                }}
+                className="user-profile-button"
+                style={{
+                  padding: '10px 16px',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                🔐 Validar con Gmail
+              </button>
+            </div>
+            <small className="form-help">No se puede modificar directamente. Usa el botón para validar con Gmail.</small>
           </div>
 
           <div className="form-group">
