@@ -175,7 +175,8 @@ export function generateMotivationalMessage(
 
 /**
  * Enriquece una respuesta con mensajes motivacionales
- * Siempre agrega un toque de apoyo y energía
+ * Solo agrega frases motivacionales cuando el usuario tiene dudas o se frustra
+ * NO agrega frases cuando se muestran menús (a menos que haya frustración)
  */
 export function enrichWithMotivation(
   baseResponse: string,
@@ -188,6 +189,16 @@ export function enrichWithMotivation(
 ): string {
   const needs = detectUserNeedsEncouragement(userInput);
 
+  // Detectar si la respuesta contiene un menú
+  const hasMenu = 
+    baseResponse.includes("Selecciona") ||
+    baseResponse.includes("opciones disponibles") ||
+    baseResponse.includes("opción que necesitas") ||
+    baseResponse.includes("opción del menú") ||
+    baseResponse.includes("Selecciona una opción") ||
+    baseResponse.includes("Selecciona la opción") ||
+    baseResponse.match(/\[.*\]\(.*\)/); // Patrón de markdown links (botones del menú)
+
   // Si la respuesta ya contiene mensajes motivacionales, no duplicar
   const hasMotivationalContent =
     baseResponse.includes("puedes") ||
@@ -196,14 +207,22 @@ export function enrichWithMotivation(
     baseResponse.includes("apoyo") ||
     baseResponse.includes("confía");
 
-  // Si el usuario necesita ánimo, agregar mensaje motivacional al inicio
+  // Si el usuario necesita ánimo (frustración o desánimo), agregar mensaje motivacional
+  // incluso si hay menú, porque el usuario realmente necesita apoyo
   if (needs.needsEncouragement && !hasMotivationalContent) {
     const motivationalMsg = generateMotivationalMessage(userInput, context);
     return `${motivationalMsg} ${baseResponse}`;
   }
 
-  // Si no necesita ánimo específico, agregar un mensaje de apoyo al final (más sutil)
-  if (!hasMotivationalContent) {
+  // Si hay un menú y el usuario NO necesita ánimo específico, NO agregar frases motivacionales
+  // Las frases motivacionales solo son para cuando hay dudas o frustración
+  if (hasMenu && !needs.needsEncouragement) {
+    return baseResponse;
+  }
+
+  // Si no hay menú y no necesita ánimo específico, agregar un mensaje de apoyo al final (más sutil)
+  // Solo si no hay contenido motivacional ya presente
+  if (!hasMenu && !hasMotivationalContent && !needs.needsEncouragement) {
     const closingPhrases = [
       "¡Tú puedes con esto!",
       "Estoy aquí para apoyarte",
