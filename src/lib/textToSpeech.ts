@@ -45,13 +45,47 @@ class TextToSpeechService {
    * Prioriza voces naturales y conversacionales
    */
   private selectBestVoice() {
+    // Lista de nombres de voces preferidas (más naturales)
+    // Estas voces suelen sonar mejor en diferentes navegadores
+    const preferredVoiceNames = [
+      "Microsoft Sabina - Spanish (Mexico)", // Windows - muy natural
+      "Google español", // Chrome - buena calidad
+      "Microsoft Pablo - Spanish (Spain)", // Windows
+      "Microsoft Helena - Spanish (Spain)", // Windows
+      "Microsoft Laura - Spanish (Spain)", // Windows
+      "es-ES-Standard-A", // Google Cloud TTS (si está disponible)
+      "es-MX-Standard-A", // Google Cloud TTS
+      "es-CL-Standard-A", // Google Cloud TTS
+    ];
+
+    // Primero buscar voces preferidas por nombre
+    for (const preferredName of preferredVoiceNames) {
+      const voice = this.availableVoices.find((v) =>
+        v.name.includes(preferredName) || preferredName.includes(v.name)
+      );
+      if (voice && voice.lang.startsWith("es")) {
+        this.preferredVoice = voice;
+        return;
+      }
+    }
+
     // Priorizar voces en español de Chile o español latinoamericano
-    const preferredLangCodes = ["es-CL", "es-MX", "es-AR", "es-ES", "es"];
+    const preferredLangCodes = ["es-CL", "es-MX", "es-AR", "es-CO", "es-ES", "es"];
     
-    // Buscar voces preferidas
+    // Buscar voces preferidas (priorizar voces locales que suelen ser mejores)
     for (const langCode of preferredLangCodes) {
-      const voice = this.availableVoices.find(
+      // Primero buscar voces locales
+      const localVoice = this.availableVoices.find(
         (v) => v.lang.startsWith(langCode) && v.localService
+      );
+      if (localVoice) {
+        this.preferredVoice = localVoice;
+        return;
+      }
+      
+      // Si no hay local, buscar cualquier voz en ese idioma
+      const voice = this.availableVoices.find(
+        (v) => v.lang.startsWith(langCode)
       );
       if (voice) {
         this.preferredVoice = voice;
@@ -110,8 +144,10 @@ class TextToSpeechService {
 
       const utterance = new SpeechSynthesisUtterance(cleanText);
 
-      // Configurar opciones
-      utterance.rate = options.rate ?? 1.0; // Velocidad conversacional
+      // Configurar opciones con valores más naturales y conversacionales
+      // Velocidad ligeramente más lenta para sonar más natural (0.85-0.95 es ideal)
+      utterance.rate = options.rate ?? 0.9; // Velocidad más conversacional
+      // Pitch ligeramente más bajo para sonar más natural (0.9-1.1 es ideal)
       utterance.pitch = options.pitch ?? 1.0; // Tono natural
       utterance.volume = options.volume ?? 1.0;
       utterance.lang = options.lang ?? "es-CL";
@@ -144,6 +180,7 @@ class TextToSpeechService {
 
   /**
    * Limpia el texto removiendo markdown, HTML y caracteres especiales
+   * Mejora la pronunciación para que suene más natural
    */
   private cleanText(text: string): string {
     // Remover HTML
@@ -159,7 +196,13 @@ class TextToSpeechService {
       .replace(/\n{3,}/g, "\n\n") // Múltiples saltos de línea
       .trim();
 
-    // Reemplazar caracteres especiales por palabras
+    // Mejorar pronunciación de números y fechas
+    clean = this.improveNumberPronunciation(clean);
+    
+    // Mejorar pronunciación de acrónimos comunes
+    clean = this.improveAcronymPronunciation(clean);
+
+    // Reemplazar caracteres especiales por palabras más naturales
     clean = clean
       .replace(/&nbsp;/g, " ")
       .replace(/&amp;/g, " y ")
@@ -174,9 +217,111 @@ class TextToSpeechService {
       .replace(/💰/g, " dinero ")
       .replace(/🧾/g, " factura ")
       .replace(/💬/g, " mensaje ")
-      .replace(/📄/g, " documento ");
+      .replace(/📄/g, " documento ")
+      .replace(/✅/g, " correcto ")
+      .replace(/❌/g, " incorrecto ")
+      .replace(/⚠️/g, " atención ")
+      .replace(/ℹ️/g, " información ");
+
+    // Agregar pausas naturales después de puntuación
+    clean = clean
+      .replace(/\./g, ". ") // Pausa después de punto
+      .replace(/\?/g, "? ") // Pausa después de pregunta
+      .replace(/!/g, "! ") // Pausa después de exclamación
+      .replace(/,/g, ", ") // Pausa breve después de coma
+      .replace(/;/g, "; ") // Pausa después de punto y coma
+      .replace(/:/g, ": "); // Pausa después de dos puntos
+
+    // Limpiar espacios múltiples
+    clean = clean.replace(/\s+/g, " ").trim();
 
     return clean;
+  }
+
+  /**
+   * Mejora la pronunciación de números para que suenen más naturales
+   */
+  private improveNumberPronunciation(text: string): string {
+    // Convertir números grandes a palabras más naturales
+    // Ejemplo: "2024" -> "dos mil veinticuatro" (solo para años)
+    
+    // Mejorar fechas: DD/MM/YYYY o DD-MM-YYYY
+    text = text.replace(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/g, (match, day, month, year) => {
+      return `${day} de ${this.monthName(parseInt(month))} de ${year}`;
+    });
+
+    // Mejorar porcentajes: "50%" -> "cincuenta por ciento"
+    text = text.replace(/(\d+)%/g, (match, num) => {
+      const number = parseInt(num);
+      if (number <= 100) {
+        return `${this.numberToWords(number)} por ciento`;
+      }
+      return match;
+    });
+
+    // Mejorar números de teléfono: agregar pausas
+    text = text.replace(/(\d{2,3})[\s\-]?(\d{4})[\s\-]?(\d{4})/g, "$1 $2 $3");
+
+    return text;
+  }
+
+  /**
+   * Convierte números a palabras en español (solo para números pequeños)
+   */
+  private numberToWords(num: number): string {
+    const units = ["", "uno", "dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho", "nueve"];
+    const teens = ["diez", "once", "doce", "trece", "catorce", "quince", "dieciséis", "diecisiete", "dieciocho", "diecinueve"];
+    const tens = ["", "", "veinte", "treinta", "cuarenta", "cincuenta", "sesenta", "setenta", "ochenta", "noventa"];
+
+    if (num === 0) return "cero";
+    if (num < 10) return units[num];
+    if (num < 20) return teens[num - 10];
+    if (num < 100) {
+      const ten = Math.floor(num / 10);
+      const unit = num % 10;
+      if (unit === 0) return tens[ten];
+      if (ten === 2) return `veinti${units[unit]}`;
+      return `${tens[ten]} y ${units[unit]}`;
+    }
+    if (num === 100) return "cien";
+    return num.toString(); // Para números mayores, mantener como está
+  }
+
+  /**
+   * Obtiene el nombre del mes en español
+   */
+  private monthName(month: number): string {
+    const months = [
+      "enero", "febrero", "marzo", "abril", "mayo", "junio",
+      "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"
+    ];
+    return months[month - 1] || month.toString();
+  }
+
+  /**
+   * Mejora la pronunciación de acrónimos comunes
+   */
+  private improveAcronymPronunciation(text: string): string {
+    const acronyms: { [key: string]: string } = {
+      "SII": "S I I",
+      "RUT": "R U T",
+      "API": "A P I",
+      "URL": "U R L",
+      "PDF": "P D F",
+      "HTML": "H T M L",
+      "CSS": "C S S",
+      "JS": "J S",
+      "MTZ": "M T Z",
+    };
+
+    let result = text;
+    for (const [acronym, pronunciation] of Object.entries(acronyms)) {
+      // Solo reemplazar si es una palabra completa (no parte de otra palabra)
+      const regex = new RegExp(`\\b${acronym}\\b`, "gi");
+      result = result.replace(regex, pronunciation);
+    }
+
+    return result;
   }
 
   /**

@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect } from "react";
-import { useTextToSpeech } from "../lib/textToSpeech";
+import { useTextToSpeech, getTextToSpeechService } from "../lib/textToSpeech";
 import { useSpeechToText } from "../lib/speechToText";
 import "./VoiceControls.css";
 
@@ -24,9 +24,10 @@ export default function VoiceControls({
   const [ttsEnabled, setTtsEnabled] = useState(false);
   const [sttEnabled, setSttEnabled] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [rate, setRate] = useState(1.0);
+  const [rate, setRate] = useState(0.9); // Velocidad más natural por defecto
   const [pitch, setPitch] = useState(1.0);
   const [volume, setVolume] = useState(1.0);
+  const [selectedVoice, setSelectedVoice] = useState<string>("");
 
   const {
     speak,
@@ -50,12 +51,22 @@ export default function VoiceControls({
     isSupported: sttSupported,
   } = useSpeechToText();
 
+  // Inicializar voz seleccionada
+  useEffect(() => {
+    if (currentVoice && !selectedVoice) {
+      setSelectedVoice(currentVoice.name);
+    }
+  }, [currentVoice, selectedVoice]);
+
   // Leer automáticamente cuando cambia el texto y TTS está habilitado
   useEffect(() => {
     if (autoRead && ttsEnabled && textToRead && !isSpeaking) {
-      speak(textToRead, { rate, pitch, volume });
+      const voice = selectedVoice 
+        ? availableVoices.find(v => v.name === selectedVoice) || undefined
+        : undefined;
+      speak(textToRead, { rate, pitch, volume, voice: voice || undefined });
     }
-  }, [textToRead, autoRead, ttsEnabled, rate, pitch, volume, speak, isSpeaking]);
+  }, [textToRead, autoRead, ttsEnabled, rate, pitch, volume, speak, isSpeaking, selectedVoice, availableVoices]);
 
   // Enviar transcript cuando está completo
   useEffect(() => {
@@ -214,6 +225,42 @@ export default function VoiceControls({
             />
           </div>
 
+          {/* Selección de voz */}
+          {availableVoices.length > 0 && (
+            <div className="voice-setting">
+              <label htmlFor="voice-select">
+                Voz:
+              </label>
+              <select
+                id="voice-select"
+                value={selectedVoice || currentVoice?.name || ""}
+                onChange={(e) => {
+                  setSelectedVoice(e.target.value);
+                  const voice = availableVoices.find(v => v.name === e.target.value);
+                  if (voice) {
+                    // Actualizar la voz en el servicio TTS
+                    const ttsService = getTextToSpeechService();
+                    ttsService.setVoice(voice.name);
+                  }
+                }}
+                style={{
+                  width: "100%",
+                  padding: "8px",
+                  borderRadius: "4px",
+                  border: "1px solid #ddd",
+                  fontSize: "14px",
+                  marginTop: "4px"
+                }}
+              >
+                {availableVoices.map((voice) => (
+                  <option key={voice.name} value={voice.name}>
+                    {voice.name} ({voice.lang})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {/* Auto-lectura */}
           <div className="voice-setting checkbox">
             <label>
@@ -228,7 +275,7 @@ export default function VoiceControls({
             </label>
           </div>
 
-          {/* Voz actual */}
+          {/* Voz actual (información) */}
           {currentVoice && (
             <div className="voice-setting info">
               <p>

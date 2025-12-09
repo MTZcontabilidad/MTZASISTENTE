@@ -416,17 +416,43 @@ function ChatInterface() {
       // Crear utterance
       const utterance = new SpeechSynthesisUtterance(audioText);
       
-      // Configurar voz en español
-      utterance.lang = 'es-ES';
-      utterance.rate = 0.95; // Velocidad natural
-      utterance.pitch = 1.0; // Tono normal
+      // Configurar voz en español con parámetros mejorados
+      utterance.lang = 'es-CL'; // Preferir español de Chile
+      utterance.rate = 0.9; // Velocidad más conversacional y natural
+      utterance.pitch = 1.0; // Tono natural
       utterance.volume = 1.0; // Volumen máximo
 
-      // Intentar usar una voz en español
+      // Intentar usar la mejor voz en español disponible
       const voices = window.speechSynthesis.getVoices();
-      const spanishVoice = voices.find(voice => 
-        voice.lang.includes('es') && (voice.name.includes('Spanish') || voice.name.includes('Español') || voice.name.includes('es-ES'))
-      );
+      
+      // Priorizar voces más naturales
+      const preferredVoiceNames = [
+        "Microsoft Sabina",
+        "Google español",
+        "Microsoft Pablo",
+        "Microsoft Helena",
+        "Microsoft Laura"
+      ];
+      
+      let spanishVoice = null;
+      
+      // Buscar voces preferidas primero
+      for (const preferredName of preferredVoiceNames) {
+        const voice = voices.find(v => 
+          v.name.includes(preferredName) && v.lang.startsWith('es')
+        );
+        if (voice) {
+          spanishVoice = voice;
+          break;
+        }
+      }
+      
+      // Si no se encontró una preferida, buscar cualquier voz en español
+      if (!spanishVoice) {
+        spanishVoice = voices.find(voice => 
+          voice.lang.startsWith('es') && voice.localService
+        ) || voices.find(voice => voice.lang.startsWith('es'));
+      }
       
       if (spanishVoice) {
         utterance.voice = spanishVoice;
