@@ -38,9 +38,11 @@ http://localhost:5173
 ```
 https://mtzasistente-og9xvzzes-mtz-consultores-tributarios-projects.vercel.app/
 https://mtzasistente-og9xvzzes-mtz-consultores-tributarios-projects.vercel.app
-https://mtzasistente.vercel.app/
-https://mtzasistente.vercel.app
+https://mtzasistente-1xo324gxr-mtz-consultores-tributarios-projects.vercel.app/
+https://mtzasistente-1xo324gxr-mtz-consultores-tributarios-projects.vercel.app
 ```
+
+**IMPORTANTE:** Vercel genera URLs únicas para cada deployment. Agrega TODAS las URLs de producción que veas en `vercel ls`. La más reciente es la que está activa.
 
 **Nota:** Si tienes un dominio personalizado, agrega también:
 ```
