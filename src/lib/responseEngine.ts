@@ -340,7 +340,6 @@ export async function generateResponse(
       
       return {
         text: enrichWithMotivation(responseText, userInput),
-        showF29Guide: false,
       };
     }
 
@@ -473,9 +472,9 @@ export async function generateResponse(
     );
     
     // Enriquecer contexto con información personalizada del cliente
-    const personalization = await getClientPersonalizationInfo(userId);
-    if (personalization.companyName) {
-      context.userName = personalization.companyName;
+    const clientPersonalization = await getClientPersonalizationInfo(userId);
+    if (clientPersonalization.companyName) {
+      context.userName = clientPersonalization.companyName;
     }
 
     // Obtener recuerdos para la búsqueda de plantilla
@@ -574,11 +573,11 @@ export async function generateResponse(
     const needs = detectUserNeedsEncouragement(userInput);
     
     // Agregar información personalizada si está disponible
-    const personalization = await getClientPersonalizationInfo(userId);
-    if (personalization.companyName && !response.includes(personalization.companyName)) {
+    const responsePersonalization = await getClientPersonalizationInfo(userId);
+    if (responsePersonalization.companyName && !response.includes(responsePersonalization.companyName)) {
       // Usar el nombre de la empresa si está disponible
-      response = response.replace(/tu empresa/gi, personalization.companyName);
-      response = response.replace(/tu negocio/gi, personalization.companyName);
+      response = response.replace(/tu empresa/gi, responsePersonalization.companyName);
+      response = response.replace(/tu negocio/gi, responsePersonalization.companyName);
     }
     
     // Si hay una situación difícil pero no se detectó antes, agregar mensaje de apoyo
