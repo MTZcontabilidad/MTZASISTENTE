@@ -32,6 +32,7 @@ function App() {
   const [loading, setLoading] = useState(!initialUser) // Si hay caché, no cargar
   const [showAdminPanel, setShowAdminPanel] = useState(false)
   const [showGuestWelcome, setShowGuestWelcome] = useState(false)
+  const [welcomeCompleted, setWelcomeCompleted] = useState(false) // Bandera para evitar que se vuelva a mostrar
   const [devMode, setDevMode] = useState(false) // Modo de desarrollo
   const isDev = import.meta.env.DEV // Detecta si estamos en desarrollo
   
@@ -187,7 +188,8 @@ function App() {
           setShowGuestWelcome(false)
         } else {
           setShowAdminPanel(false)
-          setShowGuestWelcome(userType === 'invitado')
+          // Solo mostrar welcome si no ha sido completado
+          setShowGuestWelcome(userType === 'invitado' && !welcomeCompleted)
         }
       } else {
         const userData: User = {
@@ -348,7 +350,8 @@ function App() {
         setShowGuestWelcome(false)
       } else {
         setShowAdminPanel(false)
-        setShowGuestWelcome(initialUser.user_type === 'invitado')
+        // Solo mostrar welcome si no ha sido completado
+        setShowGuestWelcome(initialUser.user_type === 'invitado' && !welcomeCompleted)
       }
       return
     }
@@ -492,10 +495,11 @@ function App() {
     if (role === 'admin') {
       setShowAdminPanel(true)
       setShowGuestWelcome(false)
-    } else {
-      setShowAdminPanel(false)
-      setShowGuestWelcome(userType === 'invitado')
-    }
+      } else {
+        setShowAdminPanel(false)
+        // Solo mostrar welcome si no ha sido completado
+        setShowGuestWelcome(userType === 'invitado' && !welcomeCompleted)
+      }
   }
 
   if (loading) {

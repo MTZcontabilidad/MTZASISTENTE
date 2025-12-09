@@ -20,11 +20,13 @@ import MeetingScheduler from "./MeetingScheduler";
 import VoiceControls from "./VoiceControls";
 import HumanSupportOptions from "./HumanSupportOptions";
 import UserProfile from "./UserProfile";
+import F29Guide from "./F29Guide";
 import "./ChatInterface.css";
 
 interface MessageWithMenu extends Message {
   menu?: any;
   document?: any;
+  showF29Guide?: boolean;
 }
 
 function ChatInterface() {

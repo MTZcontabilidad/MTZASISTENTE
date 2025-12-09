@@ -184,6 +184,7 @@ export interface ResponseWithMenu {
   text: string;
   menu?: InteractiveMenu;
   document?: ClientDocument;
+  showF29Guide?: boolean;
 }
 
 export async function generateResponse(
@@ -267,7 +268,19 @@ export async function generateResponse(
       }
     }
 
-    // TERCERO: Detectar solicitudes de trámites y generar menús automáticamente
+    // TERCERO: Detectar solicitudes específicas sobre F29 (Formulario 29)
+    const f29Request = detectarF29Request(userInput);
+    if (f29Request) {
+      return {
+        text: enrichWithMotivation(
+          `¡Perfecto! Te voy a guiar paso a paso para declarar el F29 (IVA). No te preocupes, lo haremos juntos y con calma. 😊\n\nVamos paso a paso, sin apuros. Cuando termines cada paso, me avisas y continuamos con el siguiente.`,
+          userInput
+        ),
+        showF29Guide: true,
+      };
+    }
+
+    // CUARTO: Detectar solicitudes de trámites y generar menús automáticamente
     const tramiteMenu = detectarTramiteRequest(userInput);
     if (tramiteMenu) {
       // Si es una solicitud de categorías, retornar texto especial para mostrar CategoryButtons
@@ -303,7 +316,7 @@ export async function generateResponse(
       };
     }
 
-    // CUARTO: Detectar si debería mostrar un menú interactivo
+    // QUINTO: Detectar si debería mostrar un menú interactivo
     const relevantMenu = await findRelevantMenu(userInput);
     if (relevantMenu) {
       return {
@@ -315,7 +328,7 @@ export async function generateResponse(
       };
     }
 
-    // QUINTO: Generar menús para servicios comunes si se solicita
+    // SEXTO: Generar menús para servicios comunes si se solicita
     const servicioMenu = detectarServicioRequest(userInput);
     if (servicioMenu) {
       return {
@@ -327,7 +340,7 @@ export async function generateResponse(
       };
     }
 
-    // SEXTO: Buscar FAQs que coincidan
+    // SÉPTIMO: Buscar FAQs que coincidan
     // (Sistema de trámites deshabilitado - tabla no existe en BD)
     // Si quieres habilitarlo, ejecuta supabase-tramites.sql y descomenta el código arriba
     const matchingFAQs = await findMatchingFAQs(userInput);
@@ -670,6 +683,41 @@ function detectDocumentRequest(userInput: string): {
     year,
     month,
   };
+}
+
+/**
+ * Detecta si el usuario está preguntando sobre el F29 (Formulario 29)
+ */
+function detectarF29Request(userInput: string): boolean {
+  const inputLower = userInput.toLowerCase();
+  
+  // Detectar menciones específicas del F29
+  const f29Keywords = [
+    'f29',
+    'formulario 29',
+    'formulario29',
+    'declarar f29',
+    'declaración f29',
+    'declaracion f29',
+    'como declarar f29',
+    'cómo declarar f29',
+    'guía f29',
+    'guia f29',
+    'ayuda con f29',
+    'necesito declarar f29',
+    'declarar iva',
+    'declaración iva',
+    'declaracion iva',
+    'como declarar iva',
+    'cómo declarar iva',
+  ];
+  
+  // También detectar si menciona IVA junto con declaración
+  const hasIvaAndDeclaracion = 
+    (inputLower.includes('iva') || inputLower.includes('impuesto')) &&
+    (inputLower.includes('declarar') || inputLower.includes('declaración') || inputLower.includes('declaracion'));
+  
+  return f29Keywords.some(keyword => inputLower.includes(keyword)) || hasIvaAndDeclaracion;
 }
 
 /**
