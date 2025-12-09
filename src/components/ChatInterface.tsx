@@ -509,7 +509,7 @@ function ChatInterface() {
         }
       }, 500);
     }
-  }, [welcomePlayed]); // Agregar dependencia
+  };
 
   // Cargar voces disponibles cuando estén listas
   useEffect(() => {
