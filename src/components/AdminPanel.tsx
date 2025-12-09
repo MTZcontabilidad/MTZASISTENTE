@@ -211,6 +211,27 @@ function AdminPanel() {
     setShowEditModal(true);
   };
 
+  const handleToggleUserStatus = async (user: UserWithClientInfo) => {
+    try {
+      const newStatus = user.is_active !== false ? false : true;
+      const { error } = await supabase
+        .from("user_profiles")
+        .update({ is_active: newStatus })
+        .eq("id", user.id);
+
+      if (error) throw error;
+
+      // Actualizar estado local
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.id === user.id ? { ...u, is_active: newStatus } : u
+        )
+      );
+    } catch (err: any) {
+      alert(`Error: ${err.message || "Error desconocido"}`);
+    }
+  };
+
   const handleSaveUser = async (updates: {
     full_name?: string;
     user_type?: UserType;
