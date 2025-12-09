@@ -568,30 +568,32 @@ function App() {
 
       if (data?.user) {
         // El trigger handle_new_user ya crea el perfil automáticamente
-        // Solo actualizamos el email y nombre con el teléfono
+        // Usar upsert directamente para evitar conflictos de email único
         const { error: profileError } = await supabase
           .from('user_profiles')
-          .update({
+          .upsert({
+            id: data.user.id,
             email: `invitado_${phone}@mtz.local`,
             full_name: `Invitado ${phone}`,
+            role: 'user',
             user_type: 'invitado'
+          }, {
+            onConflict: 'id',
+            ignoreDuplicates: false
           })
-          .eq('id', data.user.id)
 
         if (profileError) {
           console.warn('Error al actualizar perfil de invitado:', profileError)
-          // Si falla el update, intentar upsert como fallback
-          await supabase
-            .from('user_profiles')
-            .upsert({
-              id: data.user.id,
-              email: `invitado_${phone}@mtz.local`,
-              full_name: `Invitado ${phone}`,
-              role: 'user',
-              user_type: 'invitado'
-            }, {
-              onConflict: 'id'
-            })
+          // Si falla por email duplicado, intentar solo actualizar nombre y tipo
+          if (profileError.code === '23505') {
+            await supabase
+              .from('user_profiles')
+              .update({
+                full_name: `Invitado ${phone}`,
+                user_type: 'invitado'
+              })
+              .eq('id', data.user.id)
+          }
         }
 
         // Crear o actualizar client_info con el teléfono

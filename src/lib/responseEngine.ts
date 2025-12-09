@@ -57,6 +57,9 @@ import {
   needsSpecialSupport,
 } from "./situationDetection";
 import { generateF29GuideFromLink } from "./geminiAnalyzer";
+import { getClientPersonalizationInfo, upsertClientExtendedInfo } from "./clientExtendedInfo";
+import { getServiceByCode, formatServicePrice } from "./servicePricing";
+import { updateClientInfo } from "./clientInfo";
 
 export interface ResponseOptions {
   userId: string;
@@ -185,7 +188,6 @@ export interface ResponseWithMenu {
   text: string;
   menu?: InteractiveMenu;
   document?: ClientDocument;
-  showF29Guide?: boolean;
 }
 
 export async function generateResponse(
@@ -269,37 +271,76 @@ export async function generateResponse(
       }
     }
 
-    // TERCERO: Detectar solicitudes específicas sobre F29 (Formulario 29)
-    const f29Request = detectarF29Request(userInput);
-    if (f29Request) {
-      // URL del portal del SII para F29
-      const siiF29Url = 'https://zeusr.sii.cl/AUT2000/InicioAutenticacion/IngresoRutClave.html?https://www4.sii.cl/propuestaf29ui/index.html#/default';
+    // TERCERO: Detectar solicitudes sobre trámites tributarios
+    // IMPORTANTE: NO enseñamos a hacer trámites, guiamos para que MTZ los haga
+    const tramiteRequest = detectarTramiteTributario(userInput);
+    if (tramiteRequest) {
+      const personalization = await getClientPersonalizationInfo(userId);
+      const companyName = personalization.companyName || userName || 'tu empresa';
       
-      // Intentar generar guía usando Gemini (análisis del link)
-      try {
-        const guideText = await generateF29GuideFromLink(siiF29Url, userInput);
-        
-        if (guideText && guideText.length > 100) {
-          // Si Gemini generó una guía válida, usarla con link directo
-          return {
-            text: enrichWithMotivation(
-              `¡Perfecto! He analizado el portal del SII y aquí tienes una guía personalizada para declarar el F29 (IVA). 😊\n\n${guideText}\n\n🔗 **Link directo al portal**: [Ir al SII para declarar F29](${siiF29Url})\n\n💡 Si necesitas ayuda con algún paso específico, solo dime y te ayudo con más detalle.`,
-              userInput
-            ),
-            showF29Guide: false, // Ya tenemos la guía en el texto
-          };
-        }
-      } catch (error) {
-        console.warn('Error al generar guía con Gemini, usando guía estática:', error);
+      // Obtener información del servicio si aplica
+      let serviceInfo = null;
+      if (tramiteRequest.serviceCode) {
+        serviceInfo = await getServiceByCode(tramiteRequest.serviceCode);
       }
       
-      // Fallback: mostrar componente de guía interactiva con opción de link
+      // Construir respuesta personalizada
+      let responseText = '';
+      
+      if (tramiteRequest.type === 'inicio_actividades') {
+        responseText = `¡Hola! Entiendo que necesitas hacer el inicio de actividades para ${companyName}. 😊\n\n`;
+        responseText += `En MTZ nos encargamos de todo el proceso por ti. No necesitas hacerlo tú mismo. Lo que necesito es que me proporciones algunos datos para que nuestro equipo pueda realizar el trámite:\n\n`;
+        responseText += `• Nombre completo o razón social\n`;
+        responseText += `• RUT\n`;
+        responseText += `• Giro del negocio\n`;
+        responseText += `• Dirección del domicilio\n`;
+        responseText += `• Teléfono de contacto\n`;
+        responseText += `• Email\n`;
+        responseText += `• Fecha de inicio de actividades (si ya la tienes)\n\n`;
+        
+        if (serviceInfo) {
+          responseText += `💰 **Inversión**: ${formatServicePrice(serviceInfo)}\n\n`;
+        } else {
+          responseText += `💰 **Inversión**: $35.000\n\n`;
+        }
+        
+        responseText += `Una vez que tengas estos datos, puedes compartírmelos y nuestro equipo se encargará de todo. ¿Tienes estos datos a mano?`;
+      } else if (tramiteRequest.type === 'declaracion_iva' || tramiteRequest.type === 'f29') {
+        responseText = `Entiendo que necesitas ayuda con la declaración de IVA (F29). 😊\n\n`;
+        
+        // Personalizar según estado del cliente
+        if (personalization.ivaStatus === 'atrasado') {
+          responseText += `Veo que tienes declaraciones atrasadas. No te preocupes, en MTZ podemos ayudarte a ponerte al día. `;
+        } else if (personalization.ivaStatus === 'pendiente') {
+          responseText += `Tienes una declaración pendiente. `;
+        }
+        
+        responseText += `Nuestro equipo puede encargarse de tu declaración de IVA. `;
+        responseText += `Para esto, necesitaría que me compartas:\n\n`;
+        responseText += `• Período a declarar (mes y año)\n`;
+        responseText += `• Si tuviste ventas en ese período\n`;
+        responseText += `• Si tuviste compras en ese período\n`;
+        responseText += `• Si tienes acceso a tu portal del SII o necesitas que lo hagamos nosotros\n\n`;
+        
+        if (serviceInfo) {
+          responseText += `💰 **Inversión**: ${formatServicePrice(serviceInfo)}\n\n`;
+        }
+        
+        responseText += `¿Qué período necesitas declarar?`;
+      } else {
+        // Respuesta genérica para otros trámites
+        responseText = `Entiendo que necesitas ayuda con ${tramiteRequest.name || 'este trámite'}. 😊\n\n`;
+        responseText += `En MTZ nos encargamos de realizar este trámite por ti. `;
+        responseText += `¿Podrías contarme un poco más sobre lo que necesitas? Así nuestro equipo puede ayudarte de la mejor manera.\n\n`;
+        
+        if (serviceInfo) {
+          responseText += `💰 **Inversión**: ${formatServicePrice(serviceInfo)}\n\n`;
+        }
+      }
+      
       return {
-        text: enrichWithMotivation(
-          `¡Perfecto! Te voy a guiar paso a paso para declarar el F29 (IVA). No te preocupes, lo haremos juntos y con calma. 😊\n\n🔗 **Link directo**: [Ir al portal del SII](${siiF29Url})\n\nO si prefieres, puedo guiarte paso a paso aquí mismo. ¿Qué prefieres?`,
-          userInput
-        ),
-        showF29Guide: true,
+        text: enrichWithMotivation(responseText, userInput),
+        showF29Guide: false,
       };
     }
 
@@ -430,6 +471,12 @@ export async function generateResponse(
       userType,
       userName
     );
+    
+    // Enriquecer contexto con información personalizada del cliente
+    const personalization = await getClientPersonalizationInfo(userId);
+    if (personalization.companyName) {
+      context.userName = personalization.companyName;
+    }
 
     // Obtener recuerdos para la búsqueda de plantilla
     let memories: UserMemory[] = [];
@@ -523,8 +570,16 @@ export async function generateResponse(
       response = `Entiendo tu pregunta sobre "${userInput}". ${contextualMessages.defaultResponse} ¿Podrías darme más detalles para poder ayudarte mejor?`;
     }
 
-    // Enriquecer la respuesta final con motivación
+    // Enriquecer la respuesta final con motivación y personalización
     const needs = detectUserNeedsEncouragement(userInput);
+    
+    // Agregar información personalizada si está disponible
+    const personalization = await getClientPersonalizationInfo(userId);
+    if (personalization.companyName && !response.includes(personalization.companyName)) {
+      // Usar el nombre de la empresa si está disponible
+      response = response.replace(/tu empresa/gi, personalization.companyName);
+      response = response.replace(/tu negocio/gi, personalization.companyName);
+    }
     
     // Si hay una situación difícil pero no se detectó antes, agregar mensaje de apoyo
     const situation = detectDifficultSituation(userInput);
@@ -709,60 +764,126 @@ function detectDocumentRequest(userInput: string): {
 }
 
 /**
- * Detecta si el usuario está preguntando sobre el F29 (Formulario 29)
- * o si está confirmando que completó un paso
+ * Detecta y guarda información del cliente del mensaje
  */
-function detectarF29Request(userInput: string): boolean {
+export async function detectAndSaveClientInfo(userId: string, userInput: string): Promise<void> {
+  try {
+    const inputLower = userInput.toLowerCase();
+    const updates: any = {};
+    
+    // Detectar RUT (formato: XX.XXX.XXX-X o XXXXXXXX-X)
+    const rutMatch = userInput.match(/\b\d{1,2}\.?\d{3}\.?\d{3}-?[\dkK]\b/);
+    if (rutMatch) {
+      const rut = rutMatch[0].replace(/\./g, '').replace(/-/g, '');
+      await updateClientInfo(userId, { custom_fields: { rut } });
+    }
+    
+    // Detectar giro del negocio
+    if (inputLower.includes('giro') || inputLower.includes('actividad')) {
+      const giroMatch = userInput.match(/(?:giro|actividad)[\s:]+(.+?)(?:\.|$|,)/i);
+      if (giroMatch && giroMatch[1]) {
+        updates.business_activity = giroMatch[1].trim();
+      }
+    }
+    
+    // Detectar número de empleados
+    const empleadosMatch = userInput.match(/(\d+)\s*(?:empleados?|trabajadores?|personas)/i);
+    if (empleadosMatch) {
+      updates.employee_count = parseInt(empleadosMatch[1]);
+    }
+    
+    // Detectar rango de ingresos mensuales
+    if (inputLower.includes('ingreso') || inputLower.includes('venta') || inputLower.includes('facturación')) {
+      const ingresosMatch = userInput.match(/(\d+(?:\.\d+)?)\s*(?:millones?|m)/i);
+      if (ingresosMatch) {
+        const millones = parseFloat(ingresosMatch[1]);
+        if (millones < 50) updates.monthly_revenue_range = 'menos_50';
+        else if (millones < 200) updates.monthly_revenue_range = '50_200';
+        else if (millones < 500) updates.monthly_revenue_range = '200_500';
+        else updates.monthly_revenue_range = 'mas_500';
+      }
+    }
+    
+    // Si hay actualizaciones, guardarlas
+    if (Object.keys(updates).length > 0) {
+      await upsertClientExtendedInfo(userId, updates);
+    }
+  } catch (error) {
+    console.warn('Error al detectar información del cliente:', error);
+  }
+}
+
+/**
+ * Detecta si el usuario está preguntando sobre trámites tributarios
+ * Retorna información sobre el tipo de trámite y servicio relacionado
+ */
+function detectarTramiteTributario(userInput: string): {
+  type: string;
+  name: string;
+  serviceCode?: string;
+} | null {
   const inputLower = userInput.toLowerCase();
   
-  // Detectar confirmaciones de paso completado (no activar guía, solo continuar)
-  const confirmaciones = [
-    'ya lo hice',
-    'ya lo hice',
-    'listo',
-    'completado',
-    'terminé',
-    'termine',
-    'siguiente',
-    'continuar',
-    'avanzar',
-    'listo para el siguiente',
-    'ya está',
-    'ya esta',
-  ];
-  
-  // Si es una confirmación, no activar la guía (se manejará en el componente)
-  if (confirmaciones.some(conf => inputLower.includes(conf))) {
-    return false;
+  // Inicio de actividades
+  if (
+    inputLower.includes('inicio de actividades') ||
+    inputLower.includes('inicio actividades') ||
+    inputLower.includes('comenzar actividades') ||
+    inputLower.includes('empezar actividades') ||
+    (inputLower.includes('inicio') && inputLower.includes('actividad'))
+  ) {
+    return {
+      type: 'inicio_actividades',
+      name: 'Inicio de Actividades',
+      serviceCode: 'inicio_actividades',
+    };
   }
   
-  // Detectar menciones específicas del F29
-  const f29Keywords = [
-    'f29',
-    'formulario 29',
-    'formulario29',
-    'declarar f29',
-    'declaración f29',
-    'declaracion f29',
-    'como declarar f29',
-    'cómo declarar f29',
-    'guía f29',
-    'guia f29',
-    'ayuda con f29',
-    'necesito declarar f29',
-    'declarar iva',
-    'declaración iva',
-    'declaracion iva',
-    'como declarar iva',
-    'cómo declarar iva',
-  ];
+  // Declaración de IVA / F29
+  if (
+    inputLower.includes('f29') ||
+    inputLower.includes('formulario 29') ||
+    inputLower.includes('formulario29') ||
+    (inputLower.includes('declarar') && inputLower.includes('iva')) ||
+    (inputLower.includes('declaración') && inputLower.includes('iva')) ||
+    (inputLower.includes('declaracion') && inputLower.includes('iva'))
+  ) {
+    return {
+      type: 'declaracion_iva',
+      name: 'Declaración de IVA (F29)',
+      serviceCode: 'declaracion_f29',
+    };
+  }
   
-  // También detectar si menciona IVA junto con declaración
-  const hasIvaAndDeclaracion = 
-    (inputLower.includes('iva') || inputLower.includes('impuesto')) &&
-    (inputLower.includes('declarar') || inputLower.includes('declaración') || inputLower.includes('declaracion'));
+  // Declaración sin movimiento
+  if (
+    inputLower.includes('sin movimiento') ||
+    inputLower.includes('sin movimientos') ||
+    (inputLower.includes('declarar') && inputLower.includes('sin movimiento'))
+  ) {
+    return {
+      type: 'declaracion_sin_movimiento',
+      name: 'Declaración Sin Movimiento',
+      serviceCode: 'declaracion_sin_movimiento',
+    };
+  }
   
-  return f29Keywords.some(keyword => inputLower.includes(keyword)) || hasIvaAndDeclaracion;
+  // Consulta tributaria
+  if (
+    inputLower.includes('consulta') ||
+    inputLower.includes('asesoría') ||
+    inputLower.includes('asesoria') ||
+    inputLower.includes('consultoría') ||
+    inputLower.includes('consultoria')
+  ) {
+    return {
+      type: 'consulta_tributaria',
+      name: 'Consulta Tributaria',
+      serviceCode: 'consulta_tributaria',
+    };
+  }
+  
+  return null;
 }
 
 /**

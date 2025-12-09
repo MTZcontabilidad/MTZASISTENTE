@@ -212,7 +212,7 @@ class TextToSpeechService {
     // Remover HTML
     let clean = text.replace(/<[^>]*>/g, "");
 
-    // Remover markdown básico
+    // Remover markdown básico y símbolos
     clean = clean
       .replace(/\*\*(.*?)\*\*/g, "$1") // Negrita
       .replace(/\*(.*?)\*/g, "$1") // Cursiva
@@ -220,6 +220,11 @@ class TextToSpeechService {
       .replace(/#{1,6}\s/g, "") // Encabezados
       .replace(/\[([^\]]+)\]\([^\)]+\)/g, "$1") // Enlaces
       .replace(/\n{3,}/g, "\n\n") // Múltiples saltos de línea
+      .replace(/\*/g, "") // Remover asteriscos sueltos
+      .replace(/_/g, " ") // Reemplazar guiones bajos con espacios
+      .replace(/~/g, "") // Remover tildes
+      .replace(/`/g, "") // Remover backticks
+      .replace(/#/g, "") // Remover numerales
       .trim();
 
     // Mejorar pronunciación de números y fechas
@@ -228,26 +233,36 @@ class TextToSpeechService {
     // Mejorar pronunciación de acrónimos comunes
     clean = this.improveAcronymPronunciation(clean);
 
-    // Reemplazar caracteres especiales por palabras más naturales
+    // Remover todos los emojis y caracteres especiales
     clean = clean
+      .replace(/[\u{1F300}-\u{1F9FF}]/gu, "") // Remover emojis
+      .replace(/[\u{2600}-\u{26FF}]/gu, "") // Remover símbolos misceláneos
+      .replace(/[\u{2700}-\u{27BF}]/gu, "") // Remover símbolos Dingbats
       .replace(/&nbsp;/g, " ")
       .replace(/&amp;/g, " y ")
-      .replace(/&lt;/g, " menor que ")
-      .replace(/&gt;/g, " mayor que ")
-      .replace(/→/g, " entonces ")
-      .replace(/←/g, " desde ")
-      .replace(/•/g, " punto ")
-      .replace(/📋/g, " lista ")
+      .replace(/&lt;/g, "")
+      .replace(/&gt;/g, "")
+      .replace(/→/g, "")
+      .replace(/←/g, "")
+      .replace(/•/g, "")
+      .replace(/📋/g, "")
       .replace(/🏛️/g, " SII ")
-      .replace(/📁/g, " carpeta ")
-      .replace(/💰/g, " dinero ")
-      .replace(/🧾/g, " factura ")
-      .replace(/💬/g, " mensaje ")
-      .replace(/📄/g, " documento ")
-      .replace(/✅/g, " correcto ")
-      .replace(/❌/g, " incorrecto ")
-      .replace(/⚠️/g, " atención ")
-      .replace(/ℹ️/g, " información ");
+      .replace(/📁/g, "")
+      .replace(/💰/g, "")
+      .replace(/🧾/g, "")
+      .replace(/💬/g, "")
+      .replace(/📄/g, "")
+      .replace(/✅/g, "")
+      .replace(/❌/g, "")
+      .replace(/⚠️/g, "")
+      .replace(/ℹ️/g, "")
+      .replace(/👋/g, "")
+      .replace(/📊/g, "")
+      .replace(/🚐/g, "")
+      .replace(/🪑/g, "")
+      .replace(/📋/g, "")
+      .replace(/💬/g, "")
+      .replace(/📅/g, "");
 
     // Agregar pausas naturales después de puntuación
     clean = clean

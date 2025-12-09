@@ -20,13 +20,11 @@ import MeetingScheduler from "./MeetingScheduler";
 import VoiceControls from "./VoiceControls";
 import HumanSupportOptions from "./HumanSupportOptions";
 import UserProfile from "./UserProfile";
-import F29Guide from "./F29Guide";
 import "./ChatInterface.css";
 
 interface MessageWithMenu extends Message {
   menu?: any;
   document?: any;
-  showF29Guide?: boolean;
 }
 
 function ChatInterface() {
@@ -153,9 +151,12 @@ function ChatInterface() {
           const companyName = companyInfo?.company_name || "MTZ";
           
           // Generar mensaje contextual usando la configuración de respuestas
+          // Usar valores locales en lugar de estado para evitar dependencias
+          const currentUserType = userType || "invitado";
+          const currentUserName = userName || undefined;
           const context = {
-            userType: userType || "invitado",
-            userName: userName || undefined,
+            userType: currentUserType,
+            userName: currentUserName,
             companyName: companyName,
             memories: [],
             recentMessages: [],
@@ -284,6 +285,10 @@ function ChatInterface() {
           importantInfo.type === "important_info" ? 7 : 5 // Alta importancia para info importante
         );
       }
+      
+      // Detectar y guardar información del cliente (RUT, giro, etc.)
+      const { detectAndSaveClientInfo } = await import("../lib/responseEngine");
+      await detectAndSaveClientInfo(user.id, currentInput);
 
       // Verificar si se canceló la operación
       if (controller.signal.aborted) {
@@ -317,7 +322,6 @@ function ChatInterface() {
       let responseText: string;
       let responseMenu: any = undefined;
       let responseDocument: any = undefined;
-      let showF29Guide: boolean = false;
 
       if (
         typeof assistantResponse === "object" &&
@@ -328,7 +332,6 @@ function ChatInterface() {
         responseText = responseWithMenu.text;
         responseMenu = responseWithMenu.menu;
         responseDocument = responseWithMenu.document;
-        showF29Guide = responseWithMenu.showF29Guide || false;
       } else {
         // Respuesta de texto simple
         responseText = assistantResponse as string;
@@ -348,7 +351,6 @@ function ChatInterface() {
           timestamp: new Date(assistantMsg.created_at),
           menu: responseMenu,
           document: responseDocument,
-          showF29Guide: showF29Guide,
         };
         setMessages((prev) => [...prev, newMessage]);
         // Actualizar texto para lectura de voz
@@ -738,19 +740,6 @@ function ChatInterface() {
                     guideImage={message.menu.guide_image}
                     onActionComplete={(action, result) => {
                       console.log("Acción completada:", action, result);
-                    }}
-                  />
-                )}
-
-                {/* Mostrar guía F29 si está activada */}
-                {message.showF29Guide && (
-                  <F29Guide
-                    onStepComplete={(step) => {
-                      console.log(`Paso ${step} completado`);
-                    }}
-                    onComplete={() => {
-                      console.log("Guía F29 completada");
-                      // Opcional: enviar mensaje de confirmación
                     }}
                   />
                 )}
