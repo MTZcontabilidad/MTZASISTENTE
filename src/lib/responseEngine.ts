@@ -212,8 +212,18 @@ export async function generateResponse(
     }
 
     // SEGUNDO: Detectar solicitud de documentos
+    // IMPORTANTE: Si menciona IVA/F29/declaración, priorizar menú de trámites sobre documentos
+    const inputLower = userInput.toLowerCase();
+    const isIvaOrF29Request = 
+      inputLower.includes('iva') || 
+      inputLower.includes('f29') || 
+      inputLower.includes('formulario 29') ||
+      (inputLower.includes('declarar') && inputLower.includes('iva')) ||
+      (inputLower.includes('declaración') && inputLower.includes('iva')) ||
+      (inputLower.includes('declaracion') && inputLower.includes('iva'));
+    
     const documentRequest = detectDocumentRequest(userInput);
-    if (documentRequest) {
+    if (documentRequest && !isIvaOrF29Request) {
       const documents = await getDocumentsByType(userId, documentRequest.type);
 
       if (documents.length > 0) {
@@ -306,27 +316,49 @@ export async function generateResponse(
         
         responseText += `Una vez que tengas estos datos, puedes compartírmelos y nuestro equipo se encargará de todo. ¿Tienes estos datos a mano?`;
       } else if (tramiteRequest.type === 'declaracion_iva' || tramiteRequest.type === 'f29') {
-        responseText = `Entiendo que necesitas ayuda con la declaración de IVA (F29). 😊\n\n`;
-        
-        // Personalizar según estado del cliente
-        if (personalization.ivaStatus === 'atrasado') {
-          responseText += `Veo que tienes declaraciones atrasadas. No te preocupes, en MTZ podemos ayudarte a ponerte al día. `;
-        } else if (personalization.ivaStatus === 'pendiente') {
-          responseText += `Tienes una declaración pendiente. `;
+        // Para IVA/F29, siempre mostrar un menú con opciones claras
+        const menu = await findRelevantMenu("documentos");
+        if (menu) {
+          responseText = `Entiendo que necesitas ayuda con la declaración de IVA (F29). 😊\n\n`;
+          
+          // Personalizar según estado del cliente
+          if (personalization.ivaStatus === 'atrasado') {
+            responseText += `Veo que tienes declaraciones atrasadas. No te preocupes, en MTZ podemos ayudarte a ponerte al día. `;
+          } else if (personalization.ivaStatus === 'pendiente') {
+            responseText += `Tienes una declaración pendiente. `;
+          }
+          
+          responseText += `Puedo ayudarte de varias formas. Selecciona la opción que necesitas:\n\n`;
+          responseText += generateMenuResponse(menu);
+          
+          return {
+            text: enrichWithMotivation(responseText, userInput),
+            menu,
+          };
+        } else {
+          // Fallback si no hay menú disponible
+          responseText = `Entiendo que necesitas ayuda con la declaración de IVA (F29). 😊\n\n`;
+          
+          // Personalizar según estado del cliente
+          if (personalization.ivaStatus === 'atrasado') {
+            responseText += `Veo que tienes declaraciones atrasadas. No te preocupes, en MTZ podemos ayudarte a ponerte al día. `;
+          } else if (personalization.ivaStatus === 'pendiente') {
+            responseText += `Tienes una declaración pendiente. `;
+          }
+          
+          responseText += `Nuestro equipo puede encargarse de tu declaración de IVA. `;
+          responseText += `Para esto, necesitaría que me compartas:\n\n`;
+          responseText += `• Período a declarar (mes y año)\n`;
+          responseText += `• Si tuviste ventas en ese período\n`;
+          responseText += `• Si tuviste compras en ese período\n`;
+          responseText += `• Si tienes acceso a tu portal del SII o necesitas que lo hagamos nosotros\n\n`;
+          
+          if (serviceInfo) {
+            responseText += `💰 **Inversión**: ${formatServicePrice(serviceInfo)}\n\n`;
+          }
+          
+          responseText += `¿Qué período necesitas declarar?`;
         }
-        
-        responseText += `Nuestro equipo puede encargarse de tu declaración de IVA. `;
-        responseText += `Para esto, necesitaría que me compartas:\n\n`;
-        responseText += `• Período a declarar (mes y año)\n`;
-        responseText += `• Si tuviste ventas en ese período\n`;
-        responseText += `• Si tuviste compras en ese período\n`;
-        responseText += `• Si tienes acceso a tu portal del SII o necesitas que lo hagamos nosotros\n\n`;
-        
-        if (serviceInfo) {
-          responseText += `💰 **Inversión**: ${formatServicePrice(serviceInfo)}\n\n`;
-        }
-        
-        responseText += `¿Qué período necesitas declarar?`;
       } else {
         // Respuesta genérica para otros trámites
         responseText = `Entiendo que necesitas ayuda con ${tramiteRequest.name || 'este trámite'}. 😊\n\n`;

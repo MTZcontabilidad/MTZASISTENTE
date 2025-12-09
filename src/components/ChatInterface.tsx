@@ -44,7 +44,7 @@ function ChatInterface() {
   const [showHumanSupport, setShowHumanSupport] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [abortController, setAbortController] = useState<AbortController | null>(null);
-  const [autoReadEnabled, setAutoReadEnabled] = useState(false);
+  const [autoReadEnabled, setAutoReadEnabled] = useState(true); // Habilitado por defecto
   const [lastAssistantMessage, setLastAssistantMessage] = useState<string>("");
   const [welcomePlayed, setWelcomePlayed] = useState(false);
   const welcomeSpeechRef = useRef<SpeechSynthesisUtterance | null>(null);
@@ -181,7 +181,13 @@ function ChatInterface() {
           const welcomeMsg = contextualMessages.welcomeMessage;
           const displayName = contextualMessages.userName;
           
-          const welcomeMessage = `${greeting}, ${displayName}! 👋\n\n${welcomeMsg}. Soy **Arise**, tu asistente virtual de MTZ y estoy aquí para ayudarte con:\n\n• 📊 **MTZ Consultores Tributarios** - Consultoría tributaria y contable\n• 🚐 **Fundación Te Quiero Feliz** - Información sobre nuestros programas sociales\n• 🪑 **Taller de Sillas de Ruedas MMC** - Servicios de movilidad\n• 📋 Trámites y documentos\n• 💬 Soporte y atención al cliente\n• 📅 Agendar reuniones con nuestro equipo\n\nPuedo guiarte hacia el servicio que necesitas. ¿Qué te interesa conocer?`;
+          // Agregar mensaje sobre beneficios limitados para usuarios invitados
+          let benefitsNotice = '';
+          if (currentUserType === 'invitado') {
+            benefitsNotice = '\n\n⚠️ **Nota importante**: Estás ingresando como invitado. Para acceder a todos los beneficios y servicios completos (como descargar documentos, ver tu historial completo, y recibir atención personalizada), te recomendamos registrarte con tu cuenta de Gmail.\n\n';
+          }
+          
+          const welcomeMessage = `${greeting}, ${displayName}! 👋\n\n${welcomeMsg}. Soy **Arise**, tu asistente virtual de MTZ y estoy aquí para ayudarte con:\n\n• 📊 **MTZ Consultores Tributarios** - Consultoría tributaria y contable\n• 🚐 **Fundación Te Quiero Feliz** - Información sobre nuestros programas sociales\n• 🪑 **Taller de Sillas de Ruedas MMC** - Servicios de movilidad\n• 📋 Trámites y documentos\n• 💬 Soporte y atención al cliente\n• 📅 Agendar reuniones con nuestro equipo${benefitsNotice}\nPuedo guiarte hacia el servicio que necesitas. ¿Qué te interesa conocer?`;
           
           // Crear mensaje de bienvenida en la base de datos
           const welcomeMsgData = await createMessage(
