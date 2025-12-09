@@ -5,7 +5,7 @@
   width: 100%;
   overflow-y: auto;
   background: var(--bg-primary);
-  padding: 80px 100px;
+  padding: 20px 40px;
   position: relative;
 }
 
@@ -17,14 +17,14 @@
 
 .welcome-header {
   text-align: center;
-  margin-bottom: 50px;
-  padding: 40px 0;
+  margin-bottom: 20px;
+  padding: 10px 0;
 }
 
 .welcome-icon {
-  width: 80px;
-  height: 80px;
-  margin: 0 auto 30px;
+  width: 50px;
+  height: 50px;
+  margin: 0 auto 10px;
   color: var(--neon-blue);
   animation: float 3s ease-in-out infinite;
 }
@@ -45,43 +45,43 @@
 }
 
 .welcome-title {
-  font-size: 42px;
+  font-size: 28px;
   font-weight: 800;
   color: var(--neon-blue);
-  margin-bottom: 16px;
+  margin-bottom: 8px;
   text-shadow: 0 0 20px rgba(0, 212, 255, 0.5);
-  letter-spacing: 1px;
+  letter-spacing: 0.5px;
 }
 
 .welcome-subtitle {
-  font-size: 18px;
+  font-size: 14px;
   color: var(--text-secondary);
   max-width: 600px;
   margin: 0 auto;
-  line-height: 1.6;
+  line-height: 1.4;
 }
 
 .welcome-form {
   background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
   border: 2px solid var(--border-color);
-  border-radius: 20px;
-  padding: 50px;
+  border-radius: 16px;
+  padding: 24px 30px;
   box-shadow: 0 0 30px rgba(0, 212, 255, 0.1);
 }
 
 .form-section {
-  margin-bottom: 50px;
+  margin-bottom: 20px;
 }
 
 .section-title {
-  font-size: 24px;
+  font-size: 18px;
   font-weight: 700;
   color: var(--neon-blue);
-  margin-bottom: 30px;
+  margin-bottom: 16px;
   text-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 }
 
 .section-title::before {
@@ -105,22 +105,22 @@
 }
 
 .form-group label {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--text-primary);
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .form-input {
   width: 100%;
-  padding: 16px 20px;
+  padding: 12px 16px;
   background: var(--bg-primary);
   border: 2px solid var(--border-color);
-  border-radius: 12px;
+  border-radius: 10px;
   color: var(--text-primary);
-  font-size: 16px;
+  font-size: 15px;
   font-family: inherit;
   transition: all 0.3s ease;
 }
@@ -138,23 +138,23 @@
 }
 
 .welcome-features {
-  margin-bottom: 50px;
-  padding-top: 40px;
+  margin-bottom: 20px;
+  padding-top: 20px;
   border-top: 2px solid var(--border-color);
 }
 
 .features-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 24px;
-  margin-top: 30px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
 }
 
 .feature-card {
   background: var(--bg-primary);
   border: 2px solid var(--border-color);
-  border-radius: 16px;
-  padding: 30px;
+  border-radius: 12px;
+  padding: 16px 20px;
   text-align: center;
   transition: all 0.3s ease;
   position: relative;
@@ -184,47 +184,48 @@
 }
 
 .feature-icon {
-  font-size: 48px;
-  margin-bottom: 20px;
+  font-size: 32px;
+  margin-bottom: 10px;
   filter: drop-shadow(0 0 10px rgba(0, 212, 255, 0.3));
 }
 
 .feature-card h4 {
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 700;
   color: var(--neon-blue);
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 
 .feature-card p {
-  font-size: 14px;
+  font-size: 12px;
   color: var(--text-secondary);
-  line-height: 1.6;
+  line-height: 1.4;
   margin: 0;
 }
 
 .welcome-actions {
   text-align: center;
-  padding-top: 40px;
+  padding-top: 20px;
+  margin-bottom: 20px;
   border-top: 2px solid var(--border-color);
 }
 
 .start-chat-button {
   display: inline-flex;
   align-items: center;
-  gap: 12px;
-  padding: 18px 40px;
+  gap: 10px;
+  padding: 14px 32px;
   background: linear-gradient(135deg, var(--neon-blue) 0%, var(--neon-blue-dark) 100%);
   border: 2px solid var(--neon-blue);
-  border-radius: 16px;
+  border-radius: 12px;
   color: #000;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.3s ease;
   box-shadow: 0 0 30px rgba(0, 212, 255, 0.4);
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 0.5px;
 }
 
 .start-chat-button:hover:not(:disabled) {
@@ -261,27 +262,27 @@
 
 .client-options {
   display: flex;
-  gap: 20px;
-  margin-top: 20px;
+  gap: 16px;
+  margin-top: 12px;
   flex-wrap: wrap;
 }
 
 .client-option-button {
   flex: 1;
   min-width: 200px;
-  padding: 20px 24px;
+  padding: 14px 20px;
   background: var(--bg-secondary);
   border: 2px solid var(--border-color);
-  border-radius: 12px;
+  border-radius: 10px;
   color: var(--text-primary);
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: 10px;
   font-family: inherit;
 }
 
@@ -354,7 +355,7 @@
 }
 
 .service-features {
-  margin-top: 16px;
+  margin-top: 10px;
   text-align: left;
 }
 
@@ -366,9 +367,9 @@
 
 .service-features li {
   color: var(--text-secondary);
-  font-size: 13px;
-  padding: 6px 0;
-  padding-left: 20px;
+  font-size: 11px;
+  padding: 4px 0;
+  padding-left: 18px;
   position: relative;
 }
 
@@ -382,26 +383,26 @@
 
 .service-actions {
   display: flex;
-  gap: 10px;
-  margin-top: 20px;
+  gap: 8px;
+  margin-top: 12px;
   flex-wrap: wrap;
   justify-content: center;
 }
 
 .service-contact-button,
 .service-link-button {
-  padding: 10px 20px;
+  padding: 8px 16px;
   background: var(--bg-secondary);
   border: 2px solid var(--border-color);
   border-radius: 8px;
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
   font-family: inherit;
   flex: 1;
-  min-width: 120px;
+  min-width: 100px;
 }
 
 .service-contact-button:hover {
