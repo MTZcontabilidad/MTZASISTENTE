@@ -96,7 +96,8 @@ function App() {
           role: 'invitado',
           user_type: 'invitado'
         })
-        setShowGuestWelcome(true)
+        // SIMPLIFICADO: Ya no mostramos welcome, vamos directo al chat
+        setShowGuestWelcome(false)
         stopLoading()
         return
       }
@@ -141,7 +142,8 @@ function App() {
             setShowGuestWelcome(false)
           } else {
             setShowAdminPanel(false)
-            setShowGuestWelcome(true)
+            // SIMPLIFICADO: Ya no mostramos welcome, vamos directo al chat
+        setShowGuestWelcome(false)
           }
           stopLoading()
           
@@ -214,7 +216,8 @@ function App() {
           setShowGuestWelcome(false)
         } else {
           setShowAdminPanel(false)
-          setShowGuestWelcome(true)
+          // SIMPLIFICADO: Ya no mostramos welcome, vamos directo al chat
+        setShowGuestWelcome(false)
         }
       }
     } catch (error) {
@@ -234,7 +237,8 @@ function App() {
             setShowGuestWelcome(false)
           } else {
             setShowAdminPanel(false)
-            setShowGuestWelcome(true)
+            // SIMPLIFICADO: Ya no mostramos welcome, vamos directo al chat
+        setShowGuestWelcome(false)
           }
         } else {
           setUser(null)

@@ -63,6 +63,47 @@ export interface ClientInfo {
   updated_at: string
 }
 
+export interface ClientExtendedInfo {
+  id: string
+  user_id: string
+  company_id: string | null
+  iva_declared: boolean
+  last_iva_declaration_date: string | null
+  iva_declaration_status: 'al_dia' | 'pendiente' | 'atrasado' | 'sin_movimiento' | null
+  next_iva_declaration_due: string | null
+  payment_status: 'al_dia' | 'pendiente' | 'atrasado' | 'moroso'
+  last_payment_date: string | null
+  last_payment_amount: number | null
+  outstanding_balance: number
+  payment_history: any[]
+  active_services: string[]
+  service_history: any[]
+  business_activity: string | null
+  start_date: string | null
+  tax_regime: string | null
+  employee_count: number | null
+  monthly_revenue_range: string | null
+  notes: string | null
+  internal_notes: string | null
+  metadata: Record<string, any>
+  created_at: string
+  updated_at: string
+}
+
+export interface ServicePricing {
+  id: string
+  service_name: string
+  service_code: string
+  description: string | null
+  base_price: number
+  currency: string
+  is_active: boolean
+  category: string | null
+  metadata: Record<string, any>
+  created_at: string
+  updated_at: string
+}
+
 export interface ConversationSummary {
   id: string
   user_id: string
