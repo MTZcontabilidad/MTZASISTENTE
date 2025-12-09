@@ -143,13 +143,13 @@ async function buildResponseContext(
   if (clientInfo) {
     const { formatClientName } = await import("./responseConfig");
     formattedUserName = formatClientName(
-      userName || clientInfo?.company_name,
-      clientInfo?.preferred_name,
+      userName || clientInfo?.company_name || undefined,
+      clientInfo?.preferred_name || undefined,
       clientInfo?.use_formal_address !== false,
       clientInfo?.gender || undefined
     );
   } else {
-    formattedUserName = userName || clientInfo?.company_name || undefined;
+    formattedUserName = userName || undefined;
   }
 
   // Obtener recuerdos importantes
@@ -221,10 +221,10 @@ export async function generateResponse(
     const { getServiceRequestState, saveServiceRequestState, clearServiceRequestState } = await import("./serviceRequestState");
     
     // Verificar si hay una solicitud en progreso
-    let requestState = await getServiceRequestState(conversationId);
+    let requestState = await getServiceRequestState(conversationId || userId);
     
     // Si hay una solicitud en progreso, procesar la respuesta
-    if (requestState && !requestState.isComplete) {
+    if (requestState && !requestState.isComplete && requestState.serviceType) {
       // Procesar la respuesta del usuario
       const updatedData = processUserResponse(
         requestState.serviceType,
@@ -244,12 +244,12 @@ export async function generateResponse(
         const submitted = await submitServiceRequest(
           requestState.serviceType,
           userId,
-          conversationId,
+          conversationId || userId,
           updatedData
         );
         
         if (submitted) {
-          await clearServiceRequestState(conversationId);
+          await clearServiceRequestState(conversationId || userId);
           const serviceName = requestState.serviceType === 'wheelchair' ? 'Taller de Sillas de Ruedas' : 'Transporte Inclusivo';
           return {
             text: `¡Perfecto! He registrado tu solicitud para el ${serviceName}. 📝\n\nNuestro equipo revisará tu solicitud y te contactará pronto al teléfono que proporcionaste.\n\n**Teléfono: +56 9 3300 3113**\n\n¿Hay algo más en lo que pueda ayudarte?`,
@@ -272,7 +272,7 @@ export async function generateResponse(
         isComplete: false
       };
       
-      await saveServiceRequestState(conversationId, newState);
+      await saveServiceRequestState(conversationId || userId, newState);
       
       return {
         text: question,
@@ -292,7 +292,7 @@ export async function generateResponse(
         isComplete: false
       };
       
-      await saveServiceRequestState(conversationId, newState);
+      await saveServiceRequestState(conversationId || userId, newState);
       
       // Obtener primera pregunta
       const question = getNextQuestion(serviceType, 1, {});
@@ -315,7 +315,7 @@ export async function generateResponse(
     if (missingData && !isDataResponse) {
       // Verificar si el usuario ya respondió esta pregunta en mensajes recientes
       const { getConversationMessages } = await import("./conversations");
-      const recentMessages = await getConversationMessages(conversationId);
+      const recentMessages = conversationId ? await getConversationMessages(conversationId) : [];
       const lastAssistantMessage = recentMessages
         .filter(m => m.sender === 'assistant')
         .slice(-1)[0];
@@ -763,13 +763,13 @@ export async function generateResponse(
     const clientInfo = await getOrCreateClientInfo(userId);
     
     // Usar nombre de empresa si está disponible, sino usar nombre de usuario
-    const displayName = clientPersonalization.companyName || userName || clientInfo?.company_name;
+    const displayName = clientPersonalization.companyName || userName || clientInfo?.company_name || undefined;
     
     // Formatear nombre con "Don" o "Srita" y apodo si está disponible
     const { formatClientName } = await import("./responseConfig");
     const formattedName = formatClientName(
       displayName,
-      clientInfo?.preferred_name,
+      clientInfo?.preferred_name || undefined,
       clientInfo?.use_formal_address !== false,
       clientInfo?.gender || undefined
     );
@@ -793,7 +793,13 @@ export async function generateResponse(
 
     if (!template) {
       // Fallback: respuesta más útil y proactiva
-      const messages = generateContextualMessages(context);
+      // Importar generateContextualMessages antes de usarlo
+      const { generateContextualMessages: genContextualMessages } = await import("./responseConfig");
+      const messages = genContextualMessages(context, {
+        preferredName: clientInfo?.preferred_name,
+        useFormalAddress: clientInfo?.use_formal_address !== false,
+        gender: clientInfo?.gender || undefined,
+      });
       let fallbackResponse = messages.defaultResponse;
       
       // Agregar sugerencias útiles basadas en el input

@@ -189,6 +189,50 @@
   border-bottom-left-radius: 4px;
 }
 
+/* Header del asistente con nombre y botón Leer */
+.assistant-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.assistant-name {
+  font-weight: 600;
+  color: var(--neon-blue, #00d4ff);
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.read-button {
+  background: rgba(0, 212, 255, 0.1);
+  border: 1px solid rgba(0, 212, 255, 0.3);
+  border-radius: 6px;
+  padding: 6px 12px;
+  color: var(--neon-blue, #00d4ff);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.read-button:hover {
+  background: rgba(0, 212, 255, 0.2);
+  border-color: var(--neon-blue, #00d4ff);
+  transform: translateY(-1px);
+}
+
+.read-button.active {
+  background: rgba(0, 212, 255, 0.3);
+  border-color: var(--neon-blue, #00d4ff);
+  box-shadow: 0 0 8px rgba(0, 212, 255, 0.4);
+}
+
 .message-content p {
   margin: 0;
   word-wrap: break-word;

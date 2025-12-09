@@ -109,77 +109,9 @@ export default function VoiceControls({
   };
 
   return (
-    <div className="voice-controls-container">
-      <div className="voice-controls-buttons">
-        {/* Botón TTS */}
-        <button
-          className={`voice-control-button tts-button ${ttsEnabled ? "active" : ""} ${isSpeaking ? "speaking" : ""}`}
-          onClick={handleTtsToggle}
-          type="button"
-          aria-label={ttsEnabled ? "Desactivar lectura de voz" : "Activar lectura de voz"}
-          title={ttsEnabled ? "Desactivar lectura de voz" : "Activar lectura de voz"}
-        >
-          <span className="voice-icon">
-            {isSpeaking ? "🔊" : isPaused ? "⏸️" : "🔇"}
-          </span>
-          <span className="voice-label">
-            {isSpeaking ? "Leyendo..." : isPaused ? "Pausado" : "Leer"}
-          </span>
-        </button>
-
-        {/* Botón STT */}
-        {sttSupported ? (
-          <button
-            className={`voice-control-button stt-button ${isListening ? "active listening" : ""}`}
-            onClick={handleSttToggle}
-            type="button"
-            aria-label={isListening ? "Detener micrófono" : "Activar micrófono"}
-            title={isListening ? "Detener micrófono" : "Activar micrófono"}
-          >
-            <span className="voice-icon">
-              {isListening ? "🎤" : "🎙️"}
-            </span>
-            <span className="voice-label">
-              {isListening ? "Escuchando..." : "Hablar"}
-            </span>
-          </button>
-        ) : (
-          <button
-            className="voice-control-button stt-button disabled"
-            type="button"
-            disabled
-            title="Reconocimiento de voz no disponible en este navegador"
-          >
-            <span className="voice-icon">🎙️</span>
-            <span className="voice-label">No disponible</span>
-          </button>
-        )}
-
-        {/* Botón de configuración */}
-        <button
-          className="voice-control-button settings-button"
-          onClick={() => setShowSettings(!showSettings)}
-          type="button"
-          aria-label="Configuración de voz"
-          title="Configuración de voz"
-        >
-          <span className="voice-icon">⚙️</span>
-        </button>
-
-        {/* Botón de detener todo */}
-        {(isSpeaking || isListening) && (
-          <button
-            className="voice-control-button stop-button"
-            onClick={handleStop}
-            type="button"
-            aria-label="Detener todo"
-            title="Detener todo"
-          >
-            <span className="voice-icon">⏹️</span>
-            <span className="voice-label">Detener</span>
-          </button>
-        )}
-      </div>
+    <div className="voice-controls-container" style={{ display: 'none' }}>
+      {/* VoiceControls ahora está oculto - el botón Leer se muestra en cada mensaje del asistente */}
+      <div className="voice-controls-buttons" style={{ display: 'none' }}></div>
 
       {/* Panel de configuración */}
       {showSettings && (

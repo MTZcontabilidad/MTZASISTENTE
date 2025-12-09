@@ -63,6 +63,10 @@ export interface ClientInfo {
   preferred_name?: string | null // Nombre preferido o apodo
   use_formal_address?: boolean // Si usar "Don" antes del nombre
   gender?: 'masculino' | 'femenino' | 'otro' | null // Género para el trato formal
+  is_mtz_client?: boolean | null // Si es cliente de MTZ
+  wants_to_be_client?: boolean | null // Si quiere ser cliente
+  rut_empresa?: string | null // RUT de la empresa
+  clave_sii?: string | null // Clave SII para validación
   created_at: string
   updated_at: string
 }

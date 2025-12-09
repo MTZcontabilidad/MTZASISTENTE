@@ -23,6 +23,7 @@ import HumanSupportOptions from "./HumanSupportOptions";
 import UserProfile from "./UserProfile";
 import VoiceSettingsDropdown from "./VoiceSettingsDropdown";
 import { useSpeechToText } from "../lib/speechToText";
+import { useTextToSpeech } from "../lib/textToSpeech";
 import "./ChatInterface.css";
 
 interface MessageWithMenu extends Message {
@@ -83,6 +84,16 @@ function ChatInterface() {
   } = useSpeechToText();
   
   const [sttEnabled, setSttEnabled] = useState(false);
+  
+  // Text-to-Speech para el botón "Leer" en cada mensaje
+  const {
+    speak,
+    pause,
+    resume,
+    stop: stopTTS,
+    isSpeaking: ttsIsSpeaking,
+    isPaused: ttsIsPaused,
+  } = useTextToSpeech();
   
   // handleSend debe estar definido antes de este useEffect, así que lo movemos después
   // Por ahora, usamos una referencia para evitar problemas de dependencias
@@ -916,6 +927,49 @@ function ChatInterface() {
           filteredMessages.map((message) => (
             <div key={message.id} className={`message ${message.sender}`}>
               <div className="message-content">
+                {/* Mostrar nombre Arise y botón Leer solo en mensajes del asistente */}
+                {message.sender === "assistant" && (
+                  <div className="assistant-header">
+                    <span className="assistant-name">Arise</span>
+                    <button
+                      className={`read-button ${ttsIsSpeaking && lastAssistantMessage === message.text ? "active" : ""}`}
+                      onClick={() => {
+                        // Extraer texto sin HTML para leer
+                        const textToRead = message.text.replace(/<[^>]*>/g, '').replace(/\*\*/g, '').trim();
+                        
+                        if (ttsIsSpeaking && lastAssistantMessage === message.text) {
+                          // Si está leyendo este mensaje, pausar/reanudar
+                          if (ttsIsPaused) {
+                            resume();
+                          } else {
+                            pause();
+                          }
+                        } else {
+                          // Leer este mensaje
+                          stopTTS(); // Detener cualquier lectura anterior
+                          if (textToRead) {
+                            speak(textToRead, {
+                              rate: 1.0,
+                              pitch: 1.0,
+                              volume: 1.0,
+                            });
+                            setLastAssistantMessage(message.text);
+                          }
+                        }
+                      }}
+                      type="button"
+                      title={ttsIsSpeaking && lastAssistantMessage === message.text 
+                        ? (ttsIsPaused ? "Reanudar lectura" : "Pausar lectura") 
+                        : "Leer mensaje"}
+                      aria-label="Leer mensaje"
+                    >
+                      {ttsIsSpeaking && lastAssistantMessage === message.text 
+                        ? (ttsIsPaused ? "▶️" : "⏸️") 
+                        : "🔊"}
+                    </button>
+                  </div>
+                )}
+                
                 {hasMarkdown(message.text) ? (
                   <p
                     dangerouslySetInnerHTML={{
