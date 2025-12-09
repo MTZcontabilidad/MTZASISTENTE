@@ -619,32 +619,47 @@ function App() {
       if (error) throw error
 
       if (data?.user) {
-        // El trigger handle_new_user ya crea el perfil automáticamente
-        // Usar upsert directamente para evitar conflictos de email único
-        const { error: profileError } = await supabase
+        // Usar email único con timestamp para evitar conflictos
+        const uniqueEmail = `invitado_${phone}_${Date.now()}@mtz.local`
+        
+        // Verificar si ya existe un perfil para este usuario
+        const { data: existingProfile } = await supabase
           .from('user_profiles')
-          .upsert({
-            id: data.user.id,
-            email: `invitado_${phone}@mtz.local`,
-            full_name: `Invitado ${phone}`,
-            role: 'user',
-            user_type: 'invitado'
-          }, {
-            onConflict: 'id',
-            ignoreDuplicates: false
-          })
+          .select('id, email')
+          .eq('id', data.user.id)
+          .maybeSingle()
 
-        if (profileError) {
-          console.warn('Error al actualizar perfil de invitado:', profileError)
-          // Si falla por email duplicado, intentar solo actualizar nombre y tipo
-          if (profileError.code === '23505') {
-            await supabase
-              .from('user_profiles')
-              .update({
-                full_name: `Invitado ${phone}`,
-                user_type: 'invitado'
-              })
-              .eq('id', data.user.id)
+        if (existingProfile) {
+          // Si existe, solo actualizar nombre y tipo sin cambiar email
+          const { error: updateError } = await supabase
+            .from('user_profiles')
+            .update({
+              full_name: `Invitado ${phone}`,
+              user_type: 'invitado'
+            })
+            .eq('id', data.user.id)
+          
+          if (updateError) {
+            console.warn('Error al actualizar perfil existente:', updateError)
+          }
+        } else {
+          // Si no existe, crear con email único
+          const { error: profileError } = await supabase
+            .from('user_profiles')
+            .upsert({
+              id: data.user.id,
+              email: uniqueEmail,
+              full_name: `Invitado ${phone}`,
+              role: 'user',
+              user_type: 'invitado',
+              is_active: true
+            }, {
+              onConflict: 'id',
+              ignoreDuplicates: false
+            })
+
+          if (profileError) {
+            console.warn('Error al crear perfil de invitado:', profileError)
           }
         }
 

@@ -218,6 +218,7 @@ function ChatInterface() {
       // Limpiar estados al desmontar para evitar problemas al remontar
       setLoading(false);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Array vacío - se ejecuta cada vez que el componente se monta
 
   const handleSend = async (customMessage?: string) => {

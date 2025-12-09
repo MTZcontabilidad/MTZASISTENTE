@@ -256,19 +256,31 @@ class TextToSpeechService {
     // Remover HTML
     let clean = text.replace(/<[^>]*>/g, "");
 
-    // Remover markdown básico y símbolos
+    // Remover markdown básico y símbolos ANTES de procesar el contenido
+    // Primero remover patrones de markdown completos
     clean = clean
       .replace(/\*\*(.*?)\*\*/g, "$1") // Negrita
       .replace(/\*(.*?)\*/g, "$1") // Cursiva
-      .replace(/`(.*?)`/g, "$1") // Código
+      .replace(/`(.*?)`/g, "$1") // Código inline
+      .replace(/```[\s\S]*?```/g, "") // Bloques de código
       .replace(/#{1,6}\s/g, "") // Encabezados
       .replace(/\[([^\]]+)\]\([^\)]+\)/g, "$1") // Enlaces
-      .replace(/\n{3,}/g, "\n\n") // Múltiples saltos de línea
-      .replace(/\*/g, "") // Remover asteriscos sueltos
+      .replace(/\n{3,}/g, "\n\n"); // Múltiples saltos de línea
+    
+    // Luego remover TODOS los símbolos restantes que no sean necesarios para pronunciación
+    clean = clean
+      .replace(/\*/g, "") // Remover TODOS los asteriscos sueltos
       .replace(/_/g, " ") // Reemplazar guiones bajos con espacios
       .replace(/~/g, "") // Remover tildes
       .replace(/`/g, "") // Remover backticks
       .replace(/#/g, "") // Remover numerales
+      .replace(/\^/g, "") // Remover símbolos de potencia
+      .replace(/&/g, " y ") // Reemplazar & con "y"
+      .replace(/\+/g, " más ") // Reemplazar + con "más" solo si es necesario
+      .replace(/=/g, " igual ") // Reemplazar = con "igual" solo si es necesario
+      .replace(/\|/g, " o ") // Reemplazar | con "o"
+      .replace(/\\/g, "") // Remover backslashes
+      .replace(/\//g, " ") // Reemplazar slashes con espacios
       .trim();
 
     // Mejorar pronunciación de números y fechas
