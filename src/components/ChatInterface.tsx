@@ -377,6 +377,17 @@ function ChatInterface() {
           menu: responseMenu,
           document: responseDocument,
         };
+        
+        // Reproducir audio automáticamente si está habilitado (por defecto sí)
+        if (autoReadEnabled) {
+          // Importar y usar textToSpeech
+          const { textToSpeech } = await import("../lib/textToSpeech");
+          textToSpeech.speak(responseText, {
+            rate: 1.15,
+            pitch: 1.15,
+            useGemini: false, // Usar voz del navegador por defecto para respuestas rápidas
+          });
+        }
         setMessages((prev) => [...prev, newMessage]);
         // Actualizar texto para lectura de voz
         setLastAssistantMessage(responseText);
