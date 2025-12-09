@@ -520,13 +520,75 @@ function App() {
     )
   }
 
+  const handleGuestLogin = async (phone: string) => {
+    try {
+      setLoading(true)
+      
+      // Crear sesión anónima para invitado
+      const { data, error } = await supabase.auth.signInAnonymously()
+      
+      if (error) throw error
+
+      if (data?.user) {
+        // Crear perfil de invitado con teléfono
+        const { error: profileError } = await supabase
+          .from('user_profiles')
+          .upsert({
+            id: data.user.id,
+            email: `invitado_${phone}@mtz.local`,
+            full_name: `Invitado ${phone}`,
+            role: 'invitado',
+            user_type: 'invitado'
+          }, {
+            onConflict: 'id'
+          })
+
+        if (profileError) {
+          console.warn('Error al crear perfil de invitado:', profileError)
+        }
+
+        // Crear o actualizar client_info con el teléfono
+        await supabase
+          .from('client_info')
+          .upsert({
+            user_id: data.user.id,
+            phone: phone
+          }, {
+            onConflict: 'user_id'
+          })
+
+        // Establecer usuario como invitado
+        const guestUser: User = {
+          id: data.user.id,
+          email: `invitado_${phone}@mtz.local`,
+          role: 'invitado',
+          user_type: 'invitado'
+        }
+
+        setUser(guestUser)
+        sessionCache.set({
+          id: guestUser.id,
+          email: guestUser.email,
+          role: guestUser.role,
+          user_type: guestUser.user_type
+        })
+        setShowGuestWelcome(false) // Ir directo al chat
+        setLoading(false)
+      }
+    } catch (error: any) {
+      console.error('Error en login de invitado:', error)
+      alert('Error al ingresar como invitado. Por favor intenta de nuevo.')
+      setLoading(false)
+    }
+  }
+
   if (!user) {
     // En modo desarrollo, mostrar selector de roles
     if (isDev) {
       return <DevModeSelector onSelectRole={handleDevModeSelect} />
     }
     // En producción, mostrar autenticación normal
-    return <Auth onAuthSuccess={handleAuthSuccess} />
+    return <Auth onAuthSuccess={handleAuthSuccess} onGuestLogin={handleGuestLogin} />
   }
 
   // Si es invitado y debe ver la bienvenida, mostrar sin header ni footer (pantalla completa)
