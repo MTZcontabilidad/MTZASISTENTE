@@ -644,9 +644,10 @@ function App() {
           <InvitadoWelcome 
             user={user} 
             onContinue={async () => {
+              // Cerrar el welcome inmediatamente - NO volver a mostrarlo
               setShowGuestWelcome(false)
+              
               // Actualizar el estado del usuario sin recargar todo el perfil
-              // Solo verificar el user_type actualizado
               try {
                 const { data: profile } = await supabase
                   .from('user_profiles')
@@ -656,10 +657,11 @@ function App() {
                 
                 if (profile && user) {
                   // Actualizar solo el user_type sin recargar todo
-                  setUser({
+                  const updatedUser = {
                     ...user,
                     user_type: profile.user_type as any
-                  })
+                  }
+                  setUser(updatedUser)
                   // Actualizar caché
                   sessionCache.set({
                     id: user.id,
@@ -667,10 +669,17 @@ function App() {
                     role: user.role,
                     user_type: profile.user_type as any
                   })
+                  
+                  // Forzar que NO se muestre el welcome de nuevo
+                  // Actualizar userRef para evitar que se vuelva a mostrar
+                  userRef.current = updatedUser
                 }
               } catch (error) {
                 console.error('Error al actualizar user_type:', error)
               }
+              
+              // Asegurar que no se vuelva a mostrar el welcome
+              setShowGuestWelcome(false)
             }} 
           />
         </div>
@@ -684,10 +693,10 @@ function App() {
         <header className="header">
           <div>
             <h1>
-              MTZ Asistente
+              Arise -               Arise
               {user.role === 'admin' && <span className="admin-badge">Admin</span>}
             </h1>
-            <p>¿En qué puedo ayudarte hoy?</p>
+            <p>Tu asistente virtual de MTZ. ¿En qué puedo ayudarte hoy?</p>
           </div>
           <div className="header-actions">
             {user.role === 'admin' && (
@@ -695,7 +704,7 @@ function App() {
                 onClick={() => setShowAdminPanel(!showAdminPanel)}
                 className="admin-toggle-button"
               >
-                {showAdminPanel ? 'Chat' : 'Panel Admin'}
+                {showAdminPanel ? 'Arise' : 'Panel Admin'}
               </button>
             )}
             <button onClick={handleLogout} className="logout-button">

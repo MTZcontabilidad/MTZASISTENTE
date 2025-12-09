@@ -165,7 +165,7 @@ function ChatInterface() {
           const welcomeMsg = contextualMessages.welcomeMessage;
           const displayName = contextualMessages.userName;
           
-          const welcomeMessage = `${greeting}, ${displayName}! 👋\n\n${welcomeMsg}. Soy el asistente virtual del equipo ${companyName} y estoy aquí para ayudarte con:\n\n• 📊 Consultas sobre MTZ Consultores Tributarios\n• 🚐 Información sobre Fundación Te Quiero Feliz\n• 🪑 Consultas sobre Taller de Sillas de Ruedas MMC\n• 📋 Información sobre trámites y documentos\n• 💬 Soporte y atención al cliente\n• 📅 Agendar reuniones con nuestro equipo\n\nSi en algún momento necesitas hablar directamente con un ejecutivo, puedes usar el botón 💬 que encontrarás en la barra de mensajes.\n\n¿En qué puedo ayudarte hoy?`;
+          const welcomeMessage = `${greeting}, ${displayName}! 👋\n\n${welcomeMsg}. Soy **Arise**, tu asistente virtual de MTZ y estoy aquí para ayudarte con:\n\n• 📊 **MTZ Consultores Tributarios** - Consultoría tributaria y contable\n• 🚐 **Fundación Te Quiero Feliz** - Información sobre nuestros programas sociales\n• 🪑 **Taller de Sillas de Ruedas MMC** - Servicios de movilidad\n• 📋 Trámites y documentos\n• 💬 Soporte y atención al cliente\n• 📅 Agendar reuniones con nuestro equipo\n\nPuedo guiarte hacia el servicio que necesitas. ¿Qué te interesa conocer?`;
           
           // Crear mensaje de bienvenida en la base de datos
           const welcomeMsgData = await createMessage(
@@ -414,8 +414,8 @@ function ChatInterface() {
     // Crear mensaje de audio corto y natural
     // Mensaje más simple y directo como pidió el usuario
     const audioText = userName 
-      ? `¡Bienvenido, ${displayName}! Un gusto tenerte aquí. Soy el asistente virtual del equipo MTZ. ¿En qué puedo ayudarte?`
-      : `¡Bienvenido! Un gusto tenerte aquí. Soy el asistente virtual del equipo MTZ. ¿En qué puedo ayudarte?`;
+      ? `¡Bienvenido, ${displayName}! Un gusto tenerte aquí. Soy **Arise**, tu asistente virtual de MTZ. Puedo ayudarte con consultoría tributaria, la fundación, el taller de sillas de ruedas y más. ¿Qué te interesa?`
+      : `¡Bienvenido! Un gusto tenerte aquí. Soy **Arise**, tu asistente virtual de MTZ. Puedo ayudarte con consultoría tributaria, la fundación, el taller de sillas de ruedas y más. ¿Qué te interesa?`;
 
     // Esperar un momento para que las voces se carguen si es necesario
     const speakWithVoice = () => {

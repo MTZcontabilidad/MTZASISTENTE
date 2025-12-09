@@ -185,6 +185,8 @@ function Auth({ onAuthSuccess, onGuestLogin }: AuthProps) {
 
           {!showGuestForm ? (
             <>
+              <h2>Bienvenido a Arise</h2>
+              <p className="auth-subtitle">Tu asistente virtual de MTZ</p>
               <button
                 onClick={handleGoogleLogin}
                 disabled={loading}

@@ -207,7 +207,7 @@ function InvitadoWelcome({ user, onContinue }: InvitadoWelcomeProps) {
         }
       }
 
-      // Continuar al chat
+      // Continuar a Arise (chat)
       onContinue()
     } catch (error: any) {
       console.error('Error al guardar información:', error)
@@ -220,16 +220,9 @@ function InvitadoWelcome({ user, onContinue }: InvitadoWelcomeProps) {
     <div className="invitado-welcome">
       <div className="welcome-container">
         <div className="welcome-header">
-          <div className="welcome-icon">
-            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </div>
-          <h1 className="welcome-title">¡Bienvenido a MTZ Asistente!</h1>
+          <h1 className="welcome-title">¡Bienvenido a Arise!</h1>
           <p className="welcome-subtitle">
-            Estamos aquí para ayudarte. Primero, cuéntanos si eres cliente de MTZ.
+            Tu asistente virtual de MTZ. Primero, cuéntanos si eres cliente de MTZ.
           </p>
         </div>
 
@@ -362,8 +355,8 @@ function InvitadoWelcome({ user, onContinue }: InvitadoWelcomeProps) {
                   </>
                 ) : (
                   <>
-                    <span>🚀</span>
-                    Comenzar a Chatear
+                  <span>🚀</span>
+                  Comenzar con Arise
                   </>
                 )}
               </button>
@@ -413,14 +406,14 @@ function InvitadoWelcome({ user, onContinue }: InvitadoWelcomeProps) {
                 </div>
               ))}
               <div className="feature-card">
-                <div className="feature-icon">💬</div>
-                <h4>Asistente Virtual</h4>
-                <p>Obtén respuestas rápidas y atención personalizada las 24 horas</p>
+                <div className="feature-icon">🤖</div>
+                <h4>Arise</h4>
+                <p>Tu asistente virtual de MTZ. Respuestas rápidas y atención personalizada</p>
                 <div className="service-features">
                   <ul>
                     <li>Respuestas instantáneas</li>
                     <li>Atención 24/7</li>
-                    <li>Información personalizada</li>
+                    <li>Guía personalizada</li>
                   </ul>
                 </div>
               </div>
