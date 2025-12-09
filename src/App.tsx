@@ -34,6 +34,7 @@ function App() {
   const [showGuestWelcome, setShowGuestWelcome] = useState(false)
   const [welcomeCompleted, setWelcomeCompleted] = useState(false) // Bandera para evitar que se vuelva a mostrar
   const [devMode, setDevMode] = useState(false) // Modo de desarrollo
+  const [showNormalAuth, setShowNormalAuth] = useState(false) // Mostrar Auth normal desde DevModeSelector
   const isDev = import.meta.env.DEV // Detecta si estamos en desarrollo
   
   // Refs para evitar recargas innecesarias
@@ -735,9 +736,25 @@ function App() {
   }
 
   if (!user) {
+    // Si se solicitó autenticación normal desde DevModeSelector, mostrar Auth
+    if (showNormalAuth) {
+      return (
+        <Auth 
+          onAuthSuccess={handleAuthSuccess} 
+          onGuestLogin={handleGuestLogin}
+          onBackToDevMode={() => setShowNormalAuth(false)}
+          isFromDevMode={true}
+        />
+      )
+    }
     // En modo desarrollo, mostrar selector de roles
     if (isDev) {
-      return <DevModeSelector onSelectRole={handleDevModeSelect} />
+      return (
+        <DevModeSelector 
+          onSelectRole={handleDevModeSelect}
+          onStartNormalAuth={() => setShowNormalAuth(true)}
+        />
+      )
     }
     // En producción, mostrar autenticación normal
     return <Auth onAuthSuccess={handleAuthSuccess} onGuestLogin={handleGuestLogin} />
@@ -838,7 +855,7 @@ function App() {
         {showAdminPanel && user.role === 'admin' ? (
           <AdminPanel onLogout={handleLogout} />
         ) : (
-          <ChatInterface />
+            <ChatInterface />
         )}
       </div>
     </div>

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { supabase } from "../lib/supabase";
+import { sessionCache } from "../lib/sessionCache";
 import {
   getActiveConversation,
   getConversationMessages,
@@ -13,7 +14,7 @@ import {
   type ResponseWithMenu,
 } from "../lib/responseEngine";
 import { markdownToHtml, hasMarkdown } from "../lib/markdown";
-import { Message, UserType } from "../types";
+import { Message, UserType, UserRole } from "../types";
 import InteractiveMenu from "./InteractiveMenu";
 import QuickActions from "./QuickActions";
 import CategoryButtons from "./CategoryButtons";
@@ -24,6 +25,15 @@ import UserProfile from "./UserProfile";
 import VoiceSettingsDropdown from "./VoiceSettingsDropdown";
 import { useSpeechToText } from "../lib/speechToText";
 import { useTextToSpeech } from "../lib/textToSpeech";
+import ClientSidebar, { type ClientTab } from "./ClientSidebar";
+import {
+  ClientMeetingsSection,
+  ClientDocumentsSection,
+  ClientCompanyInfoSection,
+  ClientRequestsSection,
+  ClientNotesSection,
+  ClientProfileSection,
+} from "./ClientSections";
 import "./ChatInterface.css";
 
 interface MessageWithMenu extends Message {
@@ -31,13 +41,17 @@ interface MessageWithMenu extends Message {
   document?: any;
 }
 
-function ChatInterface() {
+interface ChatInterfaceProps {
+}
+
+function ChatInterface({}: ChatInterfaceProps = {}) {
   const [messages, setMessages] = useState<MessageWithMenu[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [userType, setUserType] = useState<UserType | undefined>(undefined);
+  const [userRole, setUserRole] = useState<UserRole | undefined>(undefined);
   const [userName, setUserName] = useState<string | undefined>(undefined);
   const [userEmail, setUserEmail] = useState<string | undefined>(undefined);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -46,12 +60,12 @@ function ChatInterface() {
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [showMeetings, setShowMeetings] = useState(false);
   const [showHumanSupport, setShowHumanSupport] = useState(false);
-  const [showProfile, setShowProfile] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [abortController, setAbortController] = useState<AbortController | null>(null);
   const [autoReadEnabled, setAutoReadEnabled] = useState(true); // Habilitado por defecto
   const [isMuted, setIsMuted] = useState(false);
   const [lastAssistantMessage, setLastAssistantMessage] = useState<string>("");
+  const [activeTab, setActiveTab] = useState<ClientTab>("chat");
   
   // Escuchar evento de toggle mute desde el header
   useEffect(() => {
@@ -170,9 +184,27 @@ function ChatInterface() {
         if (!mounted || isCancelled) return;
         
         setLoadingHistory(true);
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
+        
+        // Intentar obtener usuario de Supabase
+        let user = null;
+        try {
+          const { data: { user: authUser } } = await supabase.auth.getUser();
+          user = authUser;
+        } catch (error) {
+          console.log('No hay sesión de Supabase, intentando desde caché...');
+        }
+        
+        // Si no hay usuario de Supabase, intentar desde caché (modo desarrollo)
+        if (!user) {
+          const cachedUser = sessionCache.get();
+          if (cachedUser && cachedUser.id) {
+            user = {
+              id: cachedUser.id,
+              email: cachedUser.email || '',
+            } as any;
+            console.log('✅ Usuario cargado desde caché:', user.id, user.email);
+          }
+        }
         
         if (!user || !mounted || isCancelled) {
           if (mounted && !isCancelled) {
@@ -181,20 +213,48 @@ function ChatInterface() {
           return;
         }
 
-        // Obtener perfil del usuario para userType y userName
+        // Obtener perfil del usuario para userType, userRole y userName
         try {
-          const { data: profile } = await supabase
-            .from("user_profiles")
-            .select("user_type, full_name, email")
-            .eq("id", user.id)
-            .maybeSingle();
+          // Verificar si es un usuario de modo desarrollo (ID empieza con "dev-")
+          const isDevUser = user.id.startsWith('dev-');
+          
+          let profile = null;
+          if (!isDevUser) {
+            // Solo buscar en Supabase si no es usuario de desarrollo
+            const { data } = await supabase
+              .from("user_profiles")
+              .select("user_type, role, full_name, email")
+              .eq("id", user.id)
+              .maybeSingle();
+            profile = data;
+          }
 
           if (!mounted || isCancelled) return;
 
           if (profile) {
             setUserType(profile.user_type as UserType);
+            setUserRole(profile.role as UserRole);
             setUserName(profile.full_name || undefined);
             setUserEmail(profile.email || user.email || undefined);
+          } else if (isDevUser) {
+            // Para usuarios de desarrollo, extraer el rol del ID (formato: dev-{role}-{timestamp})
+            // O del email (formato: dev-{role}@test.local)
+            let devRole: UserRole = 'invitado';
+            const roleMatch = user.id.match(/^dev-([^-]+)-/);
+            if (roleMatch) {
+              devRole = roleMatch[1] as UserRole;
+            } else {
+              // Intentar extraer del email si el ID no tiene el formato esperado
+              const emailMatch = user.email?.match(/^dev-([^@]+)@/);
+              if (emailMatch) {
+                devRole = emailMatch[1] as UserRole;
+              }
+            }
+            console.log('🔧 Modo desarrollo - Rol detectado:', devRole, 'ID:', user.id, 'Email:', user.email);
+            setUserRole(devRole);
+            setUserType('cliente_existente'); // Por defecto para clientes en dev mode
+            setUserEmail(user.email || undefined);
+            setUserName(undefined);
           } else {
             setUserEmail(user.email || undefined);
           }
@@ -797,6 +857,11 @@ function ChatInterface() {
       )
     : messages;
 
+  // Determinar si mostrar el sidebar (para todos los usuarios excepto admins)
+  // Los admins tienen su propio panel, así que no necesitan este sidebar
+  const shouldShowSidebar = currentUserId && 
+    userRole !== 'admin';
+
   if (loadingHistory) {
     return (
       <div className="chat-interface">
@@ -810,35 +875,78 @@ function ChatInterface() {
     );
   }
 
-  return (
-    <div className="chat-interface">
-      {/* Vista de perfil */}
-      {showProfile && currentUserId && (
-        <div className="profile-view">
-          <div className="profile-view-header">
-            <h3>👤 Mi Perfil</h3>
-            <button
-              onClick={() => setShowProfile(false)}
-              className="close-button"
-              aria-label="Cerrar perfil"
-            >
-              ✕
-            </button>
-          </div>
-          <UserProfile 
+  // Si hay un tab activo diferente a chat, mostrar la sección correspondiente
+  if (shouldShowSidebar && activeTab !== 'chat' && currentUserId) {
+    return (
+      <div className="chat-interface with-sidebar">
+        {shouldShowSidebar && (
+          <ClientSidebar
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
             userId={currentUserId}
-            userEmail={userEmail || ''}
-            userName={userName}
-            onUpdate={() => {
-              // Recargar datos si es necesario
-              setShowProfile(false)
-            }}
+            userRole={(userRole === 'cliente' || userRole === 'invitado') ? 'cliente' : 'inclusion'}
           />
+        )}
+        <div className="chat-content" key={activeTab}>
+          {activeTab === 'meetings' && (
+            <ClientMeetingsSection
+              userId={currentUserId}
+              onBack={() => setActiveTab('chat')}
+            />
+          )}
+          {activeTab === 'documents' && (
+            <ClientDocumentsSection
+              userId={currentUserId}
+              onBack={() => setActiveTab('chat')}
+            />
+          )}
+          {activeTab === 'company' && (
+            <ClientCompanyInfoSection
+              userId={currentUserId}
+              onBack={() => setActiveTab('chat')}
+            />
+          )}
+          {activeTab === 'requests' && (
+            <ClientRequestsSection
+              userId={currentUserId}
+              userRole={(userRole === 'cliente' || userRole === 'invitado') ? 'cliente' : 'inclusion'}
+              onBack={() => setActiveTab('chat')}
+            />
+          )}
+          {activeTab === 'notes' && (
+            <ClientNotesSection
+              userId={currentUserId}
+              onBack={() => setActiveTab('chat')}
+            />
+          )}
+          {activeTab === 'profile' && (
+            <ClientProfileSection
+              userId={currentUserId}
+              userEmail={userEmail || ''}
+              userName={userName}
+              onBack={() => setActiveTab('chat')}
+            />
+          )}
         </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`chat-interface ${shouldShowSidebar ? 'with-sidebar' : ''}`}>
+      {shouldShowSidebar && currentUserId && (
+        <ClientSidebar
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          userId={currentUserId}
+          userRole={(userRole === 'cliente' || userRole === 'invitado') ? 'cliente' : 'inclusion'}
+        />
       )}
+      <div className="chat-content">
+      <>
 
       {/* Vista de reuniones */}
-      {showMeetings && currentUserId && !showProfile && (
+      {showMeetings && currentUserId && (
         <div className="meetings-view">
           <div className="meetings-view-header">
             <h3>📅 Mis Reuniones</h3>
@@ -1102,7 +1210,11 @@ function ChatInterface() {
       <div className="input-container">
         <div className="input-actions">
           <button
-            onClick={() => setShowProfile(!showProfile)}
+            onClick={() => {
+              if (shouldShowSidebar) {
+                setActiveTab('profile');
+              }
+            }}
             className="action-button profile-button"
             title="Mi perfil"
             aria-label="Mi perfil"
@@ -1120,7 +1232,6 @@ function ChatInterface() {
           <button
             onClick={() => {
               setShowSearch(!showSearch)
-              setShowProfile(false)
             }}
             className="action-button search-button"
             title="Buscar en conversación"
@@ -1131,7 +1242,6 @@ function ChatInterface() {
           <button
             onClick={() => {
               setShowMeetings(true)
-              setShowProfile(false)
             }}
             className="action-button meetings-button"
             title="Mis reuniones"
@@ -1240,6 +1350,8 @@ function ChatInterface() {
         onAutoReadChange={setAutoReadEnabled}
         textToRead={lastAssistantMessage}
       />
+      </>
+      </div>
     </div>
   );
 }
