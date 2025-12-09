@@ -1,0 +1,5 @@
+[33mc2bd5b4[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m feat: Simplificar login, agregar opción invitado/prueba y panel de usuario - Quitar Footer de login - Diseño completamente responsivo - Opción invitado solo con teléfono - Panel de usuario para actualizar información - Mejoras en AdminPanel para gestionar usuarios - Vista de perfil integrada en chat
+[33m8955a52[m feat: Simplificar login y agregar opción de invitado/prueba - Diseño completamente responsivo - Solo logo y botones de login - Opción de invitado con solo teléfono - Mejoras en adaptación móvil/PC
+[33m90fdcbc[m chore: Actualizar versión y forzar deployment de Gemini TTS
+[33mf292c71[m chore: Limpiar archivos temporales y forzar redeploy
+[33m7109076[m feat: Integrar voz de Gemini usando Google Cloud Text-to-Speech API - Usa voces neurales más naturales - Fallback automático a TTS del navegador - Búsqueda de API key por RUT o company_id - Opción en VoiceControls para habilitar/deshabilitar
