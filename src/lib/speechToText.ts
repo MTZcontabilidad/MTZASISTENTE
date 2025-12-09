@@ -51,11 +51,11 @@ class SpeechToTextService {
   private setupRecognition() {
     if (!this.recognition) return;
 
-    // Configuración por defecto
+    // Configuración por defecto - optimizada para accesibilidad
     this.recognition.lang = "es-CL";
-    this.recognition.continuous = false;
-    this.recognition.interimResults = true;
-    this.recognition.maxAlternatives = 1;
+    this.recognition.continuous = true; // Continuar escuchando para mejor accesibilidad
+    this.recognition.interimResults = true; // Mostrar resultados intermedios
+    this.recognition.maxAlternatives = 3; // Más alternativas para mejor precisión
   }
 
   /**

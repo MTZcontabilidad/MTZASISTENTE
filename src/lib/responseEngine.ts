@@ -56,6 +56,7 @@ import {
   generateSupportMessage,
   needsSpecialSupport,
 } from "./situationDetection";
+import { generateF29GuideFromLink } from "./geminiAnalyzer";
 
 export interface ResponseOptions {
   userId: string;
@@ -271,9 +272,31 @@ export async function generateResponse(
     // TERCERO: Detectar solicitudes específicas sobre F29 (Formulario 29)
     const f29Request = detectarF29Request(userInput);
     if (f29Request) {
+      // URL del portal del SII para F29
+      const siiF29Url = 'https://zeusr.sii.cl/AUT2000/InicioAutenticacion/IngresoRutClave.html?https://www4.sii.cl/propuestaf29ui/index.html#/default';
+      
+      // Intentar generar guía usando Gemini (análisis del link)
+      try {
+        const guideText = await generateF29GuideFromLink(siiF29Url, userInput);
+        
+        if (guideText && guideText.length > 100) {
+          // Si Gemini generó una guía válida, usarla con link directo
+          return {
+            text: enrichWithMotivation(
+              `¡Perfecto! He analizado el portal del SII y aquí tienes una guía personalizada para declarar el F29 (IVA). 😊\n\n${guideText}\n\n🔗 **Link directo al portal**: [Ir al SII para declarar F29](${siiF29Url})\n\n💡 Si necesitas ayuda con algún paso específico, solo dime y te ayudo con más detalle.`,
+              userInput
+            ),
+            showF29Guide: false, // Ya tenemos la guía en el texto
+          };
+        }
+      } catch (error) {
+        console.warn('Error al generar guía con Gemini, usando guía estática:', error);
+      }
+      
+      // Fallback: mostrar componente de guía interactiva con opción de link
       return {
         text: enrichWithMotivation(
-          `¡Perfecto! Te voy a guiar paso a paso para declarar el F29 (IVA). No te preocupes, lo haremos juntos y con calma. 😊\n\nVamos paso a paso, sin apuros. Cuando termines cada paso, me avisas y continuamos con el siguiente.`,
+          `¡Perfecto! Te voy a guiar paso a paso para declarar el F29 (IVA). No te preocupes, lo haremos juntos y con calma. 😊\n\n🔗 **Link directo**: [Ir al portal del SII](${siiF29Url})\n\nO si prefieres, puedo guiarte paso a paso aquí mismo. ¿Qué prefieres?`,
           userInput
         ),
         showF29Guide: true,

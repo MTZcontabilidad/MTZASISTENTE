@@ -150,8 +150,8 @@ class TextToSpeechService {
         const geminiOptions = {
           languageCode: options.lang || 'es-CL',
           voiceName: options.geminiVoice || 'es-CL-Neural2-A', // Voz neural más natural
-          speakingRate: options.rate ? options.rate * 0.9 : 1.0, // Ajustar rate para Gemini
-          pitch: options.pitch ? (options.pitch - 1) * 20 : 0, // Convertir pitch a semitones
+          speakingRate: options.rate ? options.rate * 0.95 : 1.15, // Más rápido y dinámico
+          pitch: options.pitch ? (options.pitch - 1) * 20 : 3, // Pitch más alto (amigable y con carisma)
         };
 
         const success = await speakWithGemini(cleanText, geminiOptions);
@@ -170,11 +170,11 @@ class TextToSpeechService {
 
       const utterance = new SpeechSynthesisUtterance(cleanText);
 
-      // Configurar opciones con valores más naturales y conversacionales
-      // Velocidad ligeramente más lenta para sonar más natural (0.85-0.95 es ideal)
-      utterance.rate = options.rate ?? 0.9; // Velocidad más conversacional
-      // Pitch ligeramente más bajo para sonar más natural (0.9-1.1 es ideal)
-      utterance.pitch = options.pitch ?? 1.0; // Tono natural
+      // Configurar opciones con valores más naturales, rápidos y amigables
+      // Velocidad más rápida para sonar más dinámico y amigable (1.1-1.2 es ideal)
+      utterance.rate = options.rate ?? 1.15; // Velocidad más rápida y dinámica
+      // Pitch ligeramente más alto para sonar más amigable y con carisma (1.1-1.2 es ideal)
+      utterance.pitch = options.pitch ?? 1.15; // Tono más alto, amigable y simpático
       utterance.volume = options.volume ?? 1.0;
       utterance.lang = options.lang ?? "es-CL";
 

@@ -68,7 +68,7 @@ function App() {
       try {
         const getUserPromise = supabase.auth.getUser()
         const getUserTimeout = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('getUser timeout')), 5000)
+          setTimeout(() => reject(new Error('getUser timeout')), 10000)
         )
         
         const result = await Promise.race([getUserPromise, getUserTimeout]) as any
@@ -113,9 +113,9 @@ function App() {
           .eq('id', userId)
           .maybeSingle()
 
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Profile timeout')), 2000)
-        )
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Profile timeout')), 5000)
+          )
 
         const result = await Promise.race([profilePromise, timeoutPromise]) as any
         
@@ -188,8 +188,8 @@ function App() {
           setShowGuestWelcome(false)
         } else {
           setShowAdminPanel(false)
-          // Solo mostrar welcome si no ha sido completado
-          setShowGuestWelcome(userType === 'invitado' && !welcomeCompleted)
+          // SIMPLIFICADO: Ya no mostramos welcome, vamos directo al chat
+          setShowGuestWelcome(false)
         }
       } else {
         const userData: User = {
@@ -269,9 +269,9 @@ function App() {
       
       // Timeout para getSession (más largo para evitar falsos negativos)
       const sessionPromise = supabase.auth.getSession()
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Session timeout')), 5000)
-      )
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Session timeout')), 10000)
+        )
       
       const { data: { session }, error } = await Promise.race([
         sessionPromise,
@@ -350,8 +350,8 @@ function App() {
         setShowGuestWelcome(false)
       } else {
         setShowAdminPanel(false)
-        // Solo mostrar welcome si no ha sido completado
-        setShowGuestWelcome(initialUser.user_type === 'invitado' && !welcomeCompleted)
+        // SIMPLIFICADO: Ya no mostramos welcome, vamos directo al chat
+        setShowGuestWelcome(false)
       }
       return
     }
@@ -365,8 +365,8 @@ function App() {
       }
     }
 
-    // Timeout de 5 segundos
-    loadingTimeout = setTimeout(forceStopLoading, 5000)
+    // Timeout de 10 segundos (aumentado para usuarios invitados)
+    loadingTimeout = setTimeout(forceStopLoading, 10000)
 
     // Verificar sesión actual
     checkUser().finally(() => {
@@ -497,8 +497,8 @@ function App() {
       setShowGuestWelcome(false)
       } else {
         setShowAdminPanel(false)
-        // Solo mostrar welcome si no ha sido completado
-        setShowGuestWelcome(userType === 'invitado' && !welcomeCompleted)
+        // SIMPLIFICADO: Ya no mostramos welcome, vamos directo al chat
+        setShowGuestWelcome(false)
       }
   }
 

@@ -61,7 +61,7 @@ function ChatInterface() {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, scrollToBottom]);
+  }, [messages]); // scrollToBottom es estable, no necesita estar en dependencias
 
   // Detectar si el usuario está cerca del final del scroll
   useEffect(() => {
@@ -427,10 +427,10 @@ function ChatInterface() {
       // Crear utterance
       const utterance = new SpeechSynthesisUtterance(audioText);
       
-      // Configurar voz en español con parámetros mejorados
+      // Configurar voz en español con parámetros mejorados - más rápida, amigable y con carisma
       utterance.lang = 'es-CL'; // Preferir español de Chile
-      utterance.rate = 0.9; // Velocidad más conversacional y natural
-      utterance.pitch = 1.0; // Tono natural
+      utterance.rate = 1.15; // Velocidad más rápida y dinámica
+      utterance.pitch = 1.15; // Tono más alto, amigable y simpático
       utterance.volume = 1.0; // Volumen máximo
 
       // Intentar usar la mejor voz en español disponible
@@ -482,8 +482,15 @@ function ChatInterface() {
       };
 
       utterance.onerror = (error) => {
-        console.warn('Error al reproducir audio de bienvenida:', error);
+        // Solo loggear si no es un error de interrupción (que es normal)
+        if (error.error !== 'interrupted') {
+          console.warn('Error al reproducir audio de bienvenida:', error);
+        }
         welcomeSpeechRef.current = null;
+        // No marcar como reproducido si hubo error, para permitir reintento
+        if (error.error !== 'interrupted') {
+          setWelcomePlayed(false);
+        }
       };
     };
 
@@ -502,7 +509,7 @@ function ChatInterface() {
         }
       }, 500);
     }
-  };
+  }, [welcomePlayed]); // Agregar dependencia
 
   // Cargar voces disponibles cuando estén listas
   useEffect(() => {
