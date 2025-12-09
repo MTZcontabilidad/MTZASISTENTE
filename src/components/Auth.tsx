@@ -282,7 +282,6 @@ function Auth({ onAuthSuccess, onGuestLogin }: AuthProps) {
           )}
         </div>
       </div>
-      <Footer />
     </>
   )
 }

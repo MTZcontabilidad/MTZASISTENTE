@@ -19,6 +19,7 @@ import CategoryButtons from "./CategoryButtons";
 import MeetingScheduler from "./MeetingScheduler";
 import VoiceControls from "./VoiceControls";
 import HumanSupportOptions from "./HumanSupportOptions";
+import UserProfile from "./UserProfile";
 import "./ChatInterface.css";
 
 interface MessageWithMenu extends Message {
@@ -34,12 +35,14 @@ function ChatInterface() {
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [userType, setUserType] = useState<UserType | undefined>(undefined);
   const [userName, setUserName] = useState<string | undefined>(undefined);
+  const [userEmail, setUserEmail] = useState<string | undefined>(undefined);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [showMeetings, setShowMeetings] = useState(false);
   const [showHumanSupport, setShowHumanSupport] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
   const [abortController, setAbortController] = useState<AbortController | null>(null);
   const [autoReadEnabled, setAutoReadEnabled] = useState(false);
   const [lastAssistantMessage, setLastAssistantMessage] = useState<string>("");
@@ -108,13 +111,16 @@ function ChatInterface() {
         try {
           const { data: profile } = await supabase
             .from("user_profiles")
-            .select("user_type, full_name")
+            .select("user_type, full_name, email")
             .eq("id", user.id)
             .maybeSingle();
 
           if (profile) {
             setUserType(profile.user_type as UserType);
             setUserName(profile.full_name || undefined);
+            setUserEmail(profile.email || user.email || undefined);
+          } else {
+            setUserEmail(user.email || undefined);
           }
           setCurrentUserId(user.id);
         } catch (error) {
@@ -565,8 +571,33 @@ function ChatInterface() {
 
   return (
     <div className="chat-interface">
+      {/* Vista de perfil */}
+      {showProfile && currentUserId && (
+        <div className="profile-view">
+          <div className="profile-view-header">
+            <h3>👤 Mi Perfil</h3>
+            <button
+              onClick={() => setShowProfile(false)}
+              className="close-button"
+              aria-label="Cerrar perfil"
+            >
+              ✕
+            </button>
+          </div>
+          <UserProfile 
+            userId={currentUserId}
+            userEmail={userEmail || ''}
+            userName={userName}
+            onUpdate={() => {
+              // Recargar datos si es necesario
+              setShowProfile(false)
+            }}
+          />
+        </div>
+      )}
+
       {/* Vista de reuniones */}
-      {showMeetings && currentUserId && (
+      {showMeetings && currentUserId && !showProfile && (
         <div className="meetings-view">
           <div className="meetings-view-header">
             <h3>📅 Mis Reuniones</h3>
@@ -761,12 +792,34 @@ function ChatInterface() {
       <div className="input-container">
         <div className="input-actions">
           <button
-            onClick={() => setShowSearch(!showSearch)}
+            onClick={() => setShowProfile(!showProfile)}
+            className="action-button profile-button"
+            title="Mi perfil"
+            aria-label="Mi perfil"
+          >
+            👤
+          </button>
+          <button
+            onClick={() => {
+              setShowSearch(!showSearch)
+              setShowProfile(false)
+            }}
             className="action-button search-button"
             title="Buscar en conversación"
             aria-label="Buscar"
           >
             🔍
+          </button>
+          <button
+            onClick={() => {
+              setShowMeetings(true)
+              setShowProfile(false)
+            }}
+            className="action-button meetings-button"
+            title="Mis reuniones"
+            aria-label="Reuniones"
+          >
+            📅
           </button>
           <button
             onClick={() => setShowHumanSupport(true)}

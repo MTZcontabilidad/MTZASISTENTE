@@ -534,6 +534,7 @@ function AdminPanel() {
                   <tr>
                     <th>Usuario</th>
                     <th>Email</th>
+                    <th>Teléfono</th>
                     <th>Tipo</th>
                     <th>Rol</th>
                     <th>Empresa</th>
@@ -564,6 +565,7 @@ function AdminPanel() {
                         </div>
                       </td>
                       <td>{user.email}</td>
+                      <td>{user.client_info?.phone || "-"}</td>
                       <td>
                         <span className={`user-type-badge ${user.user_type}`}>
                           {user.user_type === "invitado"

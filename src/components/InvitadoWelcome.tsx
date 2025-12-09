@@ -19,6 +19,7 @@ function InvitadoWelcome({ user, onContinue }: InvitadoWelcomeProps) {
   const [isClient, setIsClient] = useState<boolean | null>(null) // null = no respondido
   const [rut, setRut] = useState('')
   const [claveImpuestos, setClaveImpuestos] = useState('')
+  const [phone, setPhone] = useState('') // Teléfono para no clientes
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [foundCompany, setFoundCompany] = useState<string | null>(null)
@@ -147,32 +148,31 @@ function InvitadoWelcome({ user, onContinue }: InvitadoWelcomeProps) {
         .eq('id', user.id)
 
       // Actualizar o crear client_info
-      if (isClient === true) {
-        const { data: existing } = await supabase
+      const { data: existing } = await supabase
+        .from('client_info')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle()
+
+      const clientInfoData: any = {
+        phone: isClient === false ? phone.trim() : null,
+        rut: isClient === true ? (rut.trim() || null) : null,
+        clave_impuestos: isClient === true ? (claveImpuestos.trim() || null) : null,
+        company_name: companyName || null
+      }
+
+      if (!existing) {
+        await supabase
           .from('client_info')
-          .select('id')
+          .insert({
+            user_id: user.id,
+            ...clientInfoData
+          })
+      } else {
+        await supabase
+          .from('client_info')
+          .update(clientInfoData)
           .eq('user_id', user.id)
-          .maybeSingle()
-
-        const clientInfoData: any = {
-          rut: rut.trim() || null,
-          clave_impuestos: claveImpuestos.trim() || null,
-          company_name: companyName || null
-        }
-
-        if (!existing) {
-          await supabase
-            .from('client_info')
-            .insert({
-              user_id: user.id,
-              ...clientInfoData
-            })
-        } else {
-          await supabase
-            .from('client_info')
-            .update(clientInfoData)
-            .eq('user_id', user.id)
-        }
       }
 
       // Continuar al chat
@@ -280,6 +280,32 @@ function InvitadoWelcome({ user, onContinue }: InvitadoWelcomeProps) {
             </div>
           )}
 
+          {/* Formulario de teléfono (solo si NO es cliente) */}
+          {isClient === false && (
+            <div className="form-section">
+              <h3 className="section-title">Ingresa tu Teléfono</h3>
+              <div className="form-group">
+                <label htmlFor="phone">Teléfono *</label>
+                <input
+                  id="phone"
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => {
+                    const formatted = e.target.value.replace(/\D/g, '').slice(0, 15)
+                    setPhone(formatted)
+                    setError(null)
+                  }}
+                  placeholder="Ej: 912345678"
+                  className="form-input"
+                  maxLength={15}
+                />
+                <p className="form-help-text">
+                  Solo necesitamos tu teléfono para registrarte y poder contactarte
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Sección de Servicios */}
           <div className="welcome-features">
             <h3 className="section-title">Nuestros Servicios</h3>
@@ -335,7 +361,12 @@ function InvitadoWelcome({ user, onContinue }: InvitadoWelcomeProps) {
           <div className="welcome-actions">
             <button
               onClick={handleStartChat}
-              disabled={saving || isClient === null}
+              disabled={
+                saving || 
+                (isClient === null) || 
+                (isClient === true && (!rut.trim() || !claveImpuestos.trim())) ||
+                (isClient === false && !phone.trim())
+              }
               className="start-chat-button"
             >
               {saving ? (
