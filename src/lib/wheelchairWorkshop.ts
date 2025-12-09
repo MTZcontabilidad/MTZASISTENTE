@@ -89,19 +89,44 @@ export async function getAllWheelchairRequests(
   status?: string
 ): Promise<WheelchairWorkshopRequest[]> {
   try {
-    let query = supabase
-      .from('wheelchair_workshop_requests')
-      .select('*')
-      .order('created_at', { ascending: false })
+    // Intentar usar la función RPC primero
+    const { data: rpcData, error: rpcError } = await supabase
+      .rpc('get_all_wheelchair_requests_for_admin')
 
-    if (status) {
-      query = query.eq('status', status)
+    if (rpcError && (rpcError.code === 'PGRST301' || rpcError.message?.includes('Acceso denegado') || rpcError.code === '42703')) {
+      console.warn("⚠️ Función RPC get_all_wheelchair_requests_for_admin no disponible o con error, intentando consulta directa...");
+      // Fallback a consulta directa
+      let query = supabase
+        .from('wheelchair_workshop_requests')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      if (status) {
+        query = query.eq('status', status)
+      }
+
+      const { data, error } = await query
+      if (error) throw error
+      let result = data || []
+      
+      // Filtrar por status si se especificó
+      if (status && status !== 'all') {
+        result = result.filter(r => r.status === status)
+      }
+      
+      return result
+    } else if (rpcError) {
+      throw rpcError
+    } else {
+      let result = rpcData || []
+      
+      // Filtrar por status si se especificó
+      if (status && status !== 'all') {
+        result = result.filter((r: WheelchairWorkshopRequest) => r.status === status)
+      }
+      
+      return result
     }
-
-    const { data, error } = await query
-
-    if (error) throw error
-    return data || []
   } catch (error) {
     console.error('Error al obtener solicitudes del taller:', error)
     return []

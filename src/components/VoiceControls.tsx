@@ -298,4 +298,3 @@ export default function VoiceControls({
     </div>
   );
 }
-

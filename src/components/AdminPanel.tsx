@@ -38,7 +38,11 @@ interface UserWithClientInfo extends UserProfile {
 
 type AdminTab = "users" | "faqs" | "company" | "documents" | "meetings" | "requests" | "wheelchair" | "transport";
 
-function AdminPanel() {
+interface AdminPanelProps {
+  onLogout?: () => void;
+}
+
+function AdminPanel({ onLogout }: AdminPanelProps) {
   const [activeTab, setActiveTab] = useState<AdminTab>("users");
 
   // Estados para usuarios
@@ -83,19 +87,56 @@ function AdminPanel() {
       setLoading(true);
       setError(null);
 
-      // Obtener todos los perfiles de usuario
+      // Obtener todos los perfiles de usuario usando la función de admin
+      // Esto permite que los administradores vean todos los usuarios incluso con RLS activo
       const { data: profiles, error: profilesError } = await supabase
-        .from("user_profiles")
-        .select("*")
-        .order("created_at", { ascending: false });
-
+        .rpc("get_all_users_for_admin");
+      
+      // Si hay un error con la función RPC, intentar consulta directa como fallback
       if (profilesError) {
-        throw profilesError;
+        const { data: directProfiles, error: directError } = await supabase
+          .from("user_profiles")
+          .select("*")
+          .order("created_at", { ascending: false });
+        
+        if (!directError && directProfiles) {
+          // Usar los datos de la consulta directa
+          const usersWithClientInfo = await Promise.all(
+            (directProfiles || []).map(async (profile) => {
+              const { data: clientInfo, error: clientError } = await supabase
+                .from("client_info")
+                .select("*")
+                .eq("user_id", profile.id)
+                .maybeSingle();
+
+              if (clientError && clientError.code !== "PGRST116") {
+                console.warn(`Error al obtener client_info para ${profile.email}:`, clientError);
+              }
+
+              return {
+                ...profile,
+                client_info: clientInfo || null,
+              };
+            })
+          );
+
+          setUsers(usersWithClientInfo);
+          return;
+        } else {
+          // Si también falla la consulta directa, lanzar el error
+          throw profilesError;
+        }
+      }
+
+      // Si no hay error y tenemos perfiles, procesarlos
+      if (!profiles || profiles.length === 0) {
+        setUsers([]);
+        return;
       }
 
       // Obtener información de clientes para cada usuario
       const usersWithClientInfo = await Promise.all(
-        (profiles || []).map(async (profile) => {
+        (profiles || []).map(async (profile: any) => {
           // Usar maybeSingle() en lugar de single() para evitar errores 406 cuando no existe el registro
           const { data: clientInfo, error: clientError } = await supabase
             .from("client_info")
@@ -454,75 +495,83 @@ function AdminPanel() {
     return false;
   };
 
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  const menuItems = [
+    { id: "users", label: "👥 Usuarios", icon: "👥" },
+    { id: "faqs", label: "💬 Respuestas Frecuentes", icon: "💬" },
+    { id: "company", label: "🏢 Datos de la Empresa", icon: "🏢" },
+    { id: "documents", label: "📄 Documentos", icon: "📄" },
+    { id: "meetings", label: "📅 Reuniones", icon: "📅" },
+    { id: "requests", label: "🔔 Requerimientos", icon: "🔔" },
+    { id: "wheelchair", label: "🪑 Taller de Sillas", icon: "🪑" },
+    { id: "transport", label: "🚐 Transporte Inclusivo", icon: "🚐" },
+  ];
+
   return (
     <div className="admin-panel">
-      <div className="admin-header">
-        <div>
-          <h2>Panel de Administración</h2>
-          <p className="admin-subtitle">
-            Gestiona usuarios, respuestas frecuentes y datos de la empresa
-          </p>
+      {/* Sidebar */}
+      <aside className={`admin-sidebar ${sidebarOpen ? "open" : "closed"}`}>
+        <div className="sidebar-header">
+          <h2>Panel Admin</h2>
+          <button
+            className="sidebar-toggle"
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            title={sidebarOpen ? "Ocultar menú" : "Mostrar menú"}
+          >
+            {sidebarOpen ? "◀" : "▶"}
+          </button>
         </div>
-        <button
-          onClick={getRefreshAction()}
-          className="refresh-button"
-          disabled={getRefreshLoading()}
-        >
-          {getRefreshLoading() ? "Actualizando..." : "🔄 Actualizar"}
-        </button>
-      </div>
+        <nav className="sidebar-nav">
+          {menuItems.map((item) => (
+            <button
+              key={item.id}
+              className={`sidebar-menu-item ${activeTab === item.id ? "active" : ""}`}
+              onClick={() => setActiveTab(item.id as AdminTab)}
+              title={sidebarOpen ? item.label : item.label.replace(/^[^\s]+\s/, "")}
+            >
+              <span className="menu-icon">{item.icon}</span>
+              {sidebarOpen && <span className="menu-label">{item.label.replace(/^[^\s]+\s/, "")}</span>}
+            </button>
+          ))}
+          <div className="sidebar-divider"></div>
+          <button
+            className="sidebar-menu-item sidebar-logout-button"
+            onClick={onLogout}
+            title={sidebarOpen ? "Salir" : "Salir"}
+          >
+            <span className="menu-icon">🚪</span>
+            {sidebarOpen && <span className="menu-label">Salir</span>}
+          </button>
+        </nav>
+      </aside>
 
-      {/* Pestañas */}
-      <div className="admin-tabs">
-        <button
-          className={`admin-tab ${activeTab === "users" ? "active" : ""}`}
-          onClick={() => setActiveTab("users")}
-        >
-          👥 Usuarios
-        </button>
-        <button
-          className={`admin-tab ${activeTab === "faqs" ? "active" : ""}`}
-          onClick={() => setActiveTab("faqs")}
-        >
-          💬 Respuestas Frecuentes
-        </button>
-        <button
-          className={`admin-tab ${activeTab === "company" ? "active" : ""}`}
-          onClick={() => setActiveTab("company")}
-        >
-          🏢 Datos de la Empresa
-        </button>
-        <button
-          className={`admin-tab ${activeTab === "documents" ? "active" : ""}`}
-          onClick={() => setActiveTab("documents")}
-        >
-          📄 Documentos
-        </button>
-        <button
-          className={`admin-tab ${activeTab === "meetings" ? "active" : ""}`}
-          onClick={() => setActiveTab("meetings")}
-        >
-          📅 Reuniones
-        </button>
-        <button
-          className={`admin-tab ${activeTab === "requests" ? "active" : ""}`}
-          onClick={() => setActiveTab("requests")}
-        >
-          🔔 Requerimientos
-        </button>
-        <button
-          className={`admin-tab ${activeTab === "wheelchair" ? "active" : ""}`}
-          onClick={() => setActiveTab("wheelchair")}
-        >
-          🪑 Taller de Sillas
-        </button>
-        <button
-          className={`admin-tab ${activeTab === "transport" ? "active" : ""}`}
-          onClick={() => setActiveTab("transport")}
-        >
-          🚐 Transporte Inclusivo
-        </button>
-      </div>
+      {/* Contenido principal */}
+      <div className="admin-content">
+        <div className="admin-header">
+          <div>
+            <h2>
+              {menuItems.find((item) => item.id === activeTab)?.label || "Panel de Administración"}
+            </h2>
+            <p className="admin-subtitle">
+              {activeTab === "users" && "Gestiona usuarios del sistema"}
+              {activeTab === "faqs" && "Administra respuestas frecuentes"}
+              {activeTab === "company" && "Configura datos de la empresa"}
+              {activeTab === "documents" && "Gestiona documentos de clientes"}
+              {activeTab === "meetings" && "Administra reuniones programadas"}
+              {activeTab === "requests" && "Revisa requerimientos y solicitudes"}
+              {activeTab === "wheelchair" && "Gestiona solicitudes del Taller de Sillas de Ruedas"}
+              {activeTab === "transport" && "Gestiona solicitudes de Transporte Inclusivo"}
+            </p>
+          </div>
+          <button
+            onClick={getRefreshAction()}
+            className="refresh-button"
+            disabled={getRefreshLoading()}
+          >
+            {getRefreshLoading() ? "Actualizando..." : "🔄 Actualizar"}
+          </button>
+        </div>
 
       {error && <div className="error-message">⚠️ {error}</div>}
 
@@ -861,6 +910,7 @@ function AdminPanel() {
           onSave={handleSaveDocument}
         />
       )}
+      </div>
     </div>
   );
 }

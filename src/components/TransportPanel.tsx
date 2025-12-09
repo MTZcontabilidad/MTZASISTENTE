@@ -10,6 +10,7 @@ import {
 } from '../lib/transportRequests'
 import { supabase } from '../lib/supabase'
 import './TransportPanel.css'
+import './WheelchairWorkshopPanel.css'
 
 export default function TransportPanel() {
   const [requests, setRequests] = useState<TransportRequest[]>([])

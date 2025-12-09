@@ -23,34 +23,103 @@ export async function getUserMeetings(userId: string): Promise<Meeting[]> {
  * Obtiene todas las reuniones (solo para administradores)
  */
 export async function getAllMeetings(): Promise<Meeting[]> {
-  const { data, error } = await supabase
-    .from('meetings')
-    .select(`
-      *,
-      user_profiles!meetings_user_id_fkey (
-        email,
-        full_name
-      ),
-      client_info!meetings_user_id_fkey (
-        company_name,
-        phone
-      )
-    `)
-    .order('created_at', { ascending: false })
+  // Intentar usar la función RPC primero (permite acceso en desarrollo y para admins)
+  const { data: meetings, error: rpcError } = await supabase
+    .rpc('get_all_meetings_for_admin')
 
-  if (error) {
-    console.error('Error al obtener todas las reuniones:', error)
-    throw error
+  // Si la función RPC falla (por ejemplo, en modo desarrollo), intentar consulta directa
+  if (rpcError && (rpcError.code === 'PGRST301' || rpcError.message?.includes('Acceso denegado') || rpcError.code === '42703')) {
+    console.warn("⚠️ Función RPC no disponible o con error, intentando consulta directa...");
+    const { data: directMeetings, error: meetingsError } = await supabase
+      .from('meetings')
+      .select('*')
+      .order('created_at', { ascending: false })
+
+    if (meetingsError) {
+      console.error('Error al obtener todas las reuniones:', meetingsError)
+      throw meetingsError
+    }
+
+    if (!directMeetings || directMeetings.length === 0) {
+      return []
+    }
+
+    // Obtener información de usuarios y clientes
+    const userIds = [...new Set(directMeetings.map(m => m.user_id))]
+    
+    const { data: profiles } = await supabase
+      .from('user_profiles')
+      .select('id, email, full_name')
+      .in('id', userIds)
+
+    const { data: clientInfos } = await supabase
+      .from('client_info')
+      .select('user_id, company_name, phone')
+      .in('user_id', userIds)
+
+    // Crear mapas para búsqueda rápida
+    const profilesMap = new Map(profiles?.map(p => [p.id, p]) || [])
+    const clientInfoMap = new Map(clientInfos?.map(c => [c.user_id, c]) || [])
+
+    // Combinar datos
+    return directMeetings.map((meeting: any) => {
+      const profile = profilesMap.get(meeting.user_id)
+      const clientInfo = clientInfoMap.get(meeting.user_id)
+      
+      return {
+        ...meeting,
+        user_email: profile?.email || null,
+        user_full_name: profile?.full_name || null,
+        company_name: clientInfo?.company_name || null,
+        client_phone: clientInfo?.phone || null,
+      }
+    })
   }
 
-  // Transformar los datos para incluir información del usuario y cliente
-  return (data || []).map((meeting: any) => ({
-    ...meeting,
-    user_email: meeting.user_profiles?.email,
-    user_full_name: meeting.user_profiles?.full_name,
-    company_name: meeting.client_info?.company_name,
-    client_phone: meeting.client_info?.phone,
-  }))
+  if (rpcError) {
+    console.error('Error al obtener todas las reuniones:', rpcError)
+    throw rpcError
+  }
+
+  if (!meetings || meetings.length === 0) {
+    return []
+  }
+
+  // Ordenar por fecha de creación descendente
+  const sortedMeetings = meetings.sort((a: any, b: any) => 
+    new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  )
+
+  // Obtener información de usuarios y clientes
+  const userIds = [...new Set(sortedMeetings.map((m: any) => m.user_id))]
+  
+  const { data: profiles } = await supabase
+    .from('user_profiles')
+    .select('id, email, full_name')
+    .in('id', userIds)
+
+  const { data: clientInfos } = await supabase
+    .from('client_info')
+    .select('user_id, company_name, phone')
+    .in('user_id', userIds)
+
+  // Crear mapas para búsqueda rápida
+  const profilesMap = new Map(profiles?.map(p => [p.id, p]) || [])
+  const clientInfoMap = new Map(clientInfos?.map(c => [c.user_id, c]) || [])
+
+  // Combinar datos
+  return sortedMeetings.map((meeting: any) => {
+    const profile = profilesMap.get(meeting.user_id)
+    const clientInfo = clientInfoMap.get(meeting.user_id)
+    
+    return {
+      ...meeting,
+      user_email: profile?.email || null,
+      user_full_name: profile?.full_name || null,
+      company_name: clientInfo?.company_name || null,
+      client_phone: clientInfo?.phone || null,
+    }
+  })
 }
 
 /**

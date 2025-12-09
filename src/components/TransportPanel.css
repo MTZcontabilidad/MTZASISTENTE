@@ -1,8 +1,51 @@
-/* Reutilizar estilos del panel de sillas de ruedas */
+/* TransportPanel usa los mismos estilos que WheelchairWorkshopPanel */
+/* Todos los estilos están definidos en WheelchairWorkshopPanel.css */
 .transport-panel {
-  padding: 20px;
+  padding: 0;
+  width: 100%;
+  background: transparent;
 }
 
-/* Los estilos son los mismos que WheelchairWorkshopPanel.css */
-/* Se pueden compartir o mantener separados según necesidad */
-
+/* Reutilizar todas las clases de WheelchairWorkshopPanel */
+.panel-header,
+.panel-subtitle,
+.panel-phone,
+.refresh-button,
+.stats-grid,
+.stat-card,
+.stat-value,
+.stat-label,
+.filter-bar,
+.filter-button,
+.requests-list,
+.request-card,
+.request-header,
+.request-meta,
+.status-badge,
+.status-pending,
+.status-confirmed,
+.status-in-progress,
+.status-completed,
+.status-cancelled,
+.status-rejected,
+.request-details,
+.detail-row,
+.request-actions,
+.action-button,
+.request-footer,
+.empty-state,
+.loading-container,
+.spinner,
+.modal-overlay,
+.modal-content,
+.modal-header,
+.close-button,
+.modal-body,
+.form-group,
+.form-input,
+.form-textarea,
+.modal-footer,
+.btn-primary,
+.btn-secondary {
+  /* Los estilos están en WheelchairWorkshopPanel.css */
+}

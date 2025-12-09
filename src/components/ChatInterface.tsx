@@ -107,7 +107,7 @@ function ChatInterface() {
       // Solo auto-enviar si hay texto válido
       if (transcriptTrimmed.length > 0 && conversationId && !loading && !loadingHistory) {
         setInput(transcriptTrimmed);
-        setSttEnabled(false);
+      setSttEnabled(false);
         
         // Auto-enviar después de un pequeño delay para que el usuario pueda ver lo que se transcribió
         const sendTimeout = setTimeout(() => {
@@ -1178,7 +1178,7 @@ function ChatInterface() {
                   continuous: true, // Mejor para móviles
                   interimResults: true // Mostrar resultados mientras habla
                 });
-                setSttEnabled(true);
+              setSttEnabled(true);
               } catch (error: any) {
                 console.error("Error al acceder al micrófono:", error);
                 if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {

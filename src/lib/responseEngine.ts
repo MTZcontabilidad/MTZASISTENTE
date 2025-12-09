@@ -532,7 +532,7 @@ export async function generateResponse(
           const unavailableDocs = allDocuments.filter(d => !getDocumentDownloadUrl(d));
           
           let responseText = `No encontré documentos de tipo ${
-            documentRequest.type
+                documentRequest.type
           } en tu cuenta, pero no te preocupes. 😊\n\n`;
           
           if (allDocuments.length > 0) {
