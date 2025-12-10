@@ -370,6 +370,9 @@ class TextToSpeechService {
       utterance.pitch = options.pitch ?? 1.05; // Tono ligeramente más alto, amigable y profesional
       utterance.volume = options.volume ?? 1.0;
       
+      // FORZAR selección de voz chilena o latinoamericana - RECHAZAR España
+      let selectedVoice = options.voice || this.preferredVoice;
+
       // Configurar idioma basado en la voz seleccionada
       // Si forzamos es-CL pero la voz es es-MX, el navegador podría ignorar la voz seleccionada
       if (selectedVoice) {
@@ -377,9 +380,6 @@ class TextToSpeechService {
       } else {
         utterance.lang = "es-CL"; // Default si no hay voz específica
       }
-      
-      // FORZAR selección de voz chilena o latinoamericana - RECHAZAR España
-      let selectedVoice = options.voice || this.preferredVoice;
       
       // Validar que la voz NO sea de España
       if (selectedVoice) {

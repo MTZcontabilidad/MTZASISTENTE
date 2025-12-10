@@ -341,7 +341,13 @@ export async function generateResponse(
                  menu: {
                     id: 'ai-generated-' + Date.now(),
                     title: 'Opciones Sugeridas',
-                    options: parsed.options
+                    options: parsed.options,
+                    menu_key: 'ai_generated',
+                    priority: 10,
+                    triggers: [],
+                    is_active: true,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
                  }
                };
              }
