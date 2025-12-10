@@ -7,7 +7,7 @@ import { supabase } from './supabase'
 export interface MenuOption {
   id: string
   label: string
-  action: 'get_document' | 'open_url' | 'show_info' | 'show_menu' | 'list_documents' | 'navigate'
+  action: 'get_document' | 'open_url' | 'show_info' | 'show_menu' | 'list_documents' | 'navigate' | 'show_tutorial' | 'contact_support' | 'link'
   params?: Record<string, any>
   icon?: string
 }

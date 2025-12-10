@@ -175,6 +175,23 @@ export default function InteractiveMenu({
           break;
         }
 
+        case "link": {
+            // Map link to open_url
+            if (option.params?.url) {
+                openLink(option.params.url);
+                onActionComplete?.("open_url", { url: option.params.url });
+            }
+            break;
+        }
+
+        case "contact_support": {
+             // Fallback to whatsapp support
+             const whatsappUrl = getWhatsAppLink("Hola, necesito ayuda de un contador.");
+             openLink(whatsappUrl);
+             onActionComplete?.("contact_support", {});
+             break;
+        }
+
         default:
           console.warn("Acción no reconocida:", option.action);
       }

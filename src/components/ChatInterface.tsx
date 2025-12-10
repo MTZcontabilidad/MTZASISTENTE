@@ -663,6 +663,7 @@ function ChatInterface({}: ChatInterfaceProps = {}) {
       const assistantResponse = await handleChat(
         user.id,
         currentInput, // normalized input is handled inside handleChat
+        chatUtilsState,
         (userRole as 'cliente' | 'inclusion' | 'invitado') || 'invitado',
         userName
       );

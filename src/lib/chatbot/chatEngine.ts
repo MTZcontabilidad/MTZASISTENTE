@@ -238,9 +238,7 @@ async function generateAIResponse(
       
       return {
         text: "No entendí lo que dijiste. 😅 Por favor selecciona una de las opciones del menú:",
-        nextState: currentState,
         show_menu: true,
-        options: rootMenuFallback.options,
         options: rootMenuFallback.options,
         nextState: {
              ...currentState,
