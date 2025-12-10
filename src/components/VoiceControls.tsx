@@ -29,7 +29,7 @@ export default function VoiceControls({
   const [pitch, setPitch] = useState(1.0);
   const [volume, setVolume] = useState(1.0);
   const [selectedVoice, setSelectedVoice] = useState<string>("");
-  const [useGeminiTTS, setUseGeminiTTS] = useState<boolean>(true); // Habilitado por defecto
+  const [useGeminiTTS, setUseGeminiTTS] = useState<boolean>(false); // Por defecto usar TTS del navegador (gratis)
 
   const {
     speak,
@@ -61,18 +61,74 @@ export default function VoiceControls({
   }, [currentVoice, selectedVoice]);
 
   // Leer automáticamente cuando cambia el texto y TTS está habilitado
+  // Usar ref para evitar leer el mismo mensaje múltiples veces
+  const lastReadTextRef = useRef<string>("");
+  const isReadingRef = useRef<boolean>(false);
+  
+  // Escuchar cambios en configuración de voz desde AdminPanel
   useEffect(() => {
-    if (autoRead && ttsEnabled && textToRead && !isSpeaking) {
+    const handleVoiceSettingsChange = (event: CustomEvent) => {
+      const newSettings = event.detail;
+      if (newSettings) {
+        setRate(newSettings.speakingRate || rate);
+        setPitch(newSettings.pitch || pitch);
+        setVolume(newSettings.volume || volume);
+        setUseGeminiTTS(newSettings.useGeminiTTS !== undefined ? newSettings.useGeminiTTS : useGeminiTTS);
+        if (newSettings.geminiVoice) {
+          // No hay setter directo, pero se usará en la próxima llamada a speak
+        }
+      }
+    };
+    
+    window.addEventListener('voiceSettingsChanged', handleVoiceSettingsChange as EventListener);
+    return () => {
+      window.removeEventListener('voiceSettingsChanged', handleVoiceSettingsChange as EventListener);
+    };
+  }, [rate, pitch, volume, useGeminiTTS]);
+  
+  useEffect(() => {
+    // Solo leer si el texto es diferente al último leído, no se está hablando, y no se está leyendo ya
+    if (autoRead && ttsEnabled && textToRead && 
+        textToRead !== lastReadTextRef.current && 
+        !isSpeaking && 
+        !isReadingRef.current) {
+      isReadingRef.current = true;
+      lastReadTextRef.current = textToRead; // Marcar como leído
+      
       const voice = selectedVoice 
         ? availableVoices.find(v => v.name === selectedVoice) || undefined
         : undefined;
+      
+      // Cargar configuración desde localStorage si existe
+      let voiceRate = rate || 1.1;
+      let voicePitch = pitch || 1.1;
+      let voiceVolume = volume || 1.0;
+      let useGemini = useGeminiTTS;
+      let geminiVoiceName = 'es-CL-Neural2-A';
+      
+      try {
+        const saved = localStorage.getItem('voiceSettings');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          voiceRate = parsed.speakingRate || voiceRate;
+          voicePitch = parsed.pitch || voicePitch;
+          voiceVolume = parsed.volume || voiceVolume;
+          useGemini = parsed.useGeminiTTS !== undefined ? parsed.useGeminiTTS : useGemini;
+          geminiVoiceName = parsed.geminiVoice || geminiVoiceName;
+        }
+      } catch (error) {
+        console.log('Error cargando configuración de voz:', error);
+      }
+      
       speak(textToRead, { 
-        rate, 
-        pitch, 
-        volume, 
+        rate: voiceRate,
+        pitch: voicePitch,
+        volume: voiceVolume, 
         voice: voice || undefined,
-        useGemini: useGeminiTTS, // Usar Gemini TTS si está habilitado
-        geminiVoice: useGeminiTTS ? 'es-CL-Neural2-A' : undefined // Voz neural más natural
+        useGemini: useGemini,
+        geminiVoice: useGemini ? geminiVoiceName : undefined
+      }).finally(() => {
+        isReadingRef.current = false;
       });
     }
   }, [textToRead, autoRead, ttsEnabled, rate, pitch, volume, speak, isSpeaking, selectedVoice, availableVoices, useGeminiTTS]);
@@ -96,7 +152,7 @@ export default function VoiceControls({
       stopListening();
       setSttEnabled(false);
     } else {
-      startListening({ lang: "es-CL", continuous: false });
+      startListening();
       setSttEnabled(true);
     }
   };

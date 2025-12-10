@@ -6,6 +6,15 @@ import { Conversation, Message } from '../types'
  */
 export async function getActiveConversation(userId: string): Promise<string> {
   try {
+    // Detectar usuarios de desarrollo (IDs que no son UUIDs válidos)
+    // Si el ID empieza con "dev-" o no es un UUID válido, usar modo temporal sin consultar Supabase
+    const isDevUser = userId.startsWith('dev-') || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId);
+    
+    if (isDevUser) {
+      // Usuario de desarrollo: retornar ID temporal sin consultar Supabase
+      return 'temp-' + userId
+    }
+
     // Buscar conversación activa existente
     const { data: existingConv, error: fetchError } = await supabase
       .from('conversations')
@@ -57,6 +66,14 @@ export async function getActiveConversation(userId: string): Promise<string> {
  */
 export async function getUserConversations(userId: string): Promise<Conversation[]> {
   try {
+    // Detectar usuarios de desarrollo
+    const isDevUser = userId.startsWith('dev-') || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId);
+    
+    if (isDevUser) {
+      // Usuario de desarrollo: retornar vacío sin consultar Supabase
+      return []
+    }
+
     const { data, error } = await supabase
       .from('conversations')
       .select('*')
@@ -110,25 +127,10 @@ export async function clearConversation(userId: string, conversationId: string):
  */
 export async function getConversationMessages(conversationId: string): Promise<Message[]> {
   try {
-    // Si es un ID temporal, buscar mensajes sin conversation_id
+    // Si es un ID temporal, no buscar en Supabase (modo desarrollo)
     if (conversationId.startsWith('temp-')) {
-      const userId = conversationId.replace('temp-', '')
-      const { data, error } = await supabase
-        .from('messages')
-        .select('*')
-        .eq('user_id', userId)
-        .is('conversation_id', null)
-        .order('created_at', { ascending: true })
-
-      if (error && error.code !== '42P01') {
-        console.error('Error al obtener mensajes:', error)
-        return []
-      }
-
-      return (data || []).map(msg => ({
-        ...msg,
-        timestamp: new Date(msg.created_at)
-      }))
+      // En modo desarrollo, retornar vacío sin consultar Supabase
+      return []
     }
 
     const { data, error } = await supabase
@@ -138,9 +140,8 @@ export async function getConversationMessages(conversationId: string): Promise<M
       .order('created_at', { ascending: true })
 
     if (error) {
-      // Si la tabla no existe o hay error, retornar vacío
-      if (error.code === '42P01') {
-        console.warn('Tabla messages no existe aún.')
+      // Si la tabla no existe o hay error de UUID inválido, retornar vacío silenciosamente
+      if (error.code === '42P01' || error.code === '22P02') {
         return []
       }
       throw error
@@ -151,7 +152,11 @@ export async function getConversationMessages(conversationId: string): Promise<M
       timestamp: new Date(msg.created_at)
     }))
   } catch (error) {
-    console.error('Error al obtener mensajes:', error)
+    // Solo loggear errores que no sean esperados en modo desarrollo
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    if (!errorMessage.includes('invalid input syntax for type uuid')) {
+      console.error('Error al obtener mensajes:', error)
+    }
     return []
   }
 }
@@ -167,6 +172,24 @@ export async function createMessage(
   metadata?: Record<string, any>
 ): Promise<Message | null> {
   try {
+    // Detectar usuarios de desarrollo o conversaciones temporales
+    const isDevUser = userId.startsWith('dev-') || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId);
+    const isTempConversation = conversationId.startsWith('temp-');
+    
+    // Si es usuario de desarrollo o conversación temporal, retornar mensaje local sin consultar Supabase
+    if (isDevUser || isTempConversation) {
+      return {
+        id: `temp-msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        conversation_id: null,
+        user_id: userId,
+        text,
+        sender,
+        created_at: new Date().toISOString(),
+        timestamp: new Date(),
+        metadata: metadata || {}
+      }
+    }
+
     // Si es ID temporal, guardar sin conversation_id
     const messageData: any = {
       user_id: userId,
@@ -186,18 +209,20 @@ export async function createMessage(
       .single()
 
     if (error) {
-      // Si falla por tabla no existente o política, crear mensaje local
-      if (error.code === '42P01' || error.code === '42501') {
-        console.warn('No se pudo guardar en BD:', error.message)
+      // Si falla por tabla no existente, política, o UUID inválido, crear mensaje local
+      if (error.code === '42P01' || error.code === '42501' || error.code === '22P02' || 
+          error.message?.includes('invalid input syntax for type uuid')) {
+        console.warn('No se pudo guardar en BD (modo desarrollo o error de UUID):', error.message)
         // Retornar mensaje local sin guardar
         return {
-          id: Date.now().toString(),
+          id: `temp-msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           conversation_id: conversationId.startsWith('temp-') ? null : conversationId,
           user_id: userId,
           text,
           sender,
           created_at: new Date().toISOString(),
-          timestamp: new Date()
+          timestamp: new Date(),
+          metadata: metadata || {}
         }
       }
       throw error

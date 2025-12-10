@@ -1180,27 +1180,75 @@
   color: var(--neon-blue);
 }
 
-/* Botón de entrada de voz */
+/* Botón de entrada de voz - MÁS GRANDE Y COLORIDO */
 .voice-input-button {
-  width: 48px;
-  height: 48px;
+  width: 64px !important;
+  height: 64px !important;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
-  border-radius: 24px;
+  font-size: 32px !important;
+  border-radius: 50%;
   transition: all 0.3s ease;
+  background: linear-gradient(
+    135deg,
+    #ff6b6b 0%,
+    #ee5a6f 50%,
+    #ff8c8c 100%
+  ) !important;
+  border: 3px solid #ff4444 !important;
+  color: #fff !important;
+  box-shadow: 0 4px 20px rgba(255, 68, 68, 0.4), 0 0 30px rgba(255, 107, 107, 0.3) !important;
+  cursor: pointer;
+  position: relative;
+  z-index: 10;
+}
+
+.voice-input-button:hover:not(.disabled) {
+  transform: scale(1.1);
+  box-shadow: 0 6px 30px rgba(255, 68, 68, 0.6), 0 0 40px rgba(255, 107, 107, 0.5) !important;
+  background: linear-gradient(
+    135deg,
+    #ff8c8c 0%,
+    #ff6b6b 50%,
+    #ff5252 100%
+  ) !important;
+}
+
+.voice-input-button:active:not(.disabled) {
+  transform: scale(0.95);
 }
 
 .voice-input-button.listening {
-  animation: pulse 1.5s ease-in-out infinite;
+  animation: voicePulse 1.2s ease-in-out infinite;
   background: linear-gradient(
     135deg,
-    rgba(255, 68, 68, 0.8) 0%,
-    rgba(255, 107, 107, 0.6) 100%
-  );
-  border-color: #ff4444;
-  box-shadow: 0 0 20px rgba(255, 68, 68, 0.5);
+    #ff4444 0%,
+    #ff6b6b 50%,
+    #ff8c8c 100%
+  ) !important;
+  border-color: #ff0000 !important;
+  box-shadow: 0 0 40px rgba(255, 68, 68, 0.8), 0 0 60px rgba(255, 107, 107, 0.6) !important;
+  transform: scale(1.05);
+}
+
+.voice-input-button.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background: var(--bg-tertiary) !important;
+  border-color: var(--border-color) !important;
+  box-shadow: none !important;
+}
+
+@keyframes voicePulse {
+  0%, 100% {
+    box-shadow: 0 0 40px rgba(255, 68, 68, 0.8), 0 0 60px rgba(255, 107, 107, 0.6);
+    transform: scale(1.05);
+  }
+  50% {
+    box-shadow: 0 0 60px rgba(255, 68, 68, 1), 0 0 80px rgba(255, 107, 107, 0.8);
+    transform: scale(1.1);
+  }
 }
 
 /* Botón de limpiar chat */

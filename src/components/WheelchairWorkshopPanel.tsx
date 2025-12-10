@@ -11,7 +11,11 @@ import {
 import { supabase } from '../lib/supabase'
 import './WheelchairWorkshopPanel.css'
 
-export default function WheelchairWorkshopPanel() {
+interface WheelchairWorkshopPanelProps {
+  onRefresh?: () => void
+}
+
+export default function WheelchairWorkshopPanel({ onRefresh }: WheelchairWorkshopPanelProps = {}) {
   const [requests, setRequests] = useState<WheelchairWorkshopRequest[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<string>('all')
@@ -19,14 +23,32 @@ export default function WheelchairWorkshopPanel() {
   const [showModal, setShowModal] = useState(false)
   const [adminNotes, setAdminNotes] = useState('')
   const [confirming, setConfirming] = useState(false)
+  
+  // Exponer función de refresh al padre
+  useEffect(() => {
+    if (onRefresh) {
+      // Guardar referencia para que el padre pueda llamarla
+      (window as any).__wheelchairPanelRefresh = fetchRequests
+    }
+    return () => {
+      delete (window as any).__wheelchairPanelRefresh
+    }
+  }, [onRefresh, filter])
 
   const fetchRequests = useCallback(async () => {
     try {
       setLoading(true)
       const data = await getAllWheelchairRequests(filter === 'all' ? undefined : filter)
-      setRequests(data)
-    } catch (error) {
-      console.error('Error al cargar solicitudes:', error)
+      setRequests(data || [])
+    } catch (error: any) {
+      // Solo mostrar error si no es un error de RPC que tiene fallback
+      if (!error?.message?.includes('ambiguous') && !error?.message?.includes('column reference')) {
+        console.error('Error al cargar solicitudes:', error)
+      } else {
+        console.warn('Error de RPC con fallback disponible, usando consulta directa')
+      }
+      // Asegurar que siempre tengamos un array
+      setRequests([])
     } finally {
       setLoading(false)
     }
@@ -124,15 +146,9 @@ export default function WheelchairWorkshopPanel() {
 
   return (
     <div className="wheelchair-panel">
-      <div className="panel-header">
-        <div>
-          <h2>🪑 Taller de Sillas de Ruedas</h2>
-          <p className="panel-subtitle">Gestiona las solicitudes de reparación y mantenimiento</p>
-          <p className="panel-phone">📞 Teléfono: +56 9 3300 3113</p>
-        </div>
-        <button onClick={fetchRequests} className="refresh-button" disabled={loading}>
-          🔄 Actualizar
-        </button>
+      {/* Información de contacto */}
+      <div className="panel-contact-info">
+        <p className="panel-phone">📞 Teléfono: +56 9 3300 3113</p>
       </div>
 
       {/* Estadísticas */}

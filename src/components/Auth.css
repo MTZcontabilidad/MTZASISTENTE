@@ -197,6 +197,33 @@
   margin-top: 16px;
 }
 
+.back-to-dev-mode-button {
+  margin-top: 16px;
+  padding: 12px 24px;
+  background: transparent;
+  border: 2px solid var(--border-color);
+  border-radius: 12px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  width: 100%;
+  font-family: inherit;
+}
+
+.back-to-dev-mode-button:hover {
+  border-color: var(--neon-blue);
+  color: var(--neon-blue);
+  background: rgba(0, 212, 255, 0.05);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 212, 255, 0.2);
+}
+
+.back-to-dev-mode-button:active {
+  transform: translateY(0);
+}
+
 .provisional-account-notice {
   margin-top: 20px;
   padding: 16px;

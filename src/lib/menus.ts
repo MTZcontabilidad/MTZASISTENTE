@@ -98,18 +98,30 @@ export async function findRelevantMenu(userInput: string): Promise<InteractiveMe
  * Genera texto de respuesta con menú
  */
 export function generateMenuResponse(menu: InteractiveMenu): string {
-  let response = `${menu.title}\n\n`
+  let response = ''
+  
+  // Solo incluir título si es descriptivo y útil
+  if (menu.title && !menu.title.toLowerCase().includes('menú') && !menu.title.toLowerCase().includes('opciones')) {
+    response += `**${menu.title}**\n\n`
+  }
   
   if (menu.description) {
     response += `${menu.description}\n\n`
   }
 
-  response += 'Selecciona una opción:\n\n'
-  
-  menu.options.forEach((option, index) => {
-    const icon = option.icon || '•'
-    response += `${icon} ${option.label}\n`
-  })
+  // Mejorar el texto de instrucción
+  if (menu.options.length > 0) {
+    response += '**Selecciona una opción del menú a continuación:**\n\n'
+    
+    menu.options.forEach((option, index) => {
+      const icon = option.icon || '•'
+      // Agregar numeración si hay muchas opciones
+      const prefix = menu.options.length > 5 ? `${index + 1}. ` : ''
+      response += `${prefix}${icon} **${option.label}**\n`
+    })
+    
+    response += '\n💡 *Puedes hacer clic en cualquier opción del menú para continuar*'
+  }
 
   return response
 }

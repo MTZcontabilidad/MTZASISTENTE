@@ -6,6 +6,14 @@ import { ClientInfo } from '../types'
  */
 export async function getOrCreateClientInfo(userId: string): Promise<ClientInfo | null> {
   try {
+    // Detectar usuarios de desarrollo (IDs que no son UUIDs válidos)
+    const isDevUser = userId.startsWith('dev-') || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId);
+    
+    if (isDevUser) {
+      // Usuario de desarrollo: retornar null sin consultar Supabase
+      return null
+    }
+
     // Intentar obtener información existente
     // Usar maybeSingle() en lugar de single() para evitar errores 406 cuando no existe
     const { data: existing, error: fetchError } = await supabase
@@ -19,8 +27,8 @@ export async function getOrCreateClientInfo(userId: string): Promise<ClientInfo 
       return existing
     }
 
-    // Si el error es "no encontrado" (PGRST116), continuar para crear uno nuevo
-    if (fetchError && fetchError.code !== 'PGRST116') {
+    // Si el error es "no encontrado" (PGRST116) o UUID inválido, continuar para crear uno nuevo
+    if (fetchError && fetchError.code !== 'PGRST116' && fetchError.code !== '22P02') {
       throw fetchError
     }
 
@@ -35,10 +43,20 @@ export async function getOrCreateClientInfo(userId: string): Promise<ClientInfo 
       .select()
       .single()
 
-    if (createError) throw createError
+    if (createError) {
+      // Si falla por UUID inválido, retornar null silenciosamente
+      if (createError.code === '22P02') {
+        return null
+      }
+      throw createError
+    }
     return newInfo
   } catch (error) {
-    console.error('Error al obtener/crear información del cliente:', error)
+    // Solo loggear errores que no sean esperados en modo desarrollo
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    if (!errorMessage.includes('invalid input syntax for type uuid')) {
+      console.error('Error al obtener/crear información del cliente:', error)
+    }
     return null
   }
 }

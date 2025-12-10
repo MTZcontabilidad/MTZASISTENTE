@@ -4,6 +4,7 @@
  */
 
 import { supabase } from './supabase';
+import { getGeminiApiKey } from './geminiApiKey';
 
 interface GeminiAnalyzeOptions {
   url: string;
@@ -15,56 +16,6 @@ interface GeminiResponse {
   text: string;
   success: boolean;
   error?: string;
-}
-
-/**
- * Obtiene la API key de Gemini desde la base de datos
- * (Reutiliza la lógica de geminiTTS.ts)
- */
-async function getGeminiApiKey(): Promise<string | null> {
-  try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return null;
-
-    // Obtener información del cliente para encontrar su RUT
-    const { data: clientInfo } = await supabase
-      .from('client_info')
-      .select('rut, company_id')
-      .eq('user_id', user.id)
-      .maybeSingle();
-
-    if (!clientInfo) return null;
-
-    let company = null;
-
-    // Intentar buscar por company_id primero (si existe)
-    if (clientInfo.company_id) {
-      const { data } = await supabase
-        .from('companies')
-        .select('metadata')
-        .eq('id', clientInfo.company_id)
-        .maybeSingle();
-      company = data;
-    }
-
-    // Si no se encontró por company_id, buscar por RUT
-    if (!company && clientInfo.rut) {
-      const { data } = await supabase
-        .from('companies')
-        .select('metadata')
-        .eq('rut', clientInfo.rut)
-        .maybeSingle();
-      company = data;
-    }
-
-    if (!company?.metadata) return null;
-
-    const metadata = company.metadata as Record<string, any>;
-    return metadata.gemini_api_key || null;
-  } catch (error) {
-    console.error('Error obteniendo API key de Gemini:', error);
-    return null;
-  }
 }
 
 /**
@@ -135,6 +86,161 @@ function extractTextFromHTML(html: string): string {
 
   // Limitar a 8000 caracteres (límite razonable para Gemini)
   return extractedText.substring(0, 8000);
+}
+
+/**
+ * Genera un mensaje de bienvenida amigable y corto usando Gemini
+ * Separado por rol: invitado vs cliente
+ */
+export async function generateWelcomeMessage(
+  userName?: string,
+  userRole?: string
+): Promise<string> {
+  try {
+    const apiKey = await getGeminiApiKey();
+    
+    // Determinar si es invitado o cliente
+    const isInvitado = userRole === 'invitado';
+    
+    // Fallback específico por rol si no hay API key
+    if (!apiKey) {
+      if (isInvitado) {
+        return userName 
+          ? `¡Hola ${userName}! 👋 Soy Arise, tu asistente de MTZ. ¿Qué te trae por aquí hoy?`
+          : `¡Hola! 👋 Soy Arise, tu asistente de MTZ. ¿Qué te trae por aquí hoy?`;
+      } else {
+        return userName 
+          ? `¡Hola ${userName}! 👋 Soy Arise, tu asistente de MTZ. ¿En qué puedo ayudarte hoy?`
+          : `¡Hola! 👋 Soy Arise, tu asistente de MTZ. ¿En qué puedo ayudarte hoy?`;
+      }
+    }
+
+    // Prompt diferente según el rol
+    let prompt = '';
+    
+    if (isInvitado) {
+      // Prompt para INVITADOS - NO llamarlos "cliente"
+      prompt = `Genera un mensaje de bienvenida muy corto y amigable (máximo 2-3 líneas) para un asistente virtual llamado Arise de MTZ.
+      
+IMPORTANTE - El usuario es INVITADO, NO es cliente:
+- NO uses la palabra "cliente" en el mensaje
+- NO digas "estimado cliente" ni "cliente"
+- Usa un saludo genérico y amigable
+- Debe ser muy breve y directo
+- Debe ser amigable y cálido
+- Debe preguntar qué trae al usuario (qué necesita o qué lo trae)
+- NO incluyas listas de servicios
+- NO incluyas advertencias sobre ser invitado
+- Solo un saludo amigable que invite a conversar
+${userName ? `- El nombre del usuario es: ${userName}` : ''}
+
+Ejemplos de estilo CORRECTO:
+- "¡Hola! 👋 Soy Arise, tu asistente de MTZ. ¿Qué te trae por aquí hoy?"
+- "¡Hola ${userName || ''}! 👋 Soy Arise, tu asistente de MTZ. ¿En qué puedo ayudarte?"
+
+Ejemplos INCORRECTOS (NO usar):
+- "¡Hola estimado cliente!" ❌
+- "¡Hola cliente!" ❌
+
+Genera solo el mensaje, sin explicaciones adicionales.`;
+    } else {
+      // Prompt para CLIENTES
+      prompt = `Genera un mensaje de bienvenida corto y amigable (máximo 2-3 líneas) para un asistente virtual llamado Arise de MTZ.
+      
+El usuario es CLIENTE de MTZ:
+- Puedes usar un tono más personalizado
+- Debe ser amigable y profesional
+- Debe ser breve y directo
+- Puede mencionar que es cliente si es natural
+${userName ? `- El nombre del usuario es: ${userName}` : ''}
+
+Ejemplo de estilo: "¡Hola ${userName || ''}! 👋 Soy Arise, tu asistente de MTZ. ¿En qué puedo ayudarte hoy?"
+
+Genera solo el mensaje, sin explicaciones adicionales.`;
+    }
+
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                {
+                  text: prompt,
+                },
+              ],
+            },
+          ],
+          generationConfig: {
+            temperature: 0.7,
+            topK: 40,
+            topP: 0.95,
+            maxOutputTokens: 150,
+          },
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.warn('Error al generar mensaje de bienvenida con Gemini:', errorData);
+      // Fallback específico por rol
+      if (isInvitado) {
+        return userName 
+          ? `¡Hola ${userName}! 👋 Soy Arise, tu asistente de MTZ. ¿Qué te trae por aquí hoy?`
+          : `¡Hola! 👋 Soy Arise, tu asistente de MTZ. ¿Qué te trae por aquí hoy?`;
+      } else {
+        return userName 
+          ? `¡Hola ${userName}! 👋 Soy Arise, tu asistente de MTZ. ¿En qué puedo ayudarte hoy?`
+          : `¡Hola! 👋 Soy Arise, tu asistente de MTZ. ¿En qué puedo ayudarte hoy?`;
+      }
+    }
+
+    const data = await response.json();
+    
+    if (data.candidates && data.candidates[0] && data.candidates[0].content) {
+      let generatedText = data.candidates[0].content.parts[0].text.trim();
+      
+      // Validación adicional: asegurar que no diga "cliente" si es invitado
+      if (isInvitado && (generatedText.toLowerCase().includes('cliente') || generatedText.toLowerCase().includes('estimado cliente'))) {
+        console.warn('Gemini generó mensaje con "cliente" para invitado, usando fallback');
+        return userName 
+          ? `¡Hola ${userName}! 👋 Soy Arise, tu asistente de MTZ. ¿Qué te trae por aquí hoy?`
+          : `¡Hola! 👋 Soy Arise, tu asistente de MTZ. ¿Qué te trae por aquí hoy?`;
+      }
+      
+      return generatedText;
+    }
+
+    // Fallback específico por rol si no hay respuesta válida
+    if (isInvitado) {
+      return userName 
+        ? `¡Hola ${userName}! 👋 Soy Arise, tu asistente de MTZ. ¿Qué te trae por aquí hoy?`
+        : `¡Hola! 👋 Soy Arise, tu asistente de MTZ. ¿Qué te trae por aquí hoy?`;
+    } else {
+      return userName 
+        ? `¡Hola ${userName}! 👋 Soy Arise, tu asistente de MTZ. ¿En qué puedo ayudarte hoy?`
+        : `¡Hola! 👋 Soy Arise, tu asistente de MTZ. ¿En qué puedo ayudarte hoy?`;
+    }
+  } catch (error) {
+    console.error('Error al generar mensaje de bienvenida:', error);
+    // Fallback específico por rol en caso de error
+    const isInvitado = userRole === 'invitado';
+    if (isInvitado) {
+      return userName 
+        ? `¡Hola ${userName}! 👋 Soy Arise, tu asistente de MTZ. ¿Qué te trae por aquí hoy?`
+        : `¡Hola! 👋 Soy Arise, tu asistente de MTZ. ¿Qué te trae por aquí hoy?`;
+    } else {
+      return userName 
+        ? `¡Hola ${userName}! 👋 Soy Arise, tu asistente de MTZ. ¿En qué puedo ayudarte hoy?`
+        : `¡Hola! 👋 Soy Arise, tu asistente de MTZ. ¿En qué puedo ayudarte hoy?`;
+    }
+  }
 }
 
 /**
@@ -295,3 +401,99 @@ export async function generateF29GuideFromLink(
 ¿En qué paso necesitas más ayuda?`;
 }
 
+
+/**
+ * Genera una respuesta conversacional general usando Gemini
+ * Para preguntas como "me escuchas?", "cómo estás?", etc.
+ */
+export async function generateGeneralChatResponse(
+  userInput: string,
+  userName?: string,
+  userRole?: string
+): Promise<string | null> {
+  try {
+    const apiKey = await getGeminiApiKey();
+    if (!apiKey) return null;
+
+    const prompt = `Eres Arise, el asistente virtual de MTZ (Consultora Tributaria).
+    
+Tu personalidad:
+- Profesional, lógico y directo.
+- Amigable pero sin exceso de confianza.
+- Conciso (máximo 2-3 frases).
+
+El usuario te ha dicho: "${userInput}"
+Nombre del usuario: ${userName || 'Usuario'}
+Rol: ${userRole || 'Invitado'}
+
+PROTOCOLO DE RESPUESTA:
+1. Analiza INTENCIÓN: ¿El usuario quiere hacer algo (ver precios, contratar, agendar, descargar documentos)?
+   - "Quiero contratar" -> acción: navigate activeTab=services
+   - "Precio contabilidad" -> acción: show_info service=contabilidad
+   - "Agendar reunión" -> acción: navigate route=meetings
+
+2. FORMATO DE SALIDA (ESTRICTO):
+
+CASO 1: REQUIERE ACCIÓN (JSON)
+Si la respuesta implica llevar al usuario a una sección o mostrar botones, responde SOLO con este JSON:
+{
+  "text": "Claro, para contratar nuestros servicios puedes revisar los planes aquí:",
+  "options": [
+    { "id": "btn_hire", "label": "Ver Planes y Precios", "action": "navigate", "params": { "route": "services" } }
+  ]
+}
+
+CASO 2: SOLO CONVERSACIÓN (TEXTO)
+Si es solo charla (ej: "Hola", "Gracias"), responde con texto plano:
+Hola, soy Arise. ¿En qué puedo ayudarte hoy?
+
+EJEMPLOS (Few-Shot):
+Usuario: "Quiero contratar"
+Respuesta:
+{ "text": "Perfecto, puedes ver nuestros planes y contratar directamente en la sección de servicios.", "options": [{ "id": "nav_serv", "label": "Ir a Servicios", "action": "navigate", "params": { "route": "services" } }] }
+
+Usuario: "Cual es el valor de la contabilidad"
+Respuesta:
+{ "text": "Los valores dependen de tus ventas. Aquí puedes ver el detalle:", "options": [{ "id": "info_contab", "label": "Ver Tarifas", "action": "show_info", "params": { "service": "contabilidad" } }] }
+
+Usuario: "Hola"
+Respuesta:
+¡Hola! Soy Arise. ¿Buscas ayuda con contabilidad o trámites?
+
+IMPORTANTE: Prioriza botones sobre explicaciones largas. NO uses markdown en el JSON.`;
+
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{
+              text: prompt
+            }]
+          }],
+          generationConfig: {
+            temperature: 0.7,
+            topK: 40,
+            topP: 0.95,
+            maxOutputTokens: 150,
+          },
+        }),
+      }
+    );
+
+    if (!response.ok) return null;
+
+    const data = await response.json();
+    if (data.candidates && data.candidates[0] && data.candidates[0].content) {
+      return data.candidates[0].content.parts[0].text.trim();
+    }
+    return null;
+  } catch (error) {
+    console.error('Error al generar respuesta general:', error);
+    return null;
+  }
+}

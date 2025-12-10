@@ -203,6 +203,22 @@ export function formatClientName(
     return "estimado cliente";
   }
   
+  // Si el nombre ya contiene "Invitado" (usuarios invitados), no agregar trato formal
+  // y limpiar el formato para que sea más natural
+  if (nameToUse.toLowerCase().includes('invitado')) {
+    // Extraer solo el número de teléfono si está presente
+    const phoneMatch = nameToUse.match(/(\d+)/);
+    if (phoneMatch) {
+      return `Invitado ${phoneMatch[1]}`;
+    }
+    return nameToUse;
+  }
+  
+  // Si el nombre ya contiene "Don" o "Srita", no duplicar
+  if (nameToUse.match(/^(Don|Srita|Sr|Sra|Srta)\s/i)) {
+    return nameToUse;
+  }
+  
   // Si no se debe usar trato formal, retornar solo el nombre
   if (!useFormalAddress) {
     return nameToUse;

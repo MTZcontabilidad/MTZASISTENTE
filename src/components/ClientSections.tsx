@@ -5,7 +5,8 @@ import { getWorkshopRequestsByUserId } from '../lib/wheelchairWorkshop';
 import { getTransportRequestsByUserId } from '../lib/transportRequests';
 import { getOrCreateClientInfo, updateClientInfo } from '../lib/clientInfo';
 import { getClientExtendedInfo, upsertClientExtendedInfo } from '../lib/clientExtendedInfo';
-import type { Meeting, ClientDocument, ClientInfo, ClientExtendedInfo } from '../types';
+import type { Meeting, ClientInfo, ClientExtendedInfo } from '../types';
+import type { ClientDocument } from '../lib/documents';
 import UserProfile from './UserProfile';
 import './ClientSections.css';
 

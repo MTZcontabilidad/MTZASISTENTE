@@ -12,7 +12,11 @@ import { supabase } from '../lib/supabase'
 import './TransportPanel.css'
 import './WheelchairWorkshopPanel.css'
 
-export default function TransportPanel() {
+interface TransportPanelProps {
+  onRefresh?: () => void
+}
+
+export default function TransportPanel({ onRefresh }: TransportPanelProps = {}) {
   const [requests, setRequests] = useState<TransportRequest[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<string>('all')
@@ -20,14 +24,32 @@ export default function TransportPanel() {
   const [showModal, setShowModal] = useState(false)
   const [adminNotes, setAdminNotes] = useState('')
   const [confirming, setConfirming] = useState(false)
+  
+  // Exponer función de refresh al padre
+  useEffect(() => {
+    if (onRefresh) {
+      // Guardar referencia para que el padre pueda llamarla
+      (window as any).__transportPanelRefresh = fetchRequests
+    }
+    return () => {
+      delete (window as any).__transportPanelRefresh
+    }
+  }, [onRefresh, filter])
 
   const fetchRequests = useCallback(async () => {
     try {
       setLoading(true)
       const data = await getAllTransportRequests(filter === 'all' ? undefined : filter)
-      setRequests(data)
-    } catch (error) {
-      console.error('Error al cargar solicitudes:', error)
+      setRequests(data || [])
+    } catch (error: any) {
+      // Solo mostrar error si no es un error de RPC que tiene fallback
+      if (!error?.message?.includes('ambiguous') && !error?.message?.includes('column reference')) {
+        console.error('Error al cargar solicitudes:', error)
+      } else {
+        console.warn('Error de RPC con fallback disponible, usando consulta directa')
+      }
+      // Asegurar que siempre tengamos un array
+      setRequests([])
     } finally {
       setLoading(false)
     }
@@ -128,15 +150,9 @@ export default function TransportPanel() {
 
   return (
     <div className="transport-panel">
-      <div className="panel-header">
-        <div>
-          <h2>🚐 Transporte Inclusivo - Fundación Te Quiero Feliz</h2>
-          <p className="panel-subtitle">Gestiona las solicitudes de transporte accesible</p>
-          <p className="panel-phone">📞 Teléfono: +56 9 3300 3113</p>
-        </div>
-        <button onClick={fetchRequests} className="refresh-button" disabled={loading}>
-          🔄 Actualizar
-        </button>
+      {/* Información de contacto */}
+      <div className="panel-contact-info">
+        <p className="panel-phone">📞 Teléfono: +56 9 3300 3113</p>
       </div>
 
       {/* Estadísticas */}

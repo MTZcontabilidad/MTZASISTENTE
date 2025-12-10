@@ -56,7 +56,7 @@ import {
   generateSupportMessage,
   needsSpecialSupport,
 } from "./situationDetection";
-import { generateF29GuideFromLink } from "./geminiAnalyzer";
+import { generateF29GuideFromLink, generateGeneralChatResponse } from "./geminiAnalyzer";
 import { getClientPersonalizationInfo, upsertClientExtendedInfo, getClientExtendedInfo } from "./clientExtendedInfo";
 import { getServiceByCode, formatServicePrice } from "./servicePricing";
 import { updateClientInfo } from "./clientInfo";
@@ -303,19 +303,65 @@ export async function generateResponse(
       };
     }
     
-    // SEGUNDO: Detectar saludos y preguntas simples para responder de manera más útil
+    // SEGUNDO: Detectar conversación general, saludos y preguntas fáticas (me escuchas, estás ahí)
     const inputLower = userInput.toLowerCase().trim();
+
+    // Palabras clave fáticas o conversacionales
+    const conversationalKeywords = [
+      'me escuchas', 'me oyes', 'estas ahi', 'estás ahí', 'hola aris', 'hola arise', 
+      'quien eres', 'quién eres', 'como estas', 'cómo estás', 'que tal', 'qué tal',
+      'gracias', 'adios', 'chao', 'nos vemos', 'buenos dias', 'buenas tardes', 'buenas noches'
+    ];
+
+    const isConversational = conversationalKeywords.some(kw => inputLower.includes(kw));
+
+    // Lógica mejorada: Si es corto (< 40 chars) y NO parece una solicitud de servicio específica,
+    // intentar usar la IA para una respuesta "lógica" y natural.
+    const seemsLikeServiceRequest = 
+        inputLower.includes('precio') || 
+        inputLower.includes('valor') ||
+        inputLower.includes('costo') ||
+        inputLower.includes('f29') ||
+        inputLower.includes('iva') ||
+        inputLower.includes('silla') ||
+        inputLower.includes('transporte');
+    
+    // Si es conversacional o una frase corta genérica (y no es servicio específico), usar IA
+    if (isConversational || ((inputLower.startsWith('hola') || inputLower.length < 50) && !seemsLikeServiceRequest)) {
+       const aiResponseStr = await generateGeneralChatResponse(userInput, userName, userType);
+       
+       if (aiResponseStr) {
+         try {
+           // Intentar ver si es un JSON generado con opciones
+           if (aiResponseStr.trim().startsWith('{')) {
+             const parsed = JSON.parse(aiResponseStr);
+             if (parsed.text && parsed.options) {
+               return {
+                 text: parsed.text,
+                 menu: {
+                    id: 'ai-generated-' + Date.now(),
+                    title: 'Opciones Sugeridas',
+                    options: parsed.options
+                 }
+               };
+             }
+           }
+         } catch (e) {
+           // No es JSON, seguir normal
+         }
+
+         return {
+           text: aiResponseStr,
+           menu: undefined
+         };
+       }
+    }
+
     const isGreeting = 
       inputLower === 'hola' || 
       inputLower === 'hola!' || 
-      inputLower === 'hola.' ||
-      inputLower.startsWith('hola ') ||
-      inputLower === 'buenos días' ||
-      inputLower === 'buenos dias' ||
-      inputLower === 'buenas tardes' ||
-      inputLower === 'buenas noches' ||
-      inputLower === 'hi' ||
-      inputLower === 'hello';
+      inputLower === 'hola.';
+      // Eliminamos startswith('hola ') aquí porque lo manejamos arriba o queremos que sea específico
     
     const isSimpleQuestion = 
       inputLower === 'en que puedes ayudarme' ||
@@ -327,7 +373,17 @@ export async function generateResponse(
       inputLower === 'ayuda' ||
       inputLower === 'necesito ayuda' ||
       inputLower === 'que servicios' ||
-      inputLower === 'qué servicios';
+      inputLower === 'qué servicios' ||
+      inputLower === 'servicios' ||
+      inputLower === 'que ofrecen' ||
+      inputLower === 'qué ofrecen' ||
+      inputLower === 'opciones' ||
+      inputLower === 'menu' ||
+      inputLower === 'menú' ||
+      inputLower === 'ver opciones' ||
+      inputLower === 'que opciones' ||
+      inputLower === 'qué opciones';
+      // Eliminamos startsWith('que ') genérico, mejor ser específicos
     
     if (isGreeting || isSimpleQuestion) {
       // Obtener información del cliente para personalizar
@@ -343,28 +399,101 @@ export async function generateResponse(
       );
       
       if (isGreeting) {
+        // Buscar menú de servicios principales para ofrecer opciones interactivas
+        const { findRelevantMenu, generateMenuResponse } = await import("./menus");
+        const servicesMenu = await findRelevantMenu("servicios");
+        
+        let responseText = `${formattedName ? `¡Hola, ${formattedName}!` : '¡Hola!'} 👋\n\nSoy **Arise**, tu asistente virtual de MTZ. Estoy aquí para ayudarte con:\n\n`;
+        
+        // Lista de servicios con descripciones claras
+        const services = [
+          '📊 **Consultoría tributaria y contable** - Declaraciones de impuestos, asesoría contable, trámites SII',
+          '🚐 **Fundación Te Quiero Feliz** - Transporte inclusivo y accesible',
+          '🪑 **Taller de Sillas de Ruedas MMC** - Reparación, mantenimiento y adaptación de sillas de ruedas',
+          '📋 **Trámites y documentos** - IVA, RUT, certificados, carpetas tributarias',
+          '💬 **Soporte personalizado** - Atención directa con nuestro equipo',
+          '📅 **Agendar reuniones** - Coordina una cita presencial o virtual'
+        ];
+        
+        responseText += services.join('\n');
+        responseText += '\n\n**¿Cómo puedo ayudarte hoy?**\n\nPuedes:\n• Escribir directamente lo que necesitas\n• Usar los botones de acceso rápido\n• Seleccionar una opción del menú';
+        
+        // Si hay menú de servicios, incluirlo
+        if (servicesMenu) {
+          responseText += `\n\n${generateMenuResponse(servicesMenu)}`;
+          return {
+            text: responseText,
+            menu: servicesMenu,
+          };
+        }
+        
         return {
-          text: `${formattedName ? `¡Hola, ${formattedName}!` : '¡Hola!'} 👋\n\nSoy **Arise**, tu asistente virtual de MTZ. Estoy aquí para ayudarte con:\n\n• 📊 Consultoría tributaria y contable\n• 🚐 Fundación Te Quiero Feliz (transporte inclusivo)\n• 🪑 Taller de Sillas de Ruedas MMC\n• 📋 Trámites y documentos\n• 💬 Soporte personalizado\n• 📅 Agendar reuniones\n\n¿En qué puedo ayudarte hoy?`,
+          text: responseText,
           menu: undefined,
         };
       } else if (isSimpleQuestion) {
+        // Buscar menú de servicios para ofrecer opciones interactivas
+        const { findRelevantMenu, generateMenuResponse } = await import("./menus");
+        const servicesMenu = await findRelevantMenu("servicios");
+        
+        let responseText = `¡Por supuesto! 😊 Puedo ayudarte con:\n\n`;
+        
+        // Servicios con descripciones más detalladas
+        const services = [
+          '📊 **Consultoría tributaria y contable**\n   → Declaraciones de impuestos (IVA, Renta)\n   → Asesoría contable personalizada\n   → Trámites en el SII\n   → Facturación electrónica',
+          '🪑 **Taller de Sillas de Ruedas MMC**\n   → Reparación y mantenimiento\n   → Adaptación de sillas\n   → Revisión técnica\n   → Servicio a domicilio disponible',
+          '🚐 **Transporte Inclusivo - Fundación Te Quiero Feliz**\n   → Transporte accesible\n   → Servicio de calidad\n   → Atención personalizada',
+          '📋 **Trámites y documentos**\n   → Declaración de IVA (F29)\n   → RUT y certificados\n   → Carpetas tributarias\n   → Documentos contables',
+          '💬 **Soporte personalizado**\n   → Contacto directo con nuestro equipo\n   → WhatsApp: +56 9 9006 2213\n   → Atención personalizada',
+          '📅 **Agendar reuniones**\n   → Coordina una cita\n   → Presencial o virtual\n   → Consulta tu disponibilidad'
+        ];
+        
+        responseText += services.join('\n\n');
+        responseText += '\n\n**¿Con cuál de estos servicios puedo ayudarte?**\n\nEscribe lo que necesitas o selecciona una opción:';
+        
+        // Si hay menú de servicios, incluirlo
+        if (servicesMenu) {
+          responseText += `\n\n${generateMenuResponse(servicesMenu)}`;
+          return {
+            text: responseText,
+            menu: servicesMenu,
+          };
+        }
+        
         return {
-          text: `¡Por supuesto! 😊 Puedo ayudarte con:\n\n• 📊 **Consultoría tributaria y contable** - Declaraciones, trámites, asesoría\n• 🪑 **Taller de Sillas de Ruedas** - Reparación, mantenimiento, adaptación\n• 🚐 **Transporte Inclusivo** - Fundación Te Quiero Feliz\n• 📋 **Trámites y documentos** - IVA, RUT, certificados\n• 💬 **Soporte personalizado** - Nuestro equipo está para ayudarte\n• 📅 **Agendar reuniones** - Coordina una cita con nosotros\n\n¿Con cuál de estos servicios puedo ayudarte? Puedes escribirme directamente o usar las opciones del menú.`,
+          text: responseText,
           menu: undefined,
         };
       }
     }
     
-    // TERCERO: Verificar si faltan datos del usuario y preguntar
+    // TERCERO: Detectar consultas sobre servicios (PRIORIDAD ALTA)
+    // Si el usuario pregunta sobre un servicio no entregado o su estado, NO preguntar por datos personales
+    const { detectServiceInquiry, generateServiceInquiryResponse } = await import("./serviceInquiry");
+    const serviceInquiry = detectServiceInquiry(userInput);
+    
+    if (serviceInquiry.detected) {
+      const inquiryResponse = generateServiceInquiryResponse(serviceInquiry, userName);
+      if (inquiryResponse) {
+        return {
+          text: inquiryResponse,
+          menu: undefined,
+        };
+      }
+    }
+    
+    // CUARTO: Verificar si faltan datos del usuario y preguntar
+    // PERO solo si NO es una consulta sobre servicio (para no interrumpir)
     const { detectMissingUserData } = await import("./userDataCollection");
     const missingData = await detectMissingUserData(userId);
     
     // Solo preguntar si no es una respuesta directa a una pregunta previa
     // y si el usuario no está respondiendo con datos
+    // y si NO es una consulta sobre servicio
     const isDataResponse = userInput.match(/\d{8,9}/) || // Teléfono
                           userInput.split(' ').length <= 4 && userInput.length < 50; // Posible nombre
     
-    if (missingData && !isDataResponse) {
+    if (missingData && !isDataResponse && !serviceInquiry.detected) {
       // Verificar si el usuario ya respondió esta pregunta en mensajes recientes
       const { getConversationMessages } = await import("./conversations");
       const recentMessages = conversationId ? await getConversationMessages(conversationId) : [];
@@ -381,7 +510,7 @@ export async function generateResponse(
       }
     }
     
-    // CUARTO: Detectar situaciones difíciles y ofrecer apoyo especial
+    // QUINTO: Detectar situaciones difíciles y ofrecer apoyo especial
     const difficultSituation = detectDifficultSituation(userInput);
     if (difficultSituation.detected && difficultSituation.needsSupport) {
       const supportMessage = generateSupportMessage(
@@ -396,7 +525,7 @@ export async function generateResponse(
       }
     }
 
-    // QUINTO: Detectar solicitud de documentos
+    // SEXTO: Detectar solicitud de documentos
     // IMPORTANTE: Si menciona IVA/F29/declaración, priorizar menú de trámites sobre documentos
     const isIvaOrF29Request = 
       inputLower.includes('iva') || 
@@ -678,11 +807,53 @@ export async function generateResponse(
       };
     }
 
-    // SEXTO: Detectar solicitudes de trámites y generar menús automáticamente
+    // SEXTO: Detectar solicitudes de servicios generales y ofrecer menú
+    // (Solo si no es una solicitud de documentos o trámites específicos)
+    // inputLower ya está definido arriba, reutilizarlo
+    const serviceKeywords = [
+      'servicios', 'servicio', 'que ofrecen', 'qué ofrecen', 'que hacen', 'qué hacen',
+      'ayuda', 'necesito ayuda', 'puedes ayudarme', 'que puedo hacer', 'qué puedo hacer',
+      'opciones', 'que opciones', 'qué opciones', 'menu', 'menú', 'ver opciones'
+    ];
+    
+    const isServiceRequest = serviceKeywords.some(keyword => inputLower.includes(keyword));
+    
+    if (isServiceRequest && !documentRequest && !tramiteRequest) {
+      const { findRelevantMenu, generateMenuResponse } = await import("./menus");
+      const servicesMenu = await findRelevantMenu("servicios");
+      
+      let responseText = `¡Por supuesto! 😊 En MTZ ofrecemos una amplia gama de servicios para ayudarte:\n\n`;
+      
+      const services = [
+        '📊 **Consultoría Tributaria y Contable**\n   • Declaraciones de impuestos (IVA, Renta)\n   • Asesoría contable personalizada\n   • Trámites en el SII\n   • Facturación electrónica\n   • Inicio de actividades\n   • Cierre de giro',
+        '🪑 **Taller de Sillas de Ruedas MMC**\n   • Reparación y mantenimiento\n   • Adaptación de sillas\n   • Revisión técnica\n   • Servicio a domicilio\n   • Tel: +56 9 3300 3113',
+        '🚐 **Transporte Inclusivo - Fundación Te Quiero Feliz**\n   • Transporte accesible\n   • Servicio de calidad\n   • Atención personalizada\n   • Tel: +56 9 3300 3113',
+        '📋 **Trámites y Documentos**\n   • Declaración de IVA (F29)\n   • RUT y certificados\n   • Carpetas tributarias\n   • Documentos contables\n   • Trámites municipales',
+        '💬 **Soporte Personalizado**\n   • Contacto directo con nuestro equipo\n   • WhatsApp: +56 9 9006 2213\n   • Oficina: Juan Martinez 616, Iquique\n   • Atención personalizada',
+        '📅 **Agendar Reuniones**\n   • Coordina una cita\n   • Presencial o virtual\n   • Consulta tu disponibilidad'
+      ];
+      
+      responseText += services.join('\n\n');
+      responseText += '\n\n**¿Con cuál de estos servicios puedo ayudarte?**\n\nEscribe lo que necesitas o selecciona una opción:';
+      
+      if (servicesMenu) {
+        responseText += `\n\n${generateMenuResponse(servicesMenu)}`;
+        return {
+          text: enrichWithMotivation(responseText, userInput),
+          menu: servicesMenu,
+        };
+      }
+      
+      return {
+        text: enrichWithMotivation(responseText, userInput),
+        menu: undefined,
+      };
+    }
+    
+    // SÉPTIMO: Detectar solicitudes de trámites y generar menús automáticamente
     const tramiteMenu = detectarTramiteRequest(userInput);
     if (tramiteMenu) {
       // Si es una solicitud de categorías, retornar texto especial para mostrar CategoryButtons
-      const inputLower = userInput.toLowerCase();
       if (
         inputLower.includes("ver todas las categorías") ||
         inputLower.includes("ver todas las categorias") ||
@@ -855,15 +1026,32 @@ export async function generateResponse(
       
       // Agregar sugerencias útiles basadas en el input
       const inputLower = userInput.toLowerCase();
-      if (inputLower.length < 20) {
-        // Mensaje muy corto, ofrecer ayuda
-        fallbackResponse += `\n\nPuedo ayudarte con:\n\n`;
-        fallbackResponse += `• Información sobre nuestros servicios\n`;
-        fallbackResponse += `• Solicitar servicios del taller o transporte\n`;
-        fallbackResponse += `• Trámites tributarios\n`;
-        fallbackResponse += `• Documentos y certificados\n`;
-        fallbackResponse += `• Agendar reuniones\n\n`;
-        fallbackResponse += `¿Con cuál te puedo ayudar?`;
+      
+      // Intentar detectar intención básica
+      const hasServiceIntent = inputLower.includes('servicio') || inputLower.includes('ayuda') || inputLower.includes('necesito');
+      const hasInfoIntent = inputLower.includes('información') || inputLower.includes('informacion') || inputLower.includes('saber') || inputLower.includes('qué') || inputLower.includes('que');
+      
+      if (inputLower.length < 20 || hasServiceIntent || hasInfoIntent) {
+        // Mensaje corto o con intención clara, ofrecer ayuda estructurada
+        const { findRelevantMenu, generateMenuResponse } = await import("./menus");
+        const servicesMenu = await findRelevantMenu("servicios");
+        
+        fallbackResponse += `\n\n**Puedo ayudarte con:**\n\n`;
+        fallbackResponse += `• 📊 **Consultoría tributaria y contable** - Declaraciones, trámites, asesoría\n`;
+        fallbackResponse += `• 🪑 **Taller de Sillas de Ruedas** - Reparación, mantenimiento, adaptación\n`;
+        fallbackResponse += `• 🚐 **Transporte Inclusivo** - Fundación Te Quiero Feliz\n`;
+        fallbackResponse += `• 📋 **Trámites y documentos** - IVA, RUT, certificados\n`;
+        fallbackResponse += `• 💬 **Soporte personalizado** - Contacto directo con nuestro equipo\n`;
+        fallbackResponse += `• 📅 **Agendar reuniones** - Coordina una cita\n\n`;
+        fallbackResponse += `**¿Con cuál te puedo ayudar?**\n\nEscribe lo que necesitas o selecciona una opción:`;
+        
+        if (servicesMenu) {
+          fallbackResponse += `\n\n${generateMenuResponse(servicesMenu)}`;
+          return {
+            text: enrichWithMotivation(fallbackResponse, userInput),
+            menu: servicesMenu,
+          };
+        }
       }
       
       return enrichWithMotivation(fallbackResponse, userInput);

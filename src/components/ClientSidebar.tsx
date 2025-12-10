@@ -6,16 +6,17 @@ import { getWorkshopRequestsByUserId } from '../lib/wheelchairWorkshop';
 import { getTransportRequestsByUserId } from '../lib/transportRequests';
 import { getOrCreateClientInfo } from '../lib/clientInfo';
 import { getClientExtendedInfo } from '../lib/clientExtendedInfo';
-import type { UserProfile, Meeting, ClientDocument, ClientInfo, ClientExtendedInfo } from '../types';
+import type { UserProfile, Meeting, ClientInfo, ClientExtendedInfo } from '../types';
+import type { ClientDocument } from '../lib/documents';
 import './ClientSidebar.css';
 
-export type ClientTab = 'chat' | 'meetings' | 'documents' | 'company' | 'requests' | 'notes' | 'profile';
+export type ClientTab = 'chat' | 'meetings' | 'documents' | 'company' | 'requests' | 'notes' | 'profile' | 'services' | 'mtz-consultores' | 'fundacion' | 'taller-mmc' | 'abuelita-alejandra';
 
 interface ClientSidebarProps {
   activeTab: ClientTab;
   onTabChange: (tab: ClientTab) => void;
   userId: string;
-  userRole: 'cliente' | 'inclusion';
+  userRole: 'cliente' | 'inclusion' | 'invitado';
   onClose?: () => void;
 }
 
@@ -134,8 +135,21 @@ export default function ClientSidebar({
     }
   };
 
-  const menuItems: Array<{ id: ClientTab; label: string; icon: string; showFor?: ('cliente' | 'inclusion')[] }> = [
+  // Menú para invitados (servicios de MTZ)
+  const invitadoMenuItems: Array<{ id: ClientTab; label: string; icon: string; showFor?: ('cliente' | 'inclusion')[] }> = [
     { id: 'chat', label: 'Chat', icon: '💬' },
+    { id: 'services', label: 'Servicios', icon: '💎' },
+    { id: 'mtz-consultores', label: 'MTZ Consultores Tributarios', icon: '📊' },
+    { id: 'fundacion', label: 'Fundación Te Quiero Feliz', icon: '🚐' },
+    { id: 'taller-mmc', label: 'Taller de Sillas de Ruedas MMC', icon: '🪑' },
+    { id: 'abuelita-alejandra', label: 'Fábrica de Ropa y Diseño Abuelita Alejandra', icon: '👗' },
+    { id: 'profile', label: 'Mi Perfil', icon: '👤' },
+  ];
+
+  // Menú para clientes e inclusión
+  const clienteMenuItems: Array<{ id: ClientTab; label: string; icon: string; showFor?: ('cliente' | 'inclusion')[] }> = [
+    { id: 'chat', label: 'Chat', icon: '💬' },
+    { id: 'services', label: 'Servicios', icon: '💎' },
     { id: 'meetings', label: 'Mis Reuniones', icon: '📅' },
     { id: 'documents', label: 'Mis Documentos', icon: '📄' },
     { id: 'company', label: 'Mi Empresa', icon: '🏢', showFor: ['cliente'] },
@@ -144,15 +158,18 @@ export default function ClientSidebar({
     { id: 'profile', label: 'Mi Perfil', icon: '👤' },
   ];
 
+  // Seleccionar el menú según el rol
+  const menuItems = userRole === 'invitado' ? invitadoMenuItems : clienteMenuItems;
+
   const filteredMenuItems = menuItems.filter(item => {
     if (!item.showFor) return true;
-    return item.showFor.includes(userRole);
+    return item.showFor.includes(userRole as 'cliente' | 'inclusion');
   });
 
   return (
     <aside className={`client-sidebar ${sidebarOpen ? 'open' : 'closed'}`}>
       <div className="sidebar-header">
-        <h2>Mi Panel</h2>
+        <h2>{userRole === 'invitado' ? 'Servicios MTZ' : 'Mi Panel'}</h2>
         <button
           className="sidebar-toggle"
           onClick={() => setSidebarOpen(!sidebarOpen)}

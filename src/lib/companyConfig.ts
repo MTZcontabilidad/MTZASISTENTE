@@ -61,36 +61,187 @@ export async function getCompanyInfo(): Promise<CompanyInfo | null> {
  * Actualiza la información de la empresa
  */
 export async function updateCompanyInfo(
-  updates: Partial<Omit<CompanyInfo, 'id' | 'created_at' | 'updated_at'>>
+  updates: Partial<Omit<CompanyInfo, 'id' | 'created_at' | 'updated_at' | 'social_media'>>
 ): Promise<boolean> {
   try {
-    // Verificar si existe un registro
+    // Limpiar valores undefined para evitar problemas con Supabase
+    const cleanUpdates: Record<string, any> = {}
+    
+    // Solo incluir campos que están definidos (no undefined)
+    Object.keys(updates).forEach(key => {
+      const value = (updates as any)[key]
+      if (value !== undefined) {
+        // Convertir strings vacíos a null para campos opcionales
+        if (value === '' && key !== 'company_name') {
+          cleanUpdates[key] = null
+        } else {
+          cleanUpdates[key] = value
+        }
+      }
+    })
+
+    // Intentar usar la función RPC primero (bypass RLS)
+    // La función RPC usa COALESCE, así que podemos pasar null para mantener valores existentes
+    try {
+      const { data: rpcData, error: rpcError } = await supabase.rpc('update_company_info', {
+        p_company_name: cleanUpdates.company_name !== undefined ? cleanUpdates.company_name : null,
+        p_phone: cleanUpdates.phone !== undefined ? cleanUpdates.phone : null,
+        p_email: cleanUpdates.email !== undefined ? cleanUpdates.email : null,
+        p_address: cleanUpdates.address !== undefined ? cleanUpdates.address : null,
+        p_website: cleanUpdates.website !== undefined ? cleanUpdates.website : null,
+        p_business_hours: cleanUpdates.business_hours !== undefined ? cleanUpdates.business_hours : null,
+        p_description: cleanUpdates.description !== undefined ? cleanUpdates.description : null,
+      })
+
+      if (!rpcError) {
+        console.log('Información de empresa actualizada usando RPC, resultado:', rpcData)
+        // Verificar que realmente se actualizó esperando un momento
+        await new Promise(resolve => setTimeout(resolve, 500))
+        const verify = await getCompanyInfo()
+        if (verify) {
+          // Verificar que al menos uno de los campos se actualizó
+          let hasChanges = false
+          for (const key in cleanUpdates) {
+            if (key === 'updated_at') continue
+            const newValue = cleanUpdates[key]
+            const currentValue = (verify as any)[key]
+            
+            // Comparar valores
+            if (newValue === null && currentValue === null) continue
+            if (newValue === null || currentValue === null) {
+              hasChanges = true
+              break
+            }
+            if (String(newValue) !== String(currentValue)) {
+              hasChanges = true
+              break
+            }
+          }
+          
+          if (hasChanges) {
+            console.log('Actualización verificada correctamente - cambios detectados')
+            return true
+          } else {
+            console.warn('RPC retornó éxito pero no se detectaron cambios')
+          }
+        }
+      }
+      
+      // Si hay error pero no es crítico (función no existe), continuar con el método normal
+      if (rpcError) {
+        if (rpcError.code === '42883') {
+          console.log('Función RPC no disponible, usando método normal')
+        } else {
+          console.warn('Error al usar RPC, intentando método normal:', rpcError)
+        }
+      }
+    } catch (rpcErr: any) {
+      // Si la función RPC no existe (código 42883), continuar con método normal
+      if (rpcErr.code === '42883') {
+        console.log('Función RPC no disponible, usando método normal')
+      } else {
+        console.warn('Error al usar RPC, intentando método normal:', rpcErr)
+      }
+    }
+
+    // Método normal (puede ser bloqueado por RLS en modo desarrollo)
     const existing = await getCompanyInfo()
 
     if (!existing) {
-      // Crear nuevo registro
-      const { error } = await supabase
+      // Crear nuevo registro usando upsert para evitar problemas de duplicados
+      const insertData = {
+        ...cleanUpdates,
+        company_name: cleanUpdates.company_name || 'MTZ Contabilidad',
+        social_media: {} // Inicializar social_media como objeto vacío
+      }
+      
+      // Usar upsert en lugar de insert para manejar mejor los casos edge
+      const { data, error } = await supabase
         .from('company_info')
-        .insert({
-          ...updates,
-          company_name: updates.company_name || 'MTZ Contabilidad'
+        .upsert(insertData, {
+          onConflict: 'id',
+          ignoreDuplicates: false
         })
+        .select()
 
-      if (error) throw error
+      if (error) {
+        console.error('Error al crear información de empresa:', error)
+        throw error
+      }
+      
+      if (!data || data.length === 0) {
+        console.error('No se devolvieron datos después de insertar')
+        return false
+      }
+      
+      console.log('Información de empresa creada correctamente:', data[0])
       return true
     }
 
     // Actualizar registro existente
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('company_info')
-      .update(updates)
+      .update(cleanUpdates)
       .eq('id', existing.id)
+      .select()
 
-    if (error) throw error
+    if (error) {
+      console.error('Error al actualizar información de empresa:', error)
+      console.error('Detalles del error:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint
+      })
+      throw error
+    }
+    
+    // Si hay datos de retorno, la actualización fue exitosa
+    if (data && data.length > 0) {
+      console.log('Información de empresa actualizada correctamente:', data[0])
+      return true
+    }
+    
+    // Si no hay datos de retorno, verificar que realmente se actualizó
+    console.log('No se devolvieron datos del select, verificando actualización...')
+    await new Promise(resolve => setTimeout(resolve, 500))
+    
+    const verify = await getCompanyInfo()
+    if (!verify) {
+      console.error('No se pudo verificar la actualización - registro no encontrado')
+      throw new Error('No se pudo verificar que la actualización se realizó correctamente')
+    }
+    
+    // Verificar que al menos uno de los campos se actualizó
+    let hasChanges = false
+    for (const key in cleanUpdates) {
+      if (key === 'updated_at') continue // Ignorar updated_at
+      const newValue = cleanUpdates[key]
+      const currentValue = (verify as any)[key]
+      
+      // Comparar valores (manejar null/undefined)
+      if (newValue === null && currentValue === null) continue
+      if (newValue === null || currentValue === null) {
+        hasChanges = true
+        break
+      }
+      if (String(newValue) !== String(currentValue)) {
+        hasChanges = true
+        break
+      }
+    }
+    
+    if (!hasChanges) {
+      console.warn('La actualización no cambió ningún valor. Puede ser que RLS esté bloqueando la actualización.')
+      throw new Error('La actualización no se pudo completar. Verifica que tengas permisos de administrador.')
+    }
+    
+    console.log('Información de empresa actualizada correctamente (verificada)')
     return true
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error al actualizar información de la empresa:', error)
-    return false
+    // Lanzar el error para que el componente pueda manejarlo
+    throw error
   }
 }
 
@@ -284,3 +435,4 @@ export async function findMatchingFAQs(userInput: string): Promise<FAQResponse[]
     return []
   }
 }
+

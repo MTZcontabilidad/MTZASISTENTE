@@ -1,15 +1,9 @@
 /**
- * Servicio de Speech-to-Text (STT) para entrada por voz
- * Optimizado para accesibilidad
+ * Implementación simple de Speech-to-Text
+ * Funciona para todos los roles y páginas del chatbot
  */
 
-import { useState, useEffect, useCallback } from "react";
-
-interface STTOptions {
-  lang?: string; // Idioma (default: 'es-CL')
-  continuous?: boolean; // Continuar escuchando después de pausas
-  interimResults?: boolean; // Mostrar resultados intermedios
-}
+import { useState, useEffect, useCallback, useRef } from "react";
 
 // Declarar tipo para SpeechRecognition
 declare global {
@@ -19,355 +13,312 @@ declare global {
   }
 }
 
-class SpeechToTextService {
-  private recognition: any = null;
-  private isListening: boolean = false;
-  private isSupported: boolean = false;
-  private silenceTimeout: NodeJS.Timeout | null = null;
+/**
+ * Hook simple para reconocimiento de voz
+ * Con detección automática de pausas para enviar mensajes automáticamente
+ */
+export function useSpeechToText(options?: {
+  onSpeechEnd?: (transcript: string) => void; // Callback cuando se detecta que el usuario terminó de hablar
+  silenceTimeout?: number; // Tiempo en ms sin habla para considerar que terminó (default: 2000ms)
+}) {
+  const [isListening, setIsListening] = useState(false);
+  const [transcript, setTranscript] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [isSupported, setIsSupported] = useState(false);
+  const [recognition, setRecognition] = useState<any>(null);
+  const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastTranscriptRef = useRef<string>("");
+  const lastResultTimeRef = useRef<number>(0); // Timestamp del último resultado recibido
+  const onSpeechEndRef = useRef<((transcript: string) => void) | undefined>(options?.onSpeechEnd);
+  const silenceTimeout = options?.silenceTimeout || 2500; // 2.5 segundos de silencio = terminó de hablar
+  const hasFinalResultsRef = useRef<boolean>(false); // Indica si ya hay resultados finales
+  const isListeningRef = useRef<boolean>(false); // Ref para verificar estado de escucha en callbacks
 
-  constructor() {
-    if (typeof window !== "undefined") {
-      // Verificar si estamos en HTTPS (requerido para reconocimiento de voz en muchos navegadores)
-      const isSecure = window.location.protocol === 'https:' || 
-                       window.location.hostname === 'localhost' ||
-                       window.location.hostname === '127.0.0.1';
-      
-      if (!isSecure) {
-        console.warn(
-          "El reconocimiento de voz requiere HTTPS. Algunas funciones pueden no estar disponibles."
-        );
+  // Actualizar referencia del callback cuando cambia
+  useEffect(() => {
+    onSpeechEndRef.current = options?.onSpeechEnd;
+  }, [options?.onSpeechEnd]);
+
+  // Limpiar timer al desmontar
+  useEffect(() => {
+    return () => {
+      if (silenceTimerRef.current) {
+        clearTimeout(silenceTimerRef.current);
       }
-      
-      const SpeechRecognition =
-        (window as any).SpeechRecognition ||
-        (window as any).webkitSpeechRecognition;
+    };
+  }, []);
 
-      if (SpeechRecognition) {
-        try {
-          this.recognition = new SpeechRecognition();
-          this.isSupported = true;
-          this.setupRecognition();
-        } catch (error) {
-          console.error("Error inicializando reconocimiento de voz:", error);
-          this.isSupported = false;
-        }
-      } else {
-        this.isSupported = false;
-        // Detectar el navegador para dar mensaje más específico
-        const userAgent = navigator.userAgent.toLowerCase();
-        let browserMessage = "Tu navegador no soporta reconocimiento de voz.";
-        
-        if (userAgent.includes('firefox')) {
-          browserMessage = "Firefox no soporta reconocimiento de voz nativo. Por favor, usa Chrome, Edge o Safari.";
-        } else if (userAgent.includes('safari') && !userAgent.includes('chrome')) {
-          browserMessage = "Safari requiere iOS 14.5+ o macOS 11+ para reconocimiento de voz. Por favor, actualiza tu sistema.";
-        } else if (userAgent.includes('chrome') || userAgent.includes('edge')) {
-          browserMessage = "Asegúrate de estar usando la versión más reciente de Chrome o Edge.";
-        }
-        
-        console.warn(browserMessage);
+  // Función para resetear el timer de silencio
+  const resetSilenceTimer = useCallback((currentTranscript: string, hasFinal: boolean) => {
+    // Limpiar timer anterior
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+
+    // Actualizar timestamp del último resultado
+    lastResultTimeRef.current = Date.now();
+    
+    // Si hay resultados finales, marcar que los hay
+    if (hasFinal) {
+      hasFinalResultsRef.current = true;
+    }
+
+    // Si hay transcript y es diferente al anterior, resetear timer
+    if (currentTranscript && currentTranscript.trim().length >= 2) {
+      lastTranscriptRef.current = currentTranscript;
+      
+      // Crear nuevo timer que se dispara después del tiempo de silencio
+      // Solo si hay resultados finales (el usuario ya dijo algo completo)
+      if (hasFinalResultsRef.current) {
+        silenceTimerRef.current = setTimeout(() => {
+          // Verificar que no haya habido nuevos resultados en el último tiempo
+          const timeSinceLastResult = Date.now() - lastResultTimeRef.current;
+          
+          // Si todavía estamos escuchando (usar ref para estado actual), hay transcript, y pasó el tiempo de silencio sin nuevos resultados
+          if (isListeningRef.current && currentTranscript.trim().length >= 2 && timeSinceLastResult >= silenceTimeout - 100) {
+            console.log('✅ Pausa detectada, usuario terminó de hablar:', currentTranscript);
+            if (onSpeechEndRef.current) {
+              onSpeechEndRef.current(currentTranscript.trim());
+            }
+            // Limpiar el timer después de usarlo
+            silenceTimerRef.current = null;
+          }
+        }, silenceTimeout);
       }
     }
-  }
+  }, [silenceTimeout]);
 
-  private setupRecognition() {
-    if (!this.recognition) return;
-
-    // Configuración por defecto - optimizada para accesibilidad y compatibilidad móvil
-    this.recognition.lang = "es-CL";
-    this.recognition.continuous = true; // Continuar escuchando para mejor accesibilidad
-    this.recognition.interimResults = true; // Mostrar resultados intermedios
-    this.recognition.maxAlternatives = 3; // Más alternativas para mejor precisión
-    
-    // Configuraciones adicionales para mejor compatibilidad móvil
-    // No establecer grammars ya que puede causar errores en algunos navegadores
-    // Si se necesita grammars, debe ser un SpeechGrammarList válido, no null
-  }
-
-  /**
-   * Inicia el reconocimiento de voz
-   */
-  start(
-    onResult: (text: string, isFinal: boolean) => void,
-    onError?: (error: string) => void,
-    options: STTOptions = {}
-  ): void {
-    if (!this.isSupported || !this.recognition) {
-      onError?.(
-        "Tu navegador no soporta reconocimiento de voz. Por favor, usa Chrome, Edge o Safari."
-      );
+  // Verificar soporte al montar
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      setIsSupported(false);
       return;
     }
 
-    if (this.isListening) {
-      this.stop();
+    const SpeechRecognition =
+      window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (SpeechRecognition) {
+      try {
+        const rec = new SpeechRecognition();
+        rec.lang = "es-CL";
+        rec.continuous = true;
+        rec.interimResults = true;
+        setRecognition(rec);
+        setIsSupported(true);
+      } catch (err) {
+        console.error("Error inicializando reconocimiento:", err);
+        setIsSupported(false);
+      }
+    } else {
+      setIsSupported(false);
+    }
+  }, []);
+
+  const start = useCallback(() => {
+    if (!recognition || !isSupported) {
+      setError("Reconocimiento de voz no disponible");
+      return;
     }
 
-    // Configurar opciones
-    if (options.lang) {
-      this.recognition.lang = options.lang;
-    }
-    if (options.continuous !== undefined) {
-      this.recognition.continuous = options.continuous;
-    }
-    if (options.interimResults !== undefined) {
-      this.recognition.interimResults = options.interimResults;
+    setError(null);
+    setTranscript("");
+    setIsListening(true);
+    isListeningRef.current = true;
+    lastTranscriptRef.current = "";
+    lastResultTimeRef.current = 0;
+    hasFinalResultsRef.current = false;
+    
+    // Limpiar timer anterior
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
     }
 
-    // Limpiar timeout anterior si existe
-    if (this.silenceTimeout) {
-      clearTimeout(this.silenceTimeout);
-      this.silenceTimeout = null;
-    }
-    
-    // Variable para guardar el último transcript (útil para móviles)
-    let lastTranscript = "";
-    
-    // Eventos
-    this.recognition.onresult = (event: any) => {
-      let interimTranscript = "";
+    // Configurar eventos
+    recognition.onresult = (event: any) => {
       let finalTranscript = "";
+      let interimTranscript = "";
+      let hasFinal = false;
 
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const transcript = event.results[i][0].transcript;
         if (event.results[i].isFinal) {
           finalTranscript += transcript + " ";
+          hasFinal = true;
         } else {
           interimTranscript += transcript;
         }
       }
 
-      // Guardar el último transcript completo (útil para móviles cuando termina abruptamente)
-      const fullTranscript = (finalTranscript + interimTranscript).trim();
-      if (fullTranscript) {
-        lastTranscript = fullTranscript;
+      // Actualizar transcript (priorizar final, sino intermedio)
+      const textToShow = finalTranscript.trim() || interimTranscript.trim();
+      if (textToShow) {
+        setTranscript(textToShow);
+        // Resetear timer de silencio cada vez que hay nuevo texto
+        // Pasar si hay resultados finales para saber cuándo empezar a contar el silencio
+        resetSilenceTimer(textToShow, hasFinal);
+      }
+    };
+
+    recognition.onerror = (event: any) => {
+      const errorType = event.error;
+      
+      // Ignorar "no-speech" - es normal si el usuario no habla inmediatamente
+      if (errorType === "no-speech") {
+        console.log("No se detectó habla aún, continuando...");
+        return;
       }
 
-      // Resetear timer de silencio cuando hay resultados
-      if (this.silenceTimeout) {
-        clearTimeout(this.silenceTimeout);
+      // Otros errores sí los reportamos
+      if (errorType === "not-allowed") {
+        setError("Permiso de micrófono denegado");
+        setIsListening(false);
+      } else if (errorType === "audio-capture") {
+        setError("No se pudo acceder al micrófono");
+        setIsListening(false);
+      } else if (errorType === "network") {
+        setError("Error de red. Verifica tu conexión");
+        setIsListening(false);
+      } else {
+        console.error("Error en reconocimiento:", errorType);
+        // Para otros errores, solo loguear pero continuar
+      }
+    };
+
+    recognition.onend = () => {
+      const wasManualStop = (recognition as any)._manualStop;
+      
+      // Si fue detención manual, no reiniciar
+      if (wasManualStop) {
+        setIsListening(false);
+        (recognition as any)._manualStop = false;
+        return;
+      }
+
+      setIsListening(false);
+      isListeningRef.current = false;
+
+      // Si hay transcript final y no se ha llamado al callback, verificar si debemos llamarlo
+      // Esto maneja el caso donde el reconocimiento termina naturalmente después de una pausa
+      if (hasFinalResultsRef.current && lastTranscriptRef.current && lastTranscriptRef.current.trim().length >= 2) {
+        const timeSinceLastResult = Date.now() - lastResultTimeRef.current;
+        // Si pasó suficiente tiempo desde el último resultado, el usuario terminó de hablar
+        if (timeSinceLastResult >= silenceTimeout - 500) {
+          console.log('✅ Reconocimiento terminó naturalmente, usuario terminó de hablar:', lastTranscriptRef.current);
+          if (onSpeechEndRef.current) {
+            onSpeechEndRef.current(lastTranscriptRef.current.trim());
+          }
+        }
       }
       
-      // Si hay resultados finales, resetear timer para dar tiempo a más habla
-      // Si no hay actividad por 2 segundos después del último resultado, auto-detener
-      if (finalTranscript || interimTranscript) {
-        this.silenceTimeout = setTimeout(() => {
-          if (this.isListening && !options.continuous) {
-            // Solo auto-detener si no es continuo (modo manual)
-            this.stop();
-          }
-        }, 2000);
-      }
-
-      // Priorizar resultados finales, pero también enviar intermedios para mejor UX
-      if (finalTranscript) {
-        onResult(finalTranscript.trim(), true);
-      } else if (interimTranscript) {
-        onResult(interimTranscript, false);
-      }
-    };
-
-    this.recognition.onerror = (event: any) => {
-      let errorMessage = "Error en el reconocimiento de voz";
-      let shouldReport = true;
-
-      switch (event.error) {
-        case "no-speech":
-          // En móviles, esto puede ocurrir si el usuario no habla inmediatamente
-          // No es necesariamente un error crítico
-          errorMessage = "No se detectó habla. Intenta de nuevo.";
-          shouldReport = true;
-          break;
-        case "audio-capture":
-          errorMessage =
-            "No se pudo acceder al micrófono. Verifica los permisos en la configuración de tu navegador.";
-          shouldReport = true;
-          break;
-        case "not-allowed":
-          errorMessage =
-            "Permiso de micrófono denegado. Por favor, permite el acceso al micrófono en la configuración de tu navegador.";
-          shouldReport = true;
-          break;
-        case "network":
-          errorMessage =
-            "Error de red. Verifica tu conexión a internet. El reconocimiento de voz requiere conexión.";
-          shouldReport = true;
-          break;
-        case "aborted":
-          // El usuario detuvo manualmente, no es un error
-          shouldReport = false;
-          break;
-        case "service-not-allowed":
-          // Algunos navegadores móviles requieren HTTPS para el reconocimiento de voz
-          errorMessage =
-            "El reconocimiento de voz requiere una conexión segura (HTTPS). Por favor, accede a través de HTTPS.";
-          shouldReport = true;
-          break;
-        default:
-          errorMessage = `Error: ${event.error}`;
-          shouldReport = true;
-      }
-
-      this.isListening = false;
-      if (shouldReport) {
-        onError?.(errorMessage);
-      }
-    };
-
-    this.recognition.onend = () => {
-      this.isListening = false;
-      if (this.silenceTimeout) {
-        clearTimeout(this.silenceTimeout);
-        this.silenceTimeout = null;
-      }
-      // En algunos navegadores móviles, el reconocimiento se detiene automáticamente
-      // después de un período de silencio, así que no es necesariamente un error
-      // Si hay un transcript pendiente que no se procesó como final, intentar procesarlo
-      // Esto es especialmente importante en móviles donde el reconocimiento puede terminar abruptamente
-      if (lastTranscript && lastTranscript.trim()) {
-        // Dar un pequeño delay para asegurar que cualquier transcript final se haya procesado
-        // Si no se procesó, el hook en ChatInterface lo manejará cuando reciba el transcript
+      // Reiniciar automáticamente después de un breve delay para continuar escuchando
+      // Solo si no fue detención manual
+      if (!wasManualStop) {
         setTimeout(() => {
-          lastTranscript = "";
-        }, 100);
-      }
-    };
-
-    this.recognition.onstart = () => {
-      this.isListening = true;
-    };
-
-    try {
-      this.recognition.start();
-    } catch (error) {
-      console.error("Error al iniciar reconocimiento:", error);
-      onError?.("No se pudo iniciar el reconocimiento de voz");
-    }
-  }
-
-  /**
-   * Detiene el reconocimiento de voz
-   */
-  stop(): void {
-    if (this.silenceTimeout) {
-      clearTimeout(this.silenceTimeout);
-      this.silenceTimeout = null;
-    }
-    if (this.recognition && this.isListening) {
-      try {
-        this.recognition.stop();
-      } catch (error) {
-        console.error("Error al detener reconocimiento:", error);
-      }
-      this.isListening = false;
-    }
-  }
-
-  /**
-   * Aborta el reconocimiento de voz
-   */
-  abort(): void {
-    if (this.silenceTimeout) {
-      clearTimeout(this.silenceTimeout);
-      this.silenceTimeout = null;
-    }
-    if (this.recognition && this.isListening) {
-      try {
-        this.recognition.abort();
-      } catch (error) {
-        console.error("Error al abortar reconocimiento:", error);
-      }
-      this.isListening = false;
-    }
-  }
-
-  /**
-   * Verifica si está escuchando actualmente
-   */
-  getIsListening(): boolean {
-    return this.isListening;
-  }
-
-  /**
-   * Verifica si el navegador soporta reconocimiento de voz
-   */
-  getIsSupported(): boolean {
-    return this.isSupported;
-  }
-
-  /**
-   * Obtiene los idiomas disponibles
-   */
-  getAvailableLanguages(): string[] {
-    // Idiomas comunes en español
-    return [
-      "es-CL", // Español Chile
-      "es-MX", // Español México
-      "es-AR", // Español Argentina
-      "es-ES", // Español España
-      "es-US", // Español Estados Unidos
-      "es", // Español genérico
-    ];
-  }
-}
-
-// Instancia singleton
-let sttInstance: SpeechToTextService | null = null;
-
-export function getSpeechToTextService(): SpeechToTextService {
-  if (!sttInstance) {
-    sttInstance = new SpeechToTextService();
-  }
-  return sttInstance;
-}
-
-// Hook para React
-export function useSpeechToText() {
-  const [isListening, setIsListening] = useState(false);
-  const [transcript, setTranscript] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [isSupported, setIsSupported] = useState(false);
-
-  const stt = getSpeechToTextService();
-
-  useEffect(() => {
-    setIsSupported(stt.getIsSupported());
-  }, []);
-
-  const start = useCallback(
-    (options?: STTOptions) => {
-      setError(null);
-      setTranscript("");
-
-      stt.start(
-        (text, isFinal) => {
-          setTranscript(text);
-          if (isFinal) {
-            setIsListening(false);
+          if (recognition && !(recognition as any)._manualStop) {
+            try {
+              // Resetear flag de resultados finales para la próxima ronda
+              hasFinalResultsRef.current = false;
+              isListeningRef.current = true;
+              setIsListening(true);
+              recognition.start();
+            } catch (err) {
+              // Ignorar errores de reinicio (puede ser que ya esté iniciado)
+            }
           }
-        },
-        (errorMessage) => {
-          setError(errorMessage);
-          setIsListening(false);
-        },
-        options
-      );
+        }, 300);
+      }
+      
+      // Resetear el flag
+      (recognition as any)._manualStop = false;
+    };
 
-      setIsListening(true);
-    },
-    [stt]
-  );
+    // Iniciar reconocimiento
+    try {
+      recognition.start();
+    } catch (err: any) {
+      if (err.message && err.message.includes("already started")) {
+        // Si ya está iniciado, detener y reiniciar
+        try {
+          recognition.stop();
+          setTimeout(() => {
+            recognition.start();
+          }, 100);
+        } catch (retryErr) {
+          setError("El reconocimiento ya está en uso");
+          setIsListening(false);
+          isListeningRef.current = false;
+        }
+      } else {
+        setError("No se pudo iniciar el reconocimiento");
+        setIsListening(false);
+        isListeningRef.current = false;
+      }
+    }
+  }, [recognition, isSupported, isListening, resetSilenceTimer]);
 
   const stop = useCallback(() => {
-    stt.stop();
-    setIsListening(false);
-  }, [stt]);
+    if (!recognition) return;
+
+    // Limpiar timer de silencio
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+
+    // Marcar que es una detención manual para no reiniciar
+    (recognition as any)._manualStop = true;
+    
+    // Procesar todos los resultados finales antes de detener
+    // Esto asegura que tengamos el transcript completo
+    try {
+      // Forzar procesamiento de resultados finales
+      const processFinalResults = () => {
+        // El transcript ya debería estar actualizado por onresult
+        // pero esperamos un momento para asegurar que todos los resultados finales se procesen
+        setTimeout(() => {
+          try {
+            recognition.stop();
+            setIsListening(false);
+            isListeningRef.current = false;
+          } catch (err) {
+            console.error("Error al detener reconocimiento:", err);
+            setIsListening(false);
+            isListeningRef.current = false;
+          }
+        }, 100);
+      };
+      
+      processFinalResults();
+    } catch (err) {
+      console.error("Error al detener reconocimiento:", err);
+      setIsListening(false);
+    }
+  }, [recognition]);
 
   const abort = useCallback(() => {
-    stt.abort();
-    setIsListening(false);
-    setTranscript("");
-  }, [stt]);
+    if (!recognition) return;
+
+    // Limpiar timer de silencio
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+
+    try {
+      recognition.abort();
+      setIsListening(false);
+      isListeningRef.current = false;
+      setTranscript("");
+      lastTranscriptRef.current = "";
+    } catch (err) {
+      console.error("Error al abortar reconocimiento:", err);
+      setIsListening(false);
+      isListeningRef.current = false;
+    }
+  }, [recognition]);
 
   return {
     start,
@@ -379,5 +330,4 @@ export function useSpeechToText() {
     isSupported,
   };
 }
-
 

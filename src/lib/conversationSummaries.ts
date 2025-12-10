@@ -30,6 +30,11 @@ export async function createConversationSummary(
   conversationId: string
 ): Promise<ConversationSummary | null> {
   try {
+    // Si es una conversación temporal (modo desarrollo), no crear resúmenes
+    if (conversationId.startsWith('temp-')) {
+      return null
+    }
+
     // Obtener todos los mensajes de la conversación
     const allMessages = await getConversationMessages(conversationId)
     
@@ -108,10 +113,20 @@ export async function createConversationSummary(
       .select()
       .single()
 
-    if (error) throw error
+    if (error) {
+      // Si hay error de tabla no encontrada o UUID inválido, retornar null silenciosamente
+      if (error.code === '42P01' || error.code === '22P02') {
+        return null
+      }
+      throw error
+    }
     return data
   } catch (error) {
-    console.error('Error al crear resumen de conversación:', error)
+    // Solo loggear errores que no sean esperados en modo desarrollo
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    if (!errorMessage.includes('invalid input syntax for type uuid')) {
+      console.error('Error al crear resumen de conversación:', error)
+    }
     return null
   }
 }
@@ -123,16 +138,31 @@ export async function getConversationSummaries(
   conversationId: string
 ): Promise<ConversationSummary[]> {
   try {
+    // Si es una conversación temporal (modo desarrollo), no hay resúmenes
+    if (conversationId.startsWith('temp-')) {
+      return []
+    }
+
     const { data, error } = await supabase
       .from('conversation_summaries')
       .select('*')
       .eq('conversation_id', conversationId)
       .order('created_at', { ascending: true })
 
-    if (error) throw error
+    if (error) {
+      // Si hay error de tabla no encontrada o UUID inválido, retornar vacío silenciosamente
+      if (error.code === '42P01' || error.code === '22P02') {
+        return []
+      }
+      throw error
+    }
     return data || []
   } catch (error) {
-    console.error('Error al obtener resúmenes:', error)
+    // Solo loggear errores que no sean esperados en modo desarrollo
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    if (!errorMessage.includes('invalid input syntax for type uuid')) {
+      console.error('Error al obtener resúmenes:', error)
+    }
     return []
   }
 }

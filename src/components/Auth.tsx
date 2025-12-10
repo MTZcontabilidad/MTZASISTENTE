@@ -6,9 +6,11 @@ import './Auth.css'
 interface AuthProps {
   onAuthSuccess: () => void
   onGuestLogin?: (phone: string) => void
+  onBackToDevMode?: () => void
+  isFromDevMode?: boolean
 }
 
-function Auth({ onAuthSuccess, onGuestLogin }: AuthProps) {
+function Auth({ onAuthSuccess, onGuestLogin, onBackToDevMode, isFromDevMode }: AuthProps) {
   const [loading, setLoading] = useState(false)
   const [showGuestForm, setShowGuestForm] = useState(false)
   const [guestPhone, setGuestPhone] = useState('')
@@ -239,6 +241,15 @@ function Auth({ onAuthSuccess, onGuestLogin }: AuthProps) {
               >
                 <span>Ingresar como Invitado / Prueba</span>
               </button>
+
+              {isFromDevMode && onBackToDevMode && (
+                <button
+                  onClick={onBackToDevMode}
+                  className="back-to-dev-mode-button"
+                >
+                  ← Volver al modo desarrollo
+                </button>
+              )}
 
               <p className="auth-note">
                 Al continuar, aceptas nuestros términos de servicio y política de privacidad

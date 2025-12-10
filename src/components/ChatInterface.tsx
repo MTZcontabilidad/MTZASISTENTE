@@ -34,6 +34,13 @@ import {
   ClientNotesSection,
   ClientProfileSection,
 } from "./ClientSections";
+import { ClientServicesSection } from "./ClientServicesSection";
+import {
+  MTZConsultoresSection,
+  FundacionTeQuieroFelizSection,
+  TallerMMCSection,
+  AbuelitaAlejandraSection,
+} from "./InvitadoServices";
 import "./ChatInterface.css";
 
 interface MessageWithMenu extends Message {
@@ -66,6 +73,7 @@ function ChatInterface({}: ChatInterfaceProps = {}) {
   const [isMuted, setIsMuted] = useState(false);
   const [lastAssistantMessage, setLastAssistantMessage] = useState<string>("");
   const [activeTab, setActiveTab] = useState<ClientTab>("chat");
+  const autoSentRef = useRef(false); // Bandera para evitar doble envío
   
   // Escuchar evento de toggle mute desde el header
   useEffect(() => {
@@ -86,7 +94,8 @@ function ChatInterface({}: ChatInterfaceProps = {}) {
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   
-  // Speech-to-text para el botón de micrófono
+  // Speech-to-text simple para el botón de micrófono
+  // Con detección automática de pausas para enviar mensajes automáticamente
   const {
     start: startListening,
     stop: stopListening,
@@ -95,9 +104,124 @@ function ChatInterface({}: ChatInterfaceProps = {}) {
     transcript: voiceTranscript,
     error: sttError,
     isSupported: sttSupported,
-  } = useSpeechToText();
-  
-  const [sttEnabled, setSttEnabled] = useState(false);
+  } = useSpeechToText({
+    onSpeechEnd: (finalTranscript) => {
+      // Cuando se detecta que el usuario terminó de hablar (pausa de 2 segundos)
+      // Enviar automáticamente el mensaje
+      console.log('🎤 Pausa detectada, transcript:', finalTranscript);
+      
+      if (!finalTranscript || finalTranscript.trim().length < 2) {
+        console.log('⚠️ Transcript muy corto o vacío');
+        return;
+      }
+
+      if (autoSentRef.current) {
+        console.log('⚠️ Ya se envió este mensaje, evitando doble envío');
+        return;
+      }
+
+      // Detener la grabación primero
+      stopListening();
+      
+      // Marcar que se está intentando enviar y limpiar el transcript ref
+      autoSentRef.current = true;
+      lastVoiceTranscriptRef.current = "";
+      
+      // Función para intentar enviar el mensaje (con acceso a estado actual)
+      const trySendMessage = () => {
+        // Usar el estado actual directamente
+        const currentConversationId = conversationId;
+        const currentLoading = loading;
+        const currentLoadingHistory = loadingHistory;
+        const currentHandleSend = handleSendRef.current;
+
+        console.log('🔍 Verificando condiciones para enviar:', {
+          hasConversationId: !!currentConversationId,
+          conversationId: currentConversationId,
+          loading: currentLoading,
+          loadingHistory: currentLoadingHistory,
+          hasHandleSend: !!currentHandleSend
+        });
+
+        // Verificar condiciones antes de enviar
+        if (!currentConversationId) {
+          console.warn('⚠️ No hay conversationId, esperando 500ms...');
+          // Esperar un poco más si no hay conversationId
+          setTimeout(() => {
+            const newConvId = conversationId;
+            const newHandleSend = handleSendRef.current;
+            if (newConvId && newHandleSend) {
+              console.log('✅ ConversationId disponible después de espera, enviando ahora');
+              // Limpiar el input y el transcript ref antes de enviar
+              lastVoiceTranscriptRef.current = "";
+              setInput("");
+              newHandleSend(finalTranscript.trim());
+            } else {
+              console.error('❌ No se pudo enviar después de espera: falta conversationId o handleSend');
+              autoSentRef.current = false;
+            }
+          }, 500);
+          return;
+        }
+
+        if (currentLoading || currentLoadingHistory) {
+          console.warn('⚠️ Sistema cargando, esperando 500ms...');
+          setTimeout(() => {
+            const newLoading = loading;
+            const newLoadingHistory = loadingHistory;
+            const newHandleSend = handleSendRef.current;
+            if (!newLoading && !newLoadingHistory && newHandleSend) {
+              console.log('✅ Sistema listo después de espera, enviando ahora');
+              // Limpiar el input y el transcript ref antes de enviar
+              lastVoiceTranscriptRef.current = "";
+              setInput("");
+              newHandleSend(finalTranscript.trim());
+            } else {
+              console.error('❌ No se pudo enviar después de espera: sistema aún cargando');
+              autoSentRef.current = false;
+            }
+          }, 500);
+          return;
+        }
+
+        // Si todas las condiciones están bien, enviar
+        if (currentHandleSend) {
+          console.log('✅ Todas las condiciones OK, enviando mensaje automáticamente:', finalTranscript);
+          // Limpiar el input inmediatamente antes de enviar
+          setInput("");
+          // Llamar directamente sin await para no bloquear
+          currentHandleSend(finalTranscript.trim()).catch((error) => {
+            console.error('❌ Error al enviar mensaje:', error);
+            autoSentRef.current = false;
+          });
+        } else {
+          console.error('❌ handleSendRef.current no está disponible');
+          autoSentRef.current = false;
+        }
+      };
+
+      // Intentar enviar después de un breve delay para asegurar que todo esté listo (reducido para más agilidad)
+      setTimeout(trySendMessage, 150);
+      
+      // Resetear la bandera después de un tiempo por si acaso (aumentado para evitar loops)
+      setTimeout(() => {
+        autoSentRef.current = false;
+      }, 10000); // Aumentado a 10 segundos para evitar loops
+    },
+    silenceTimeout: (() => {
+      // Cargar tiempo de pausa desde localStorage si existe
+      try {
+        const saved = localStorage.getItem('voiceSettings');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          return parsed.silenceTimeout || 1500;
+        }
+      } catch (error) {
+        console.log('Error cargando configuración de voz:', error);
+      }
+      return 1500; // Por defecto 1.5 segundos
+    })(),
+  });
   
   // Text-to-Speech para el botón "Leer" en cada mensaje
   const {
@@ -113,28 +237,45 @@ function ChatInterface({}: ChatInterfaceProps = {}) {
   // Por ahora, usamos una referencia para evitar problemas de dependencias
   const handleSendRef = useRef<((customMessage?: string) => Promise<void>) | null>(null);
   
-  // Cuando se recibe transcript del micrófono, ponerlo en el input y auto-enviar automáticamente
+  // Mostrar transcript en el input mientras se graba (feedback visual)
+  // Pero no actualizar si ya se envió el mensaje (para que se limpie correctamente)
+  const lastVoiceTranscriptRef = useRef<string>("");
+  const isUpdatingInputRef = useRef(false);
+  
   useEffect(() => {
-    if (voiceTranscript && !isListening && sttEnabled) {
-      const transcriptTrimmed = voiceTranscript.trim();
-      
-      // Solo auto-enviar si hay texto válido
-      if (transcriptTrimmed.length > 0 && conversationId && !loading && !loadingHistory) {
-        setInput(transcriptTrimmed);
-      setSttEnabled(false);
-        
-        // Auto-enviar después de un pequeño delay para que el usuario pueda ver lo que se transcribió
-        const sendTimeout = setTimeout(() => {
-          if (handleSendRef.current) {
-            handleSendRef.current(transcriptTrimmed);
-          }
-        }, 800); // Delay un poco más largo para mejor UX
-        
-        // Limpiar timeout si el componente se desmonta
-        return () => clearTimeout(sendTimeout);
-      }
+    // Prevenir loops: solo actualizar si realmente cambió el transcript y no estamos en medio de una actualización
+    if (isUpdatingInputRef.current) return;
+    
+    if (voiceTranscript && voiceTranscript !== lastVoiceTranscriptRef.current && !autoSentRef.current && isListening) {
+      isUpdatingInputRef.current = true;
+      lastVoiceTranscriptRef.current = voiceTranscript;
+      setInput(voiceTranscript);
+      // Resetear flag después de un breve delay
+      setTimeout(() => {
+        isUpdatingInputRef.current = false;
+      }, 50);
+    } else if (!voiceTranscript && !isListening && lastVoiceTranscriptRef.current && !autoSentRef.current) {
+      // Si no hay transcript y no se está escuchando, limpiar el input y el ref
+      isUpdatingInputRef.current = true;
+      lastVoiceTranscriptRef.current = "";
+      setInput("");
+      setTimeout(() => {
+        isUpdatingInputRef.current = false;
+      }, 50);
     }
-  }, [voiceTranscript, isListening, sttEnabled, conversationId, loading, loadingHistory]);
+  }, [voiceTranscript, isListening]); // Removido 'input' de dependencias para evitar loop
+
+  // Auto-enviar mensaje cuando se detiene la grabación manualmente (botón)
+  // DESHABILITADO: El envío automático se maneja completamente en onSpeechEnd
+  // Si el usuario detiene manualmente, puede enviar con el botón de envío
+  // Esto evita loops y doble envío
+  const prevIsListeningRef = useRef(false);
+  
+  useEffect(() => {
+    // Solo actualizar la referencia, NO enviar automáticamente
+    // Esto evita loops - onSpeechEnd ya maneja todo el envío automático
+    prevIsListeningRef.current = isListening;
+  }, [isListening]);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -328,20 +469,46 @@ function ChatInterface({}: ChatInterfaceProps = {}) {
             console.warn("No se pudo obtener información del cliente:", error);
           }
           
-          // Formatear nombre del cliente con "Don" o "Srita" y apodo si está disponible
-          const formattedClientName = formatClientName(
-            userName || clientInfo?.company_name || undefined,
-            clientInfo?.preferred_name || undefined,
-            clientInfo?.use_formal_address !== false,
-            clientInfo?.gender || undefined
-          );
-          
           // Generar mensaje contextual usando la configuración de respuestas
           // Usar valores locales en lugar de estado para evitar dependencias
           const currentUserType = userType || "invitado";
+          const isInvitado = currentUserType === 'invitado' || userRole === 'invitado';
+          
+          // Para INVITADOS: usar nombre simple sin formateo (sin "Don", "Srita", ni "estimado cliente")
+          // Para CLIENTES: formatear nombre con "Don" o "Srita"
+          let displayNameForWelcome = '';
+          let formattedClientName = '';
+          
+          if (isInvitado) {
+            // Invitados: NO usar nombres técnicos como "dev-invitado"
+            // Solo usar nombres reales si existen, de lo contrario dejar vacío para saludo genérico
+            const rawName = userName || clientInfo?.preferred_name || clientInfo?.company_name || '';
+            // Filtrar nombres técnicos de desarrollo (dev-*, invitado, etc.)
+            if (rawName && 
+                !rawName.toLowerCase().includes('dev-') && 
+                !rawName.toLowerCase().includes('invitado') &&
+                !rawName.toLowerCase().includes('test') &&
+                rawName.trim().length > 0) {
+              displayNameForWelcome = rawName;
+            } else {
+              // Si es un nombre técnico o no hay nombre real, usar cadena vacía para saludo genérico
+              displayNameForWelcome = '';
+            }
+            formattedClientName = displayNameForWelcome;
+          } else {
+            // Clientes: formatear nombre con "Don" o "Srita"
+            formattedClientName = formatClientName(
+              userName || clientInfo?.company_name || undefined,
+              clientInfo?.preferred_name || undefined,
+              clientInfo?.use_formal_address !== false,
+              clientInfo?.gender || undefined
+            );
+            displayNameForWelcome = formattedClientName;
+          }
+          
           const context = {
             userType: currentUserType,
-            userName: formattedClientName, // Usar el nombre formateado
+            userName: isInvitado ? displayNameForWelcome : formattedClientName,
             companyName: companyName,
             memories: [],
             recentMessages: [],
@@ -364,20 +531,45 @@ function ChatInterface({}: ChatInterfaceProps = {}) {
             clientInfo.wants_to_be_client !== null
           );
           
-          // Agregar mensaje sobre completar perfil si no está completo
-          let profileNotice = '';
-          if (!hasCompleteProfile) {
-            profileNotice = '\n\n💡 **¿Eres cliente de MTZ?** Para brindarte un mejor servicio y acceso a documentos personalizados, te recomiendo completar tu perfil. Haz clic en el botón 👤 para actualizar tu información.\n\n';
-          }
+          // Generar mensaje de bienvenida - SEPARADO POR ROL
+          let welcomeMessage = '';
           
-          // Agregar mensaje sobre beneficios limitados para usuarios invitados
-          let benefitsNotice = '';
-          if (currentUserType === 'invitado') {
-            benefitsNotice = '\n\n⚠️ **Nota importante**: Estás ingresando como invitado. Para acceder a todos los beneficios y servicios completos (como descargar documentos, ver tu historial completo, y recibir atención personalizada), te recomendamos registrarte con tu cuenta de Gmail.\n\n';
+          // Para INVITADOS: mensaje corto, amigable, SIN usar "cliente"
+          if (isInvitado) {
+            try {
+              const { generateWelcomeMessage } = await import('../lib/geminiAnalyzer');
+              // Usar solo el nombre simple, sin "estimado cliente"
+              // Limpiar el nombre para asegurar que no contenga "estimado cliente"
+              let nameForWelcome = displayNameForWelcome || displayName || '';
+              // Si el nombre contiene "estimado cliente", usar cadena vacía
+              if (nameForWelcome.toLowerCase().includes('estimado cliente') || 
+                  nameForWelcome.toLowerCase().includes('cliente')) {
+                nameForWelcome = '';
+              }
+              welcomeMessage = await generateWelcomeMessage(nameForWelcome, 'invitado');
+            } catch (error) {
+              console.warn('Error al generar mensaje con Gemini, usando fallback:', error);
+              // Fallback corto y amigable - SIN "cliente"
+              // Limpiar el nombre para asegurar que no contenga "estimado cliente"
+              let nameForWelcome = displayNameForWelcome || displayName || '';
+              // Si el nombre contiene "estimado cliente", usar cadena vacía
+              if (nameForWelcome.toLowerCase().includes('estimado cliente') || 
+                  nameForWelcome.toLowerCase().includes('cliente')) {
+                nameForWelcome = '';
+              }
+              welcomeMessage = nameForWelcome 
+                ? `¡Hola ${nameForWelcome}! 👋 Soy Arise, tu asistente de MTZ. ¿Qué te trae por aquí hoy?`
+                : `¡Hola! 👋 Soy Arise, tu asistente de MTZ. ¿Qué te trae por aquí hoy?`;
+            }
+          } else {
+            // Para CLIENTES: mensaje más personalizado usando el greeting contextual
+            const profileNotice = !hasCompleteProfile 
+              ? '\n\n💡 **¿Eres cliente de MTZ?** Para brindarte un mejor servicio, completa tu perfil en 👤 Mi Perfil.\n\n'
+              : '';
+            
+            // Usar greeting contextual para clientes (puede incluir "estimado cliente")
+            welcomeMessage = `${greeting}, ${formattedClientName}! 👋\n\nSoy **Arise**, tu asistente virtual de MTZ. Puedo ayudarte con consultoría tributaria, transporte inclusivo, taller de sillas de ruedas y más.${profileNotice}\n\n¿En qué puedo ayudarte hoy?`;
           }
-          
-          // Personalizar mensaje de bienvenida con el nombre formateado
-          const welcomeMessage = `${greeting}, ${formattedClientName}! 👋\n\nSoy **Arise**, tu asistente virtual de MTZ. Puedo ayudarte con:\n\n• 📊 Consultoría tributaria y contable\n• 🚐 Fundación Te Quiero Feliz (transporte inclusivo)\n• 🪑 Taller de Sillas de Ruedas MMC\n• 📋 Trámites y documentos\n• 💬 Soporte personalizado\n• 📅 Agendar reuniones${profileNotice}${benefitsNotice}\n\n¿En qué puedo ayudarte hoy?`;
           
           // Crear mensaje de bienvenida en la base de datos
           const welcomeMsgData = await createMessage(
@@ -439,22 +631,44 @@ function ChatInterface({}: ChatInterfaceProps = {}) {
     const messageToSend = customMessage || input.trim();
     
     // Verificaciones más estrictas
-    if (!messageToSend || loading || !conversationId || loadingHistory) {
-      console.log("handleSend bloqueado:", {
-        hasInput: !!messageToSend,
-        loading,
-        conversationId,
-        loadingHistory,
-      });
+    if (!messageToSend) {
+      console.log("handleSend bloqueado: no hay mensaje para enviar");
       return;
     }
 
-    // Obtener usuario actual
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    if (loading || loadingHistory) {
+      console.log("handleSend bloqueado: sistema cargando", { loading, loadingHistory });
+      return;
+    }
+
+    if (!conversationId) {
+      console.warn("handleSend bloqueado: no hay conversationId");
+      return;
+    }
+
+    // Obtener usuario actual (con fallback para modo desarrollo)
+    let user = null;
+    try {
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      user = authUser;
+    } catch (error) {
+      console.log('No hay usuario de Supabase, intentando desde caché...');
+    }
+    
+    // Si no hay usuario de Supabase, intentar desde caché (modo desarrollo)
     if (!user) {
-      console.warn("No hay usuario autenticado");
+      const cachedUser = sessionCache.get();
+      if (cachedUser && cachedUser.id) {
+        user = {
+          id: cachedUser.id,
+          email: cachedUser.email || '',
+        } as any;
+        console.log('✅ Usando usuario desde caché para enviar mensaje:', user.id);
+      }
+    }
+
+    if (!user) {
+      console.warn("No hay usuario autenticado ni en caché");
       return;
     }
 
@@ -658,145 +872,53 @@ function ChatInterface({}: ChatInterfaceProps = {}) {
     }
   };
 
-  // Función para reproducir mensaje de bienvenida en audio
-  const playWelcomeAudio = (greeting: string, welcomeMsg: string, displayName: string) => {
+  // Función para reproducir mensaje de bienvenida en audio usando Gemini TTS
+  const playWelcomeAudio = async (greeting: string, welcomeMsg: string, displayName: string) => {
     // Verificar si ya se reprodujo el mensaje de bienvenida
     if (welcomePlayed) {
       return;
     }
 
-    // Verificar si el navegador soporta Speech Synthesis
-    if (!('speechSynthesis' in window)) {
-      console.warn('Tu navegador no soporta síntesis de voz');
-      return;
-    }
-
-    // Cancelar cualquier síntesis anterior
-    window.speechSynthesis.cancel();
-
     // Crear mensaje de audio corto y natural
     // Mensaje más simple y directo como pidió el usuario
     const audioText = userName 
-      ? `¡Bienvenido, ${displayName}! Un gusto tenerte aquí. Soy **Arise**, tu asistente virtual de MTZ. Puedo ayudarte con consultoría tributaria, la fundación, el taller de sillas de ruedas y más. ¿Qué te interesa?`
-      : `¡Bienvenido! Un gusto tenerte aquí. Soy **Arise**, tu asistente virtual de MTZ. Puedo ayudarte con consultoría tributaria, la fundación, el taller de sillas de ruedas y más. ¿Qué te interesa?`;
+      ? `¡Hola ${displayName}! Soy Arise, tu asistente de MTZ. ¿En qué te ayudo?`
+      : `¡Hola! Soy Arise, tu asistente de MTZ. ¿En qué te ayudo?`;
 
-    // Esperar un momento para que las voces se carguen si es necesario
-    const speakWithVoice = () => {
-      // Crear utterance
-      const utterance = new SpeechSynthesisUtterance(audioText);
+    try {
+      // Cargar configuración desde localStorage si existe
+      let voiceRate = 1.1;
+      let voicePitch = 1.1;
+      let voiceVolume = 1.0;
+      let useGemini = false; // Por defecto usar TTS del navegador (gratis)
+      let geminiVoiceName = 'es-CL-Neural2-A';
       
-      // Configurar voz en español con parámetros mejorados - más rápida, amigable y con carisma
-      utterance.lang = 'es-CL'; // Preferir español de Chile
-      utterance.rate = 1.15; // Velocidad más rápida y dinámica
-      utterance.pitch = 1.15; // Tono más alto, amigable y simpático
-      utterance.volume = 1.0; // Volumen máximo
-
-      // Intentar usar la mejor voz en español disponible
-      // PRIORIZAR VOCES DE CHILE Y LATINOAMÉRICA sobre España
-      const voices = window.speechSynthesis.getVoices();
-      
-      // Priorizar voces más naturales de Chile y Latinoamérica
-      const preferredVoiceNames = [
-        "Microsoft Sabina", // México - latino
-        "Google español",
-        "es-CL", // Chile - máxima prioridad
-        "es-MX", // México
-        "es-AR", // Argentina
-        "es-CO", // Colombia
-        "Microsoft Pablo", // España - última opción
-        "Microsoft Helena", // España
-        "Microsoft Laura" // España
-      ];
-      
-      let spanishVoice = null;
-      
-      // PRIMERO: Buscar voces de Chile (es-CL) - máxima prioridad
-      const chileVoice = voices.find(voice => 
-        voice.lang.startsWith('es-CL')
-      );
-      if (chileVoice) {
-        spanishVoice = chileVoice;
-      }
-      
-      // SEGUNDO: Si no hay de Chile, buscar otras voces latinoamericanas
-      if (!spanishVoice) {
-        for (const preferredName of preferredVoiceNames) {
-          const voice = voices.find(v => {
-            if (v.name.includes(preferredName) && v.lang.startsWith('es')) {
-              // Evitar voces de España si hay otras opciones
-              return !v.lang.startsWith('es-ES');
-            }
-            return false;
-          });
-          if (voice) {
-            spanishVoice = voice;
-            break;
-          }
+      try {
+        const saved = localStorage.getItem('voiceSettings');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          voiceRate = parsed.speakingRate || voiceRate;
+          voicePitch = parsed.pitch || voicePitch;
+          voiceVolume = parsed.volume || voiceVolume;
+          useGemini = parsed.useGeminiTTS !== undefined ? parsed.useGeminiTTS : useGemini;
+          geminiVoiceName = parsed.geminiVoice || geminiVoiceName;
         }
+      } catch (error) {
+        console.log('Error cargando configuración de voz:', error);
       }
       
-      // TERCERO: Si no se encontró una preferida, buscar cualquier voz en español latino
-      if (!spanishVoice) {
-        spanishVoice = voices.find(voice => 
-          voice.lang.startsWith('es') && 
-          !voice.lang.startsWith('es-ES') && 
-          voice.localService
-        ) || voices.find(voice => 
-          voice.lang.startsWith('es') && 
-          !voice.lang.startsWith('es-ES')
-        );
-      }
-      
-      // ÚLTIMO RECURSO: Cualquier voz en español (incluyendo España)
-      if (!spanishVoice) {
-        spanishVoice = voices.find(voice => 
-          voice.lang.startsWith('es') && voice.localService
-        ) || voices.find(voice => voice.lang.startsWith('es'));
-      }
-      
-      if (spanishVoice) {
-        utterance.voice = spanishVoice;
-      }
-
-      // Guardar referencia para poder cancelar si es necesario
-      welcomeSpeechRef.current = utterance;
-
-      // Reproducir
-      window.speechSynthesis.speak(utterance);
+      // Intentar usar Gemini TTS primero para voz más natural y latina
+      await speak(audioText, {
+        rate: voiceRate,
+        pitch: voicePitch,
+        volume: voiceVolume,
+        useGemini: useGemini,
+        geminiVoice: useGemini ? geminiVoiceName : undefined,
+      });
       setWelcomePlayed(true);
-
-      // Limpiar referencia cuando termine
-      utterance.onend = () => {
-        welcomeSpeechRef.current = null;
-      };
-
-      utterance.onerror = (error) => {
-        // Solo loggear si no es un error de interrupción (que es normal)
-        if (error.error !== 'interrupted') {
-          console.warn('Error al reproducir audio de bienvenida:', error);
-        }
-        welcomeSpeechRef.current = null;
-        // No marcar como reproducido si hubo error, para permitir reintento
-        if (error.error !== 'interrupted') {
-          setWelcomePlayed(false);
-        }
-      };
-    };
-
-    // Si las voces ya están cargadas, reproducir inmediatamente
-    if (window.speechSynthesis.getVoices().length > 0) {
-      speakWithVoice();
-    } else {
-      // Esperar a que las voces se carguen
-      window.speechSynthesis.onvoiceschanged = () => {
-        speakWithVoice();
-      };
-      // Timeout de seguridad
-      setTimeout(() => {
-        if (!welcomePlayed) {
-          speakWithVoice();
-        }
-      }, 500);
+    } catch (error) {
+      console.warn('Error al reproducir audio de bienvenida:', error);
+      // Si falla, no marcar como reproducido para permitir reintento
     }
   };
 
@@ -836,18 +958,21 @@ function ChatInterface({}: ChatInterfaceProps = {}) {
 
   // Detectar si el usuario quiere ver reuniones
   useEffect(() => {
-    const lastMessage = messages[messages.length - 1];
-    if (
-      lastMessage &&
-      lastMessage.sender === "user" &&
-      (lastMessage.text.toLowerCase().includes("reunión") ||
-        lastMessage.text.toLowerCase().includes("reunion") ||
-        lastMessage.text.toLowerCase().includes("agendar") ||
-        lastMessage.text.toLowerCase().includes("reservar") ||
-        lastMessage.text.toLowerCase().includes("cita"))
-    ) {
-      setShowMeetings(true);
-    }
+    // DESHABILITADO: No abrir automáticamente el panel de reuniones
+    // El usuario debe solicitarlo explícitamente o el chatbot debe derivarlo cuando sea necesario
+    // Esto evita interrupciones cuando el usuario está haciendo otras consultas
+    // const lastMessage = messages[messages.length - 1];
+    // if (
+    //   lastMessage &&
+    //   lastMessage.sender === "user" &&
+    //   (lastMessage.text.toLowerCase().includes("reunión") ||
+    //     lastMessage.text.toLowerCase().includes("reunion") ||
+    //     lastMessage.text.toLowerCase().includes("agendar") ||
+    //     lastMessage.text.toLowerCase().includes("reservar") ||
+    //     lastMessage.text.toLowerCase().includes("cita"))
+    // ) {
+    //   setShowMeetings(true);
+    // }
   }, [messages]);
 
   // Filtrar mensajes según búsqueda
@@ -884,10 +1009,28 @@ function ChatInterface({}: ChatInterfaceProps = {}) {
             activeTab={activeTab}
             onTabChange={setActiveTab}
             userId={currentUserId}
-            userRole={(userRole === 'cliente' || userRole === 'invitado') ? 'cliente' : 'inclusion'}
+            userRole={userRole || 'invitado'}
           />
         )}
         <div className="chat-content" key={activeTab}>
+          {/* Secciones para invitados */}
+          {activeTab === 'mtz-consultores' && (
+            <MTZConsultoresSection onBack={() => setActiveTab('chat')} />
+          )}
+          {activeTab === 'fundacion' && (
+            <FundacionTeQuieroFelizSection onBack={() => setActiveTab('chat')} />
+          )}
+          {activeTab === 'taller-mmc' && (
+            <TallerMMCSection onBack={() => setActiveTab('chat')} />
+          )}
+          {activeTab === 'abuelita-alejandra' && (
+            <AbuelitaAlejandraSection onBack={() => setActiveTab('chat')} />
+          )}
+          {/* Seccion de Servicios (Común) */}
+          {activeTab === 'services' && (
+            <ClientServicesSection onBack={() => setActiveTab('chat')} />
+          )}
+          {/* Secciones para clientes */}
           {activeTab === 'meetings' && (
             <ClientMeetingsSection
               userId={currentUserId}
@@ -939,7 +1082,7 @@ function ChatInterface({}: ChatInterfaceProps = {}) {
           activeTab={activeTab}
           onTabChange={setActiveTab}
           userId={currentUserId}
-          userRole={(userRole === 'cliente' || userRole === 'invitado') ? 'cliente' : 'inclusion'}
+          userRole={userRole || 'invitado'}
         />
       )}
       <div className="chat-content">
@@ -1056,10 +1199,33 @@ function ChatInterface({}: ChatInterfaceProps = {}) {
                           // Leer este mensaje
                           stopTTS(); // Detener cualquier lectura anterior
                           if (textToRead) {
+                            // Cargar configuración desde localStorage si existe
+                            let voiceRate = 1.1;
+                            let voicePitch = 1.1;
+                            let voiceVolume = 1.0;
+                            let useGemini = true;
+                            let geminiVoiceName = 'es-CL-Neural2-A';
+                            
+                            try {
+                              const saved = localStorage.getItem('voiceSettings');
+                              if (saved) {
+                                const parsed = JSON.parse(saved);
+                                voiceRate = parsed.speakingRate || voiceRate;
+                                voicePitch = parsed.pitch || voicePitch;
+                                voiceVolume = parsed.volume || voiceVolume;
+                                useGemini = parsed.useGeminiTTS !== undefined ? parsed.useGeminiTTS : useGemini;
+                                geminiVoiceName = parsed.geminiVoice || geminiVoiceName;
+                              }
+                            } catch (error) {
+                              console.log('Error cargando configuración de voz:', error);
+                            }
+                            
                             speak(textToRead, {
-                              rate: 1.0,
-                              pitch: 1.0,
-                              volume: 1.0,
+                              rate: voiceRate,
+                              pitch: voicePitch,
+                              volume: voiceVolume,
+                              useGemini: useGemini,
+                              geminiVoice: useGemini ? geminiVoiceName : undefined,
                             });
                             setLastAssistantMessage(message.text);
                           }
@@ -1118,6 +1284,14 @@ function ChatInterface({}: ChatInterfaceProps = {}) {
                     guideImage={message.menu.guide_image}
                     onActionComplete={(action, result) => {
                       console.log("Acción completada:", action, result);
+                      if (action === "navigate" && result?.route) {
+                        try {
+                           // Mapeo directo de rutas a tabs
+                           setActiveTab(result.route as ClientTab);
+                        } catch (e) {
+                          console.warn("Ruta no válida:", result.route);
+                        }
+                      }
                     }}
                   />
                 )}
@@ -1210,18 +1384,6 @@ function ChatInterface({}: ChatInterfaceProps = {}) {
       <div className="input-container">
         <div className="input-actions">
           <button
-            onClick={() => {
-              if (shouldShowSidebar) {
-                setActiveTab('profile');
-              }
-            }}
-            className="action-button profile-button"
-            title="Mi perfil"
-            aria-label="Mi perfil"
-          >
-            👤
-          </button>
-          <button
             onClick={() => setShowClearConfirm(true)}
             className="action-button clear-button"
             title="Limpiar conversación"
@@ -1238,24 +1400,6 @@ function ChatInterface({}: ChatInterfaceProps = {}) {
             aria-label="Buscar"
           >
             🔍
-          </button>
-          <button
-            onClick={() => {
-              setShowMeetings(true)
-            }}
-            className="action-button meetings-button"
-            title="Mis reuniones"
-            aria-label="Reuniones"
-          >
-            📅
-          </button>
-          <button
-            onClick={() => setShowHumanSupport(true)}
-            className="action-button support-button"
-            title="Contactar con ejecutivo o agendar reunión"
-            aria-label="Soporte humano"
-          >
-            💬
           </button>
         </div>
         <textarea
@@ -1275,22 +1419,20 @@ function ChatInterface({}: ChatInterfaceProps = {}) {
         <button
           onClick={async () => {
             if (isListening) {
-              // Detener grabación y esperar a que termine para auto-enviar
+              // Detener grabación manualmente (el usuario puede hacer clic para detener antes de la pausa automática)
+              console.log('🛑 Deteniendo grabación manualmente');
               stopListening();
-              // El auto-envío se manejará en el useEffect cuando voiceTranscript esté disponible
+              // El useEffect se encargará de enviar si hay transcript
             } else {
-              // Solicitar permisos de micrófono primero (especialmente importante en móviles)
+              // Solicitar permisos de micrófono e iniciar grabación continua
               try {
                 await navigator.mediaDevices.getUserMedia({ audio: true });
-                // Iniciar grabación con configuración optimizada para móviles
-                startListening({ 
-                  lang: "es-CL", 
-                  continuous: true, // Mejor para móviles
-                  interimResults: true // Mostrar resultados mientras habla
-                });
-              setSttEnabled(true);
+                autoSentRef.current = false; // Resetear bandera al iniciar nueva grabación
+                console.log('🎤 Iniciando grabación continua - el mensaje se enviará automáticamente cuando detectes una pausa');
+                startListening();
+                // Ahora el sistema escuchará continuamente y enviará automáticamente
+                // cuando detecte una pausa de 2 segundos (configurado en useSpeechToText)
               } catch (error: any) {
-                console.error("Error al acceder al micrófono:", error);
                 if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
                   alert("Por favor, permite el acceso al micrófono en la configuración de tu navegador.");
                 } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {

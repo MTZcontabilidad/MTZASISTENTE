@@ -116,8 +116,21 @@ export async function getAllTransportRequests(
     const { data: rpcData, error: rpcError } = await supabase
       .rpc('get_all_transport_requests_for_admin')
 
-    if (rpcError && (rpcError.code === 'PGRST301' || rpcError.message?.includes('Acceso denegado') || rpcError.code === '42703')) {
-      console.warn("⚠️ Función RPC get_all_transport_requests_for_admin no disponible o con error, intentando consulta directa...");
+    if (rpcError && (
+      rpcError.code === 'PGRST301' || 
+      rpcError.code === '42883' || // Función no existe
+      rpcError.code === '42703' || // Columna no existe
+      rpcError.code === '42P01' || // Tabla no existe
+      (rpcError as any).status === 400 || // Bad Request (incluye errores SQL)
+      rpcError.message?.includes('Acceso denegado') || 
+      rpcError.message?.includes('ambiguous') ||
+      rpcError.message?.includes('column reference') ||
+      rpcError.message?.includes('does not exist')
+    )) {
+      // Solo mostrar warning en desarrollo, en producción usar fallback silenciosamente
+      if (import.meta.env.DEV) {
+        console.warn("⚠️ Función RPC get_all_transport_requests_for_admin no disponible o con error, usando consulta directa...", rpcError.message);
+      }
       // Fallback a consulta directa
       let query = supabase
         .from('transport_requests')
@@ -139,7 +152,15 @@ export async function getAllTransportRequests(
       
       return result
     } else if (rpcError) {
-      throw rpcError
+      // Si el error es de columna ambigua, ya se manejó el fallback arriba
+      // Solo lanzar error si no es un error que tiene fallback
+      if (!rpcError.message?.includes('ambiguous') && !rpcError.message?.includes('column reference')) {
+        throw rpcError
+      } else {
+        // Si llegamos aquí, el fallback debería haber funcionado, pero por si acaso retornar array vacío
+        console.warn('Error de RPC con fallback, pero fallback también falló')
+        return []
+      }
     } else {
       let result = rpcData || []
       
@@ -176,6 +197,11 @@ export async function getUserTransportRequests(
     return []
   }
 }
+
+/**
+ * Alias para getUserTransportRequests (compatibilidad)
+ */
+export const getTransportRequestsByUserId = getUserTransportRequests
 
 /**
  * Actualiza el estado de una solicitud

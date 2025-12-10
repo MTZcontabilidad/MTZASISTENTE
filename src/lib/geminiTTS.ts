@@ -3,7 +3,7 @@
  * Usa las mismas voces que Gemini para una experiencia más natural
  */
 
-import { supabase } from './supabase';
+import { getGeminiApiKey } from './geminiApiKey';
 
 export interface GeminiTTSOptions {
   text: string;
@@ -20,55 +20,8 @@ interface GeminiTTSResponse {
   audioFormat: string;
 }
 
-/**
- * Obtiene la API key de Gemini desde la base de datos
- * Busca por RUT del cliente en la tabla companies
- */
-async function getGeminiApiKey(): Promise<string | null> {
-  try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return null;
-
-    // Obtener información del cliente para encontrar su RUT
-    const { data: clientInfo } = await supabase
-      .from('client_info')
-      .select('rut, company_id')
-      .eq('user_id', user.id)
-      .maybeSingle();
-
-    if (!clientInfo) return null;
-
-    let company = null;
-
-    // Intentar buscar por company_id primero (si existe)
-    if (clientInfo.company_id) {
-      const { data } = await supabase
-        .from('companies')
-        .select('metadata')
-        .eq('id', clientInfo.company_id)
-        .maybeSingle();
-      company = data;
-    }
-
-    // Si no se encontró por company_id, buscar por RUT
-    if (!company && clientInfo.rut) {
-      const { data } = await supabase
-        .from('companies')
-        .select('metadata')
-        .eq('rut', clientInfo.rut)
-        .maybeSingle();
-      company = data;
-    }
-
-    if (!company?.metadata) return null;
-
-    const metadata = company.metadata as Record<string, any>;
-    return metadata.gemini_api_key || null;
-  } catch (error) {
-    console.error('Error obteniendo API key de Gemini:', error);
-    return null;
-  }
-}
+// Re-exportar getGeminiApiKey para compatibilidad
+export { getGeminiApiKey };
 
 /**
  * Convierte texto a audio usando Google Cloud Text-to-Speech API
@@ -90,8 +43,8 @@ export async function textToSpeechWithGemini(
       text,
       languageCode = 'es-CL',
       voiceName = 'es-CL-Neural2-A', // Voz neural de Chile - más natural y sin acento español
-      speakingRate = 1.0,
-      pitch = 0,
+      speakingRate = 1.1, // Velocidad ligeramente más rápida para sonar más fluida y genial
+      pitch = 2.0, // Pitch más alto para sonar más amigable y con carisma (rango: -20 a 20)
       volumeGainDb = 0,
       audioEncoding = 'MP3'
     } = options;
@@ -132,8 +85,28 @@ export async function textToSpeechWithGemini(
     );
 
     if (!response.ok) {
-      const error = await response.text();
-      console.error('Error en Google Cloud TTS:', error);
+      const errorText = await response.text();
+      let errorData;
+      try {
+        errorData = JSON.parse(errorText);
+      } catch {
+        errorData = { error: { message: errorText } };
+      }
+      
+      // Detectar si la API no está habilitada
+      if (response.status === 403 && errorData?.error?.status === 'PERMISSION_DENIED') {
+        const activationUrl = errorData?.error?.details?.[0]?.metadata?.activationUrl || 
+          `https://console.developers.google.com/apis/api/texttospeech.googleapis.com/overview?project=${errorData?.error?.details?.[0]?.metadata?.consumer || ''}`;
+        
+        console.warn('⚠️ Cloud Text-to-Speech API no está habilitada en el proyecto de Google Cloud.');
+        console.warn('📝 Para habilitarla, visita:', activationUrl);
+        console.warn('💡 Mientras tanto, se usará el TTS del navegador como fallback.');
+        
+        // Lanzar un error específico para que el componente pueda manejarlo
+        throw new Error(`TTS_API_DISABLED:${activationUrl}`);
+      }
+      
+      console.error('Error en Google Cloud TTS:', errorData);
       return null; // Fallback a TTS del navegador
     }
 
@@ -190,6 +163,12 @@ export function playAudioFromBase64(base64Audio: string, format: string = 'mp3')
  * Limpia el texto para TTS (similar a textToSpeech.ts pero optimizado)
  */
 export function cleanTextForTTS(text: string): string {
+  // Asegurar que text sea un string
+  if (typeof text !== 'string') {
+    console.warn('cleanTextForTTS recibió un valor que no es string:', typeof text, text);
+    text = String(text || '');
+  }
+  
   // Remover HTML
   let clean = text.replace(/<[^>]*>/g, '');
 

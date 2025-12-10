@@ -27,9 +27,22 @@ export async function getAllMeetings(): Promise<Meeting[]> {
   const { data: meetings, error: rpcError } = await supabase
     .rpc('get_all_meetings_for_admin')
 
-  // Si la función RPC falla (por ejemplo, en modo desarrollo), intentar consulta directa
-  if (rpcError && (rpcError.code === 'PGRST301' || rpcError.message?.includes('Acceso denegado') || rpcError.code === '42703')) {
-    console.warn("⚠️ Función RPC no disponible o con error, intentando consulta directa...");
+  // Si la función RPC falla (por ejemplo, en modo desarrollo o error de columna ambigua), intentar consulta directa
+  if (rpcError && (
+    rpcError.code === 'PGRST301' || 
+    rpcError.code === '42883' || // Función no existe
+    rpcError.code === '42703' || // Columna no existe
+    rpcError.code === '42P01' || // Tabla no existe
+    (rpcError as any).status === 400 || // Bad Request (incluye errores SQL)
+    rpcError.message?.includes('Acceso denegado') || 
+    rpcError.message?.includes('ambiguous') ||
+    rpcError.message?.includes('column reference') ||
+    rpcError.message?.includes('does not exist')
+  )) {
+    // Solo mostrar warning en desarrollo, en producción usar fallback silenciosamente
+    if (import.meta.env.DEV) {
+      console.warn("⚠️ Función RPC no disponible o con error, usando consulta directa...", rpcError.message);
+    }
     const { data: directMeetings, error: meetingsError } = await supabase
       .from('meetings')
       .select('*')
@@ -77,8 +90,16 @@ export async function getAllMeetings(): Promise<Meeting[]> {
   }
 
   if (rpcError) {
-    console.error('Error al obtener todas las reuniones:', rpcError)
-    throw rpcError
+    // Si el error es de columna ambigua o similar, ya se manejó el fallback arriba
+    // Solo lanzar error si no es un error que tiene fallback
+    if (!rpcError.message?.includes('ambiguous') && !rpcError.message?.includes('column reference')) {
+      console.error('Error al obtener todas las reuniones:', rpcError)
+      throw rpcError
+    } else {
+      // Si llegamos aquí, el fallback debería haber funcionado, pero por si acaso retornar array vacío
+      console.warn('Error de RPC con fallback, pero fallback también falló')
+      return []
+    }
   }
 
   if (!meetings || meetings.length === 0) {

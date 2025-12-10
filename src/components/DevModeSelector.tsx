@@ -4,9 +4,10 @@ import './DevModeSelector.css'
 
 interface DevModeSelectorProps {
   onSelectRole: (role: UserRole, userType?: UserType) => void
+  onStartNormalAuth?: () => void
 }
 
-function DevModeSelector({ onSelectRole }: DevModeSelectorProps) {
+function DevModeSelector({ onSelectRole, onStartNormalAuth }: DevModeSelectorProps) {
   const [selectedRole, setSelectedRole] = useState<UserRole>('invitado')
   const [selectedUserType, setSelectedUserType] = useState<UserType>('invitado')
 
@@ -74,9 +75,20 @@ function DevModeSelector({ onSelectRole }: DevModeSelectorProps) {
             </div>
           )}
 
-          <button onClick={handleStart} className="dev-mode-start-button">
-            Iniciar como {roles.find(r => r.value === selectedRole)?.label}
-          </button>
+          {selectedUserType === 'cliente_nuevo' && selectedRole === 'cliente' ? (
+            <div className="dev-mode-auth-options">
+              <button onClick={handleStart} className="dev-mode-start-button dev-mode-button-secondary">
+                Continuar en modo desarrollo
+              </button>
+              <button onClick={onStartNormalAuth} className="dev-mode-start-button dev-mode-button-primary">
+                🔐 Iniciar sesión normal (con teléfono)
+              </button>
+            </div>
+          ) : (
+            <button onClick={handleStart} className="dev-mode-start-button">
+              Iniciar como {roles.find(r => r.value === selectedRole)?.label}
+            </button>
+          )}
         </div>
 
         <div className="dev-mode-footer">

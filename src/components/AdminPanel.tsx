@@ -30,13 +30,14 @@ import { getDocumentIcon } from "../lib/documents";
 import { UserProfile, ClientInfo, UserType, UserRole } from "../types";
 import WheelchairWorkshopPanel from "./WheelchairWorkshopPanel";
 import TransportPanel from "./TransportPanel";
+import VoiceSettingsPanel from "./VoiceSettingsPanel";
 import "./AdminPanel.css";
 
 interface UserWithClientInfo extends UserProfile {
   client_info?: ClientInfo | null;
 }
 
-type AdminTab = "users" | "faqs" | "company" | "documents" | "meetings" | "requests" | "wheelchair" | "transport";
+type AdminTab = "users" | "faqs" | "company" | "documents" | "meetings" | "requests" | "wheelchair" | "transport" | "voice";
 
 interface AdminPanelProps {
   onLogout?: () => void;
@@ -218,13 +219,17 @@ function AdminPanel({ onLogout }: AdminPanelProps) {
   const fetchMeetings = useCallback(async () => {
     try {
       setLoadingMeetings(true);
+      setError(null); // Limpiar errores previos
       const allMeetings = await getAllMeetings();
       setMeetings(allMeetings);
     } catch (err: any) {
       console.error("Error al cargar reuniones:", err);
-      setError(
-        `Error al cargar reuniones: ${err.message || "Error desconocido"}`
-      );
+      // Solo mostrar error si no es un error de RPC que tiene fallback
+      if (!err.message?.includes('ambiguous') && !err.message?.includes('column reference')) {
+        setError(
+          `Error al cargar reuniones: ${err.message || "Error desconocido"}`
+        );
+      }
     } finally {
       setLoadingMeetings(false);
     }
@@ -246,8 +251,8 @@ function AdminPanel({ onLogout }: AdminPanelProps) {
       // Las requests se cargan automáticamente desde users y meetings
       fetchUsers();
       fetchMeetings();
-    } else if (activeTab === "wheelchair" || activeTab === "transport") {
-      // Los paneles de Taller y Transporte cargan sus propios datos
+    } else if (activeTab === "wheelchair" || activeTab === "transport" || activeTab === "voice") {
+      // Los paneles de Taller, Transporte y Voz cargan sus propios datos
     }
   }, [activeTab, fetchUsers, fetchFAQs, fetchCompanyInfo, fetchAllDocuments, fetchMeetings]);
 
@@ -395,15 +400,23 @@ function AdminPanel({ onLogout }: AdminPanelProps) {
   const handleSaveCompanyInfo = async (updates: Partial<CompanyInfo>) => {
     try {
       setSavingCompany(true);
+      setError(null);
+      
+      console.log('Guardando datos de empresa:', updates);
+      
       const success = await updateCompanyInfo(updates);
       if (success) {
+        // Recargar los datos actualizados
         await fetchCompanyInfo();
-        alert("Datos guardados correctamente");
+        alert("✅ Datos guardados correctamente en Supabase");
       } else {
-        alert("Error al guardar los datos");
+        throw new Error("La función de actualización retornó false");
       }
     } catch (err: any) {
-      alert(`Error: ${err.message || "Error desconocido"}`);
+      console.error('Error completo al guardar:', err);
+      const errorMessage = err.message || err.details || "Error desconocido al guardar";
+      setError(`Error al guardar: ${errorMessage}`);
+      alert(`❌ Error al guardar los datos: ${errorMessage}\n\nPor favor, verifica tu conexión a Supabase y que la tabla company_info exista.`);
     } finally {
       setSavingCompany(false);
     }
@@ -474,9 +487,21 @@ function AdminPanel({ onLogout }: AdminPanelProps) {
         fetchMeetings();
       };
     }
-    if (activeTab === "wheelchair" || activeTab === "transport") {
-      // Los paneles de Taller y Transporte manejan su propia actualización
-      return () => {};
+    if (activeTab === "wheelchair") {
+      // Llamar a la función de refresh del panel de sillas
+      return () => {
+        if ((window as any).__wheelchairPanelRefresh) {
+          (window as any).__wheelchairPanelRefresh();
+        }
+      };
+    }
+    if (activeTab === "transport") {
+      // Llamar a la función de refresh del panel de transporte
+      return () => {
+        if ((window as any).__transportPanelRefresh) {
+          (window as any).__transportPanelRefresh();
+        }
+      };
     }
     return () => {};
   };
@@ -490,6 +515,7 @@ function AdminPanel({ onLogout }: AdminPanelProps) {
     if (activeTab === "requests") return loading || loadingMeetings;
     if (activeTab === "wheelchair" || activeTab === "transport") {
       // Los paneles de Taller y Transporte manejan su propio estado de carga
+      // Podríamos obtenerlo de los paneles si es necesario, por ahora false
       return false;
     }
     return false;
@@ -506,6 +532,7 @@ function AdminPanel({ onLogout }: AdminPanelProps) {
     { id: "requests", label: "🔔 Requerimientos", icon: "🔔" },
     { id: "wheelchair", label: "🪑 Taller de Sillas", icon: "🪑" },
     { id: "transport", label: "🚐 Transporte Inclusivo", icon: "🚐" },
+    { id: "voice", label: "🎤 Asistente de Voz", icon: "🎤" },
   ];
 
   return (
@@ -562,6 +589,7 @@ function AdminPanel({ onLogout }: AdminPanelProps) {
               {activeTab === "requests" && "Revisa requerimientos y solicitudes"}
               {activeTab === "wheelchair" && "Gestiona solicitudes del Taller de Sillas de Ruedas"}
               {activeTab === "transport" && "Gestiona solicitudes de Transporte Inclusivo"}
+              {activeTab === "voice" && "Configura el asistente de voz: velocidad, tono, pausas y más"}
             </p>
           </div>
           <button
@@ -758,7 +786,6 @@ function AdminPanel({ onLogout }: AdminPanelProps) {
       {activeTab === "documents" && (
         <div className="documents-section">
           <div className="section-header">
-            <h3>📄 Gestión de Documentos</h3>
             <button onClick={handleCreateDocument} className="create-button">
               ➕ Nuevo Documento
             </button>
@@ -870,9 +897,21 @@ function AdminPanel({ onLogout }: AdminPanelProps) {
         />
       )}
 
-      {activeTab === "wheelchair" && <WheelchairWorkshopPanel />}
+      {activeTab === "wheelchair" && (
+        <div className="panel-wrapper">
+          <WheelchairWorkshopPanel />
+        </div>
+      )}
+      
+      {activeTab === "transport" && (
+        <div className="panel-wrapper">
+          <TransportPanel />
+        </div>
+      )}
 
-      {activeTab === "transport" && <TransportPanel />}
+      {activeTab === "voice" && (
+        <VoiceSettingsPanel />
+      )}
 
       {/* Modal de FAQ */}
       {showFAQModal && (
@@ -1115,7 +1154,6 @@ function FAQsSection({
   return (
     <div className="faqs-section">
       <div className="section-header">
-        <h3>Respuestas Frecuentes</h3>
         <button onClick={onCreate} className="create-button">
           ➕ Nueva Respuesta
         </button>
@@ -1232,7 +1270,26 @@ function CompanyInfoSection({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await onSave(formData);
+    
+    // Preparar los datos para enviar, convirtiendo strings vacíos a null para campos opcionales
+    const dataToSave: Partial<CompanyInfo> = {
+      company_name: formData.company_name.trim() || undefined,
+      phone: formData.phone.trim() || null,
+      email: formData.email.trim() || null,
+      address: formData.address.trim() || null,
+      website: formData.website.trim() || null,
+      business_hours: formData.business_hours.trim() || null,
+      description: formData.description.trim() || null,
+    };
+    
+    // Asegurar que company_name siempre esté presente
+    if (!dataToSave.company_name) {
+      alert("El nombre de la empresa es obligatorio");
+      return;
+    }
+    
+    console.log('Enviando datos al guardar:', dataToSave);
+    await onSave(dataToSave);
   };
 
   if (loading) {
@@ -1246,11 +1303,8 @@ function CompanyInfoSection({
 
   return (
     <div className="company-info-section">
-      <div className="section-header">
-        <h3>Datos Básicos de la Empresa</h3>
-        <p className="section-description">
-          Esta información se usará en las respuestas del chatbot
-        </p>
+      <div className="section-description">
+        <p>Esta información se usará en las respuestas del chatbot</p>
       </div>
 
       <form onSubmit={handleSubmit} className="company-form">
@@ -1784,10 +1838,9 @@ function MeetingsSection({
   const pendingCount = meetings.filter((m) => m.status === "pending").length;
 
   return (
-    <div className="meetings-section">
+      <div className="meetings-section">
       <div className="section-header">
         <div>
-          <h3>📅 Gestión de Reuniones</h3>
           {pendingCount > 0 && (
             <span className="pending-badge">
               {pendingCount} {pendingCount === 1 ? "reunión pendiente" : "reuniones pendientes"}

@@ -113,6 +113,19 @@ export interface ServicePricing {
   updated_at: string
 }
 
+export interface FeeRange {
+  max: number
+  price: number
+}
+
+export interface ServiceItem extends ServicePricing {
+  metadata: {
+    calculator_enabled?: boolean
+    ranges?: FeeRange[]
+    [key: string]: any
+  }
+}
+
 export interface ConversationSummary {
   id: string
   user_id: string
