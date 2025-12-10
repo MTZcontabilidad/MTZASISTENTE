@@ -319,7 +319,70 @@
 }
 
 /* Company Info Section */
+.company-info-card.relative-card {
+  position: relative;
+}
+
+.card-actions-top {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  gap: 8px;
+}
+
+.icon-button {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 16px;
+}
+
+.icon-button:hover {
+  background: rgba(0, 212, 255, 0.1);
+  border-color: var(--neon-blue);
+  transform: scale(1.1);
+}
+
+.icon-button.delete:hover {
+  background: rgba(255, 107, 107, 0.1);
+  border-color: #ff6b6b;
+}
+
+.divider-line {
+  height: 1px;
+  background: var(--border-color);
+  margin: 16px 0;
+}
+
+.contact-info-block h4 {
+  color: var(--neon-blue-light);
+  font-size: 14px;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+.contact-info-block p {
+  margin: 4px 0;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.grid-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+}
+
 .company-info-card {
+
   background: var(--bg-secondary);
   border: 2px solid var(--neon-blue-dark);
   border-radius: 12px;

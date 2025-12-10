@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
+import CompanyForm from './CompanyForm';
 import { getUserMeetings, createMeeting } from '../lib/meetings';
 import { getClientDocuments } from '../lib/documents';
 import { getWorkshopRequestsByUserId } from '../lib/wheelchairWorkshop';
@@ -301,48 +303,63 @@ interface ClientCompanyInfoSectionProps {
 }
 
 export function ClientCompanyInfoSection({ userId, onBack }: ClientCompanyInfoSectionProps) {
-  const [clientInfo, setClientInfo] = useState<ClientInfo | null>(null);
-  const [extendedInfo, setExtendedInfo] = useState<ClientExtendedInfo | null>(null);
+  const [companies, setCompanies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [notes, setNotes] = useState('');
-  const [saving, setSaving] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [editingCompany, setEditingCompany] = useState<any | null>(null);
+  const [user, setUser] = useState<any>(null);
 
-  const loadInfo = async () => {
+  const loadCompanies = async () => {
     setLoading(true);
     try {
-      const [info, extended] = await Promise.all([
-        getOrCreateClientInfo(userId),
-        getClientExtendedInfo(userId),
-      ]);
-      setClientInfo(info);
-      setExtendedInfo(extended);
-      setNotes(extended?.notes || info?.notes || '');
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+      
+      const { data, error } = await supabase
+        .from('companies')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setCompanies(data || []);
     } catch (error) {
-      console.error('Error al cargar información:', error);
+      console.error('Error al cargar empresas:', error);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadInfo();
+    loadCompanies();
   }, [userId]);
 
-  const handleSaveNotes = async () => {
-    setSaving(true);
+  const handleEdit = (company: any) => {
+    setEditingCompany(company);
+    setShowForm(true);
+  };
+
+  const handleDelete = async (companyId: string) => {
+    if (!confirm('¿Estás seguro de eliminar esta empresa?')) return;
+    
     try {
-      if (extendedInfo) {
-        await upsertClientExtendedInfo(userId, { notes });
-      } else if (clientInfo) {
-        await updateClientInfo(userId, { notes });
-      }
-      alert('Notas guardadas correctamente.');
+      const { error } = await supabase
+        .from('companies')
+        .delete()
+        .eq('id', companyId);
+
+      if (error) throw error;
+      loadCompanies();
     } catch (error) {
-      console.error('Error al guardar notas:', error);
-      alert('Error al guardar las notas.');
-    } finally {
-      setSaving(false);
+      console.error('Error al eliminar:', error);
+      alert('Error al eliminar la empresa');
     }
+  };
+
+  const handleFormSuccess = () => {
+    setShowForm(false);
+    setEditingCompany(null);
+    loadCompanies();
   };
 
   if (loading) {
@@ -350,7 +367,7 @@ export function ClientCompanyInfoSection({ userId, onBack }: ClientCompanyInfoSe
       <div className="client-section">
         <div className="loading-state">
           <div className="spinner"></div>
-          <p>Cargando información...</p>
+          <p>Cargando empresas...</p>
         </div>
       </div>
     );
@@ -362,82 +379,112 @@ export function ClientCompanyInfoSection({ userId, onBack }: ClientCompanyInfoSe
         <button onClick={onBack} className="back-button">
           ← Volver
         </button>
-        <h2>Mi Empresa</h2>
-      </div>
-
-      <div className="company-info-card">
-        <h3>Información Básica</h3>
-        <div className="info-row">
-          <strong>Nombre de la Empresa:</strong>
-          <span>{clientInfo?.company_name || 'No especificado'}</span>
-        </div>
-        <div className="info-row">
-          <strong>Teléfono:</strong>
-          <span>{clientInfo?.phone || 'No especificado'}</span>
-        </div>
-        <div className="info-row">
-          <strong>Dirección:</strong>
-          <span>{clientInfo?.address || 'No especificado'}</span>
-        </div>
-        {clientInfo?.rut_empresa && (
-          <div className="info-row">
-            <strong>RUT Empresa:</strong>
-            <span>{clientInfo.rut_empresa}</span>
-          </div>
+        <h2>Mis Empresas</h2>
+        {!showForm && (
+          <button 
+            onClick={() => {
+              setEditingCompany(null);
+              setShowForm(true);
+            }} 
+            className="create-button"
+          >
+            + Nueva Empresa
+          </button>
         )}
       </div>
 
-      {extendedInfo && (
-        <>
-          <div className="company-info-card">
-            <h3>Estado Tributario</h3>
-            <div className="info-row">
-              <strong>Estado IVA:</strong>
-              <span className={`status-badge status-${extendedInfo.iva_declaration_status || 'sin_movimiento'}`}>
-                {extendedInfo.iva_declaration_status || 'Sin movimiento'}
-              </span>
-            </div>
-            {extendedInfo.last_iva_declaration_date && (
-              <div className="info-row">
-                <strong>Última Declaración:</strong>
-                <span>{new Date(extendedInfo.last_iva_declaration_date).toLocaleDateString('es-CL')}</span>
-              </div>
-            )}
-            {extendedInfo.next_iva_declaration_due && (
-              <div className="info-row">
-                <strong>Próxima Declaración:</strong>
-                <span>{new Date(extendedInfo.next_iva_declaration_due).toLocaleDateString('es-CL')}</span>
-              </div>
-            )}
+      {showForm ? (
+        user ? (
+          <CompanyForm
+            user={user}
+            companyToEdit={editingCompany}
+            onSuccess={handleFormSuccess}
+            onCancel={() => {
+              setShowForm(false);
+              setEditingCompany(null);
+            }}
+          />
+        ) : (
+          <div className="error-state">
+            <p>⚠️ Error: No se detectó una sesión activa.</p>
+            <p>Por favor, inicia sesión con tu cuenta para gestionar empresas.</p>
+            <button onClick={() => setShowForm(false)} className="back-button">
+              Volver
+            </button>
           </div>
+        )
+      ) : (
+        <div className="companies-list">
+          {companies.length === 0 ? (
+            <div className="empty-state">
+              <p>No tienes empresas registradas.</p>
+              <button 
+                onClick={() => setShowForm(true)}
+                className="action-button-primary"
+                style={{ marginTop: '16px' }}
+              >
+                Registrar mi primera empresa
+              </button>
+            </div>
+          ) : (
+            <div className="grid-list">
+              {companies.map((company) => (
+                <div key={company.id} className="company-info-card relative-card">
+                  <div className="card-actions-top">
+                    <button 
+                      onClick={() => handleEdit(company)}
+                      className="icon-button edit"
+                      title="Editar"
+                    >
+                      ✏️
+                    </button>
+                    <button 
+                      onClick={() => handleDelete(company.id)}
+                      className="icon-button delete"
+                      title="Eliminar"
+                    >
+                      🗑️
+                    </button>
+                  </div>
 
-          {extendedInfo.legal_info && Object.keys(extendedInfo.legal_info).length > 0 && (
-            <div className="company-info-card">
-              <h3>Información Legal</h3>
-              {Object.entries(extendedInfo.legal_info).map(([key, value]) => (
-                <div key={key} className="info-row">
-                  <strong>{key.replace(/_/g, ' ').toUpperCase()}:</strong>
-                  <span>{String(value)}</span>
+                  <h3>{company.razon_social}</h3>
+                  
+                  {company.nombre_fantasia && (
+                    <div className="info-row">
+                      <strong>Nombre Fantasía:</strong>
+                      <span>{company.nombre_fantasia}</span>
+                    </div>
+                  )}
+                  
+                  <div className="info-row">
+                    <strong>RUT:</strong>
+                    <span>{company.rut}</span>
+                  </div>
+
+                  <div className="info-row">
+                    <strong>Giro:</strong>
+                    <span>{company.giro || 'No especificado'}</span>
+                  </div>
+
+                  <div className="info-row">
+                    <strong>Dirección:</strong>
+                    <span>{company.direccion || 'No especificado'}</span>
+                  </div>
+
+                  <div className="divider-line"></div>
+
+                  <div className="contact-info-block">
+                    <h4>Contacto</h4>
+                    <p>👤 {company.contacto_nombre || 'Sin nombre'}</p>
+                    <p>📧 {company.contacto_email || 'Sin email'}</p>
+                    <p>📞 {company.contacto_fono || 'Sin teléfono'}</p>
+                  </div>
                 </div>
               ))}
             </div>
           )}
-        </>
+        </div>
       )}
-
-      <div className="company-info-card">
-        <h3>Mis Notas</h3>
-        <textarea
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          placeholder="Escribe tus notas aquí..."
-          rows={6}
-          className="notes-textarea"
-        />
-        <button onClick={handleSaveNotes} className="save-button" disabled={saving}>
-          {saving ? 'Guardando...' : '💾 Guardar Notas'}
-        </button>
-      </div>
     </div>
   );
 }
@@ -446,13 +493,27 @@ interface ClientRequestsSectionProps {
   userId: string;
   userRole: 'cliente' | 'inclusion';
   onBack: () => void;
+  initialTab?: 'wheelchair' | 'transport';
+  viewMode?: 'combined' | 'wheelchair_only' | 'transport_only';
 }
 
-export function ClientRequestsSection({ userId, userRole, onBack }: ClientRequestsSectionProps) {
+export function ClientRequestsSection({ 
+  userId, 
+  userRole, 
+  onBack, 
+  initialTab = 'wheelchair',
+  viewMode = 'combined'
+}: ClientRequestsSectionProps) {
   const [wheelchairRequests, setWheelchairRequests] = useState<any[]>([]);
   const [transportRequests, setTransportRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'wheelchair' | 'transport'>('wheelchair');
+  
+  // Si estamos en modo específico, forzamos el tab activo
+  const effectiveInitialTab = viewMode === 'transport_only' ? 'transport' : 
+                             viewMode === 'wheelchair_only' ? 'wheelchair' : 
+                             initialTab;
+                             
+  const [activeTab, setActiveTab] = useState<'wheelchair' | 'transport'>(effectiveInitialTab);
 
   const loadRequests = async () => {
     setLoading(true);
@@ -495,16 +556,24 @@ export function ClientRequestsSection({ userId, userRole, onBack }: ClientReques
     return <span className={`status-badge ${badge.class}`}>{badge.text}</span>;
   };
 
+  // Título dinámico según el modo
+  const getTitle = () => {
+    if (viewMode === 'wheelchair_only') return 'Taller de Sillas';
+    if (viewMode === 'transport_only') return 'Solicitud de Traslados';
+    return 'Mis Solicitudes';
+  };
+
   return (
     <div className="client-section">
       <div className="section-header">
         <button onClick={onBack} className="back-button">
           ← Volver
         </button>
-        <h2>Mis Solicitudes</h2>
+        <h2>{getTitle()}</h2>
       </div>
 
-      {userRole === 'inclusion' && (
+      {/* Mostrar tabs solo si estamos en modo combinado y el rol es inclusión */}
+      {viewMode === 'combined' && userRole === 'inclusion' && (
         <div className="requests-tabs">
           <button
             className={activeTab === 'wheelchair' ? 'active' : ''}
@@ -559,7 +628,7 @@ export function ClientRequestsSection({ userId, userRole, onBack }: ClientReques
             </div>
           )}
 
-          {activeTab === 'transport' && userRole === 'inclusion' && (
+          {activeTab === 'transport' && (
             <div className="requests-list">
               {transportRequests.length === 0 ? (
                 <div className="empty-state">

@@ -10,7 +10,7 @@ import type { UserProfile, Meeting, ClientInfo, ClientExtendedInfo } from '../ty
 import type { ClientDocument } from '../lib/documents';
 import './ClientSidebar.css';
 
-export type ClientTab = 'chat' | 'meetings' | 'documents' | 'company' | 'requests' | 'notes' | 'profile' | 'services' | 'mtz-consultores' | 'fundacion' | 'taller-mmc' | 'abuelita-alejandra';
+export type ClientTab = 'chat' | 'meetings' | 'documents' | 'company' | 'requests' | 'requests-wheelchair' | 'requests-transport' | 'notes' | 'profile' | 'services' | 'mtz-consultores' | 'fundacion' | 'taller-mmc' | 'abuelita-alejandra';
 
 interface ClientSidebarProps {
   activeTab: ClientTab;
@@ -138,7 +138,7 @@ export default function ClientSidebar({
   // Menú para invitados (servicios de MTZ)
   const invitadoMenuItems: Array<{ id: ClientTab; label: string; icon: string; showFor?: ('cliente' | 'inclusion')[] }> = [
     { id: 'chat', label: 'Chat', icon: '💬' },
-    { id: 'services', label: 'Servicios', icon: '💎' },
+    { id: 'services', label: 'Accesos Rápidos', icon: '🚀' },
     { id: 'mtz-consultores', label: 'MTZ Consultores Tributarios', icon: '📊' },
     { id: 'fundacion', label: 'Fundación Te Quiero Feliz', icon: '🚐' },
     { id: 'taller-mmc', label: 'Taller de Sillas de Ruedas MMC', icon: '🪑' },
@@ -149,17 +149,34 @@ export default function ClientSidebar({
   // Menú para clientes e inclusión
   const clienteMenuItems: Array<{ id: ClientTab; label: string; icon: string; showFor?: ('cliente' | 'inclusion')[] }> = [
     { id: 'chat', label: 'Chat', icon: '💬' },
-    { id: 'services', label: 'Servicios', icon: '💎' },
+    { id: 'services', label: 'Accesos Rápidos', icon: '🚀' },
     { id: 'meetings', label: 'Mis Reuniones', icon: '📅' },
     { id: 'documents', label: 'Mis Documentos', icon: '📄' },
-    { id: 'company', label: 'Mi Empresa', icon: '🏢', showFor: ['cliente'] },
+    { id: 'company', label: 'Mi Empresa', icon: '🏢' }, // Removed showFor as this list is now strictly for 'cliente' role logic in filteredMenuItems usage needs update if we split logic
     { id: 'requests', label: 'Mis Solicitudes', icon: '🪑' },
     { id: 'notes', label: 'Notas', icon: '📝' },
     { id: 'profile', label: 'Mi Perfil', icon: '👤' },
   ];
 
+  // Menú específico para Rol Inclusión
+  const inclusionMenuItems: Array<{ id: ClientTab; label: string; icon: string }> = [
+    { id: 'chat', label: 'Chat', icon: '💬' },
+    { id: 'requests-wheelchair', label: 'Taller de Sillas', icon: '🪑' },
+    { id: 'requests-transport', label: 'Solicitud Traslados', icon: '🚐' },
+    { id: 'services', label: 'Accesos Rápidos', icon: '🚀' },
+    { id: 'profile', label: 'Mi Perfil', icon: '👤' },
+  ];
+
   // Seleccionar el menú según el rol
-  const menuItems = userRole === 'invitado' ? invitadoMenuItems : clienteMenuItems;
+  let menuItems: Array<{ id: ClientTab; label: string; icon: string; showFor?: ('cliente' | 'inclusion')[] }>;
+  
+  if (userRole === 'invitado') {
+    menuItems = invitadoMenuItems;
+  } else if (userRole === 'inclusion') {
+    menuItems = inclusionMenuItems;
+  } else {
+    menuItems = clienteMenuItems;
+  }
 
   const filteredMenuItems = menuItems.filter(item => {
     if (!item.showFor) return true;

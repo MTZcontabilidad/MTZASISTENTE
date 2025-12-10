@@ -153,20 +153,14 @@ export default function InteractiveMenu({
         case "show_menu": {
           // Mostrar otro menú - esto se manejará desde el componente padre
           const menuKey = option.params?.menu;
-          if (menuKey) {
-            // Disparar evento para que el componente padre maneje el cambio de menú
-            // Por ahora, mostramos un mensaje informativo
-            if (menuKey === "tramites-general") {
-              alert(
-                'Para ver los trámites disponibles, escribe "trámites" o "necesito ayuda con trámites" en el chat.'
-              );
-            } else {
-              alert(
-                `Para ver el menú de ${menuKey}, escribe "${menuKey}" en el chat.`
-              );
-            }
-          }
           onActionComplete?.("show_menu", { menu: menuKey });
+          break;
+        }
+
+        case "show_tutorial": {
+          // Mostrar tutorial
+          const tutorialId = option.params?.id;
+          onActionComplete?.("show_tutorial", { id: tutorialId });
           break;
         }
 

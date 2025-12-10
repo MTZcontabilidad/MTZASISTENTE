@@ -1,0 +1,16 @@
+# Vercel Ignore
+.vercel
+.git
+.gemini
+.playwright-mcp
+src/test-results
+*.log
+node_modules
+task.md
+implementation_plan.md
+walkthrough.md
+FLUJO_AUTENTICACION.md
+create-admin-rpc-functions.sql
+create-client-structure.sql
+create-meetings-table.sql
+README.md

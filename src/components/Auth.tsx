@@ -255,12 +255,7 @@ function Auth({ onAuthSuccess, onGuestLogin, onBackToDevMode, isFromDevMode }: A
                 Al continuar, aceptas nuestros términos de servicio y política de privacidad
               </p>
               
-              <div className="provisional-account-notice">
-                <p className="provisional-notice-text">
-                  ⚠️ <strong>Cuenta provisoria:</strong> Al ingresar como invitado, estarás usando una cuenta temporal. 
-                  Para acceder a todos los beneficios y servicios completos, te recomendamos registrarte con tu cuenta de Gmail.
-                </p>
-              </div>
+
             </>
           ) : (
             <>
@@ -269,13 +264,7 @@ function Auth({ onAuthSuccess, onGuestLogin, onBackToDevMode, isFromDevMode }: A
                 Ingresa tu número de teléfono para acceder al chat
               </p>
               
-              <div className="provisional-account-notice">
-                <p className="provisional-notice-text">
-                  ⚠️ <strong>Cuenta provisoria:</strong> Esta es una cuenta temporal. 
-                  Para acceder a todos los beneficios y servicios completos (documentos, historial completo, atención personalizada), 
-                  te recomendamos registrarte con tu cuenta de Gmail.
-                </p>
-              </div>
+
               
               <div className="guest-phone-input">
                 <input

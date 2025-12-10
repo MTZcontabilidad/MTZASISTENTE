@@ -95,6 +95,7 @@ export interface ClientExtendedInfo {
   internal_notes: string | null
   metadata: Record<string, any>
   legal_info?: Record<string, any> // Información legal: inicio_actividades, rut_empresa, razon_social, etc.
+  ai_profile?: Record<string, any> // Perfil psicológico aprendido por IA
   created_at: string
   updated_at: string
 }

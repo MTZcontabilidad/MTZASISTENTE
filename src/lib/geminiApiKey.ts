@@ -118,6 +118,13 @@ export async function getGeminiApiKey(): Promise<string | null> {
       console.log('Error buscando por usuario:', error);
     }
 
+    // ESTRATEGIA 4: Fallback a variable de entorno (para desarrollo local)
+    const envKey = import.meta.env.VITE_GEMINI_API_KEY;
+    if (envKey) {
+      console.log('API key de Gemini encontrada en variable de entorno enviroment');
+      return envKey;
+    }
+
     // Si no se encontró en ninguna ubicación
     console.warn('No se encontró API key de Gemini en ninguna ubicación');
     return null;
