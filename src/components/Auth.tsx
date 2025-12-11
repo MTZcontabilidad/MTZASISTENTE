@@ -194,7 +194,7 @@ function Auth({ onAuthSuccess, onGuestLogin, onBackToDevMode, isFromDevMode }: A
 
           {!showGuestForm ? (
             <>
-              <h2>Bienvenido a Arise</h2>
+              <h2>Bienvenido a MTZ Ouroborus AI</h2>
               <p className="auth-subtitle">Tu asistente virtual de MTZ</p>
               <button
                 onClick={handleGoogleLogin}
