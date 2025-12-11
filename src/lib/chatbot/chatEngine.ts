@@ -273,7 +273,7 @@ async function generateAIResponse(
     `;
 
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -284,7 +284,10 @@ async function generateAIResponse(
       }
     );
 
-    if (!response.ok) throw new Error("API fail");
+    if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`API fail: ${response.status} - ${errText}`);
+    }
     
     const data = await response.json();
     let textRaw = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
@@ -309,7 +312,7 @@ async function generateAIResponse(
     return responseObj;
 
   } catch (e) {
-    console.error(e);
+    console.error("Gemini Error:", e);
     const rootMenuId = userRole === 'cliente' ? 'cliente_root' : 
                        userRole === 'inclusion' ? 'inclusion_root' : 
                        'invitado_root';

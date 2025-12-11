@@ -6,6 +6,7 @@ import ChatInterface from './components/ChatInterface'
 import AdminPanel from './components/AdminPanel'
 import InvitadoWelcome from './components/InvitadoWelcome'
 import DevModeSelector from './components/DevModeSelector'
+import MobileLayout from './components/mobile/MobileLayout'
 import './App.css'
 import type { UserRole, UserType } from './types'
 
@@ -17,6 +18,17 @@ interface User {
 }
 
 function App() {
+  // Mobile detection
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768)
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768)
+    }
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
   // Intentar cargar desde caché INMEDIATAMENTE antes de cualquier estado
   const cachedUser = sessionCache.get()
   const initialUser = cachedUser && cachedUser.id && sessionCache.isValid() 
@@ -819,6 +831,12 @@ function App() {
         </div>
       </div>
     )
+  }
+
+  // --- MOBILE VIEW --
+  // If user is logged in, NOT admin panel, and mobile: Show new Mobile Layout
+  if (isMobile && !(showAdminPanel && user.role === 'admin')) {
+      return <MobileLayout />;
   }
 
   return (
