@@ -16,6 +16,9 @@ const MobileDocs: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [activeCategory, setActiveCategory] = useState('Todos');
     const [toastMessage, setToastMessage] = useState<string | null>(null);
+    const [viewDoc, setViewDoc] = useState<any>(null);
+    const [downloadingDoc, setDownloadingDoc] = useState<string | null>(null);
+    const [downloadProgress, setDownloadProgress] = useState(0);
 
     const showToast = (msg: string) => {
         setToastMessage(msg);
@@ -23,11 +26,28 @@ const MobileDocs: React.FC = () => {
     };
 
     const handleDownload = (docTitle: string) => {
-        showToast(`Descargando ${docTitle}...`);
+        setDownloadingDoc(docTitle);
+        setDownloadProgress(0);
+        
+        const interval = setInterval(() => {
+            setDownloadProgress(prev => {
+                if (prev >= 100) {
+                    clearInterval(interval);
+                    setDownloadingDoc(null);
+                    showToast(`Descarga completada: ${docTitle}`);
+                    return 100;
+                }
+                return prev + 10;
+            });
+        }, 200);
     };
 
-    const handleView = (docTitle: string) => {
-        showToast(`Abriendo vista previa de ${docTitle}...`);
+    const handleView = (doc: any) => {
+        setViewDoc(doc);
+    };
+
+    const closeViewer = () => {
+        setViewDoc(null);
     };
 
     // Filter Logic
@@ -46,32 +66,77 @@ const MobileDocs: React.FC = () => {
         <div className="mobile-view-container relative">
             {toastMessage && (
                 <div style={{
-                    position: 'absolute',
-                    top: '1rem',
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    backgroundColor: 'rgba(16, 185, 129, 0.9)',
-                    color: 'white',
-                    padding: '0.75rem 1.5rem',
-                    borderRadius: '2rem',
-                    zIndex: 100,
-                    fontSize: '0.875rem',
-                    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-                    whiteSpace: 'nowrap',
-                    backdropFilter: 'blur(4px)'
+                    position: 'absolute', top: '1rem', left: '50%', transform: 'translateX(-50%)',
+                    backgroundColor: 'rgba(16, 185, 129, 0.9)', color: 'white', padding: '0.75rem 1.5rem',
+                    borderRadius: '2rem', zIndex: 100, fontSize: '0.875rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                    whiteSpace: 'nowrap', backdropFilter: 'blur(4px)'
                 }}>
                     {toastMessage}
+                </div>
+            )}
+
+            {/* Document Viewer Modal */ }
+            {viewDoc && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md animate-fade-in p-4">
+                    <div className="premium-card w-full h-full max-h-[85vh] flex flex-col rounded-2xl animate-scale-in" style={{ border: '1px solid rgba(0, 212, 255, 0.2)', backgroundColor: '#111827' }}>
+                        <div className="flex justify-between items-center p-4 border-b border-gray-800">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 rounded-lg bg-red-500/10 text-red-500">
+                                    <span className="material-icons-round">picture_as_pdf</span>
+                                </div>
+                                <div>
+                                    <h3 className="text-white font-bold text-sm">{viewDoc.title}</h3>
+                                    <p className="text-gray-400 text-xs">{viewDoc.date} • 2.4 MB</p>
+                                </div>
+                            </div>
+                            <button onClick={closeViewer} className="p-2 text-gray-400 hover:text-white">
+                                <span className="material-icons-round">close</span>
+                            </button>
+                        </div>
+                        <div className="flex-1 bg-gray-900 flex items-center justify-center relative overflow-hidden">
+                            <div className="absolute inset-0 flex flex-col items-center justify-center opacity-20">
+                                <span className="material-icons-round text-6xl mb-2">description</span>
+                                <p>Vista previa no disponible</p>
+                            </div>
+                            <div className="w-3/4 h-3/4 bg-white/5 border border-white/10 rounded-lg flex items-center justify-center p-8 text-center">
+                                <p className="text-gray-400 text-sm">Contenido simulado del documento PDF para <strong>{viewDoc.title}</strong>.</p>
+                            </div>
+                        </div>
+                        <div className="p-4 border-t border-gray-800 flex gap-3">
+                            <button className="mobile-btn-ghost flex-1 justify-center" onClick={closeViewer}>Cerrar</button>
+                            <button className="mobile-btn-primary flex-1 justify-center" onClick={() => { closeViewer(); handleDownload(viewDoc.title); }}>
+                                <span className="material-icons-round mr-2 text-sm">download</span>
+                                Descargar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Downloading Overlay */ }
+            {downloadingDoc && (
+                <div className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm animate-fade-in">
+                    <div className="premium-card p-6 rounded-2xl flex flex-col items-center gap-4 w-64">
+                        <div className="relative w-16 h-16 flex items-center justify-center">
+                             <svg className="animate-spin w-full h-full text-blue-500/20" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                             </svg>
+                             <span className="absolute text-xs font-bold text-blue-400">{downloadProgress}%</span>
+                        </div>
+                        <p className="text-white text-sm font-medium text-center">Descargando<br/>{downloadingDoc}...</p>
+                    </div>
                 </div>
             )}
 
             {/* Header removed */}
             <div className="mobile-scroll-content" style={{ paddingTop: '1.5rem' }}>
                 {/* Search Bar */}
-                <div className="docs-sticky-header">
+                <div className="docs-sticky-header animate-slide-in">
                     <div className="mobile-input-group" style={{ marginBottom: '0.5rem' }}>
                         <span className="mobile-input-icon material-icons-round">search</span>
                         <input 
-                            className="mobile-input" 
+                            className="mobile-input glass-input-wrapper" 
                             placeholder="Buscar por nombre, RUT o fecha..."
                             type="text"
                             value={searchTerm}
@@ -88,6 +153,7 @@ const MobileDocs: React.FC = () => {
                              <button 
                                 key={cat}
                                 className={`tag-btn ${activeCategory === cat ? 'active' : ''}`}
+                                style={activeCategory === cat ? { boxShadow: '0 0 10px rgba(0, 212, 255, 0.3)' } : {}}
                                 onClick={() => setActiveCategory(cat)}
                              >
                                 {cat}
@@ -98,17 +164,17 @@ const MobileDocs: React.FC = () => {
 
                 {/* Categories Summary (Only show on 'Todos') */}
                 {activeCategory === 'Todos' && !searchTerm && (
-                    <div style={{ marginBottom: '1.5rem', marginTop: '1rem' }}>
+                    <div className="animate-slide-in" style={{ animationDelay: '0.1s', marginBottom: '1.5rem', marginTop: '1rem' }}>
                         <h2 className="section-title">Categorías Principales</h2>
                         <div className="grid-2">
-                             {/* Dynamic Summary Cards could go here, keeping static for layout demo but functional click */}
+                             {/* Dynamic Summary Cards */}
                             <button 
-                                className="mobile-card" 
+                                className="mobile-card premium-card" 
                                 onClick={() => setActiveCategory('IVA')}
                                 style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', padding: '0.75rem', cursor: 'pointer' }}
                             >
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%', marginBottom: '0.75rem' }}>
-                                    <div style={{ padding: '0.5rem', backgroundColor: 'rgba(59, 130, 246, 0.1)', borderRadius: '0.5rem', color: '#60a5fa', display: 'flex' }}>
+                                    <div style={{ padding: '0.5rem', backgroundColor: 'rgba(59, 130, 246, 0.1)', borderRadius: '0.5rem', color: '#60a5fa', display: 'flex', boxShadow: '0 0 8px rgba(96, 165, 250, 0.2)' }}>
                                         <span className="material-icons-round" style={{ fontSize: '1.25rem' }}>receipt_long</span>
                                     </div>
                                     <span className="doc-stats-badge">{getCountByCategory('IVA')} Docs</span>
@@ -120,12 +186,12 @@ const MobileDocs: React.FC = () => {
                             </button>
 
                             <button 
-                                className="mobile-card" 
+                                className="mobile-card premium-card" 
                                 onClick={() => setActiveCategory('Liquidaciones')}
                                 style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', padding: '0.75rem', cursor: 'pointer' }}
                             >
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%', marginBottom: '0.75rem' }}>
-                                    <div style={{ padding: '0.5rem', backgroundColor: 'rgba(34, 197, 94, 0.1)', borderRadius: '0.5rem', color: '#4ade80', display: 'flex' }}>
+                                    <div style={{ padding: '0.5rem', backgroundColor: 'rgba(34, 197, 94, 0.1)', borderRadius: '0.5rem', color: '#4ade80', display: 'flex', boxShadow: '0 0 8px rgba(74, 222, 128, 0.2)' }}>
                                         <span className="material-icons-round" style={{ fontSize: '1.25rem' }}>payments</span>
                                     </div>
                                     <span className="doc-stats-badge">{getCountByCategory('Liquidaciones')} Docs</span>
@@ -140,7 +206,7 @@ const MobileDocs: React.FC = () => {
                 )}
 
                 {/* Recent Docs List */}
-                 <div>
+                 <div className="animate-slide-in" style={{ animationDelay: '0.2s' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
                         <h2 className="section-title" style={{ marginBottom: 0 }}>
                             {activeCategory === 'Todos' ? 'Documentos Recientes' : `Documentos: ${activeCategory}`}
@@ -183,7 +249,7 @@ const MobileDocs: React.FC = () => {
                                  </div>
                                  <div style={{ display: 'flex' }}>
                                     <button 
-                                        onClick={() => handleView(doc.title)}
+                                        onClick={() => handleView(doc)}
                                         style={{ padding: '0.5rem', color: '#9ca3af', background: 'transparent', border: 'none', cursor: 'pointer' }}
                                     >
                                         <span className="material-icons-round" style={{ fontSize: '1.25rem' }}>visibility</span>

@@ -101,8 +101,7 @@ const MobileChat: React.FC = () => {
                                         <span className="material-icons-round text-sm">smart_toy</span>
                                     </div>
                                 )}
-                                
-                                <div className={`chat-bubble ${msg.sender === 'assistant' ? 'bot' : 'user'}`}>
+                                                                <div className={`chat-bubble animate-slide-in ${msg.sender === 'assistant' ? 'bot' : 'user'}`}>
                                     {msg.sender === 'assistant' && (
                                         <div className="bot-header">
                                             <span className="bot-name">Arise</span>
@@ -119,11 +118,11 @@ const MobileChat: React.FC = () => {
 
                                     {/* Display Menu Options if available */}
                                     {msg.menu && msg.menu.options && (
-                                        <div className="flex flex-col gap-3 mt-3" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '0.75rem' }}>
+                                        <div className="flex flex-col gap-3 mt-3 animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '0.75rem', animationDelay: '0.2s' }}>
                                             {msg.menu.options.map((option: any, idx: number) => (
                                                 <button 
                                                     key={idx} 
-                                                    className="mobile-btn-ghost"
+                                                    className="mobile-btn-ghost premium-card"
                                                     style={{ justifyContent: 'flex-start', textAlign: 'left' }}
                                                     onClick={() => handleSend(option.label || option.text)}
                                                 >
@@ -141,12 +140,16 @@ const MobileChat: React.FC = () => {
                             </div>
                         ))}
                         {loading && (
-                            <div className="chat-message-row">
+                            <div className="chat-message-row animate-slide-in">
                                 <div className="bot-avatar">
                                     <span className="material-icons-round text-sm">smart_toy</span>
                                 </div>
                                 <div className="chat-bubble bot">
-                                    <span className="text-sm">Escribiendo...</span>
+                                    <div className="typing-indicator">
+                                        <div className="typing-dot"></div>
+                                        <div className="typing-dot"></div>
+                                        <div className="typing-dot"></div>
+                                    </div>
                                 </div>
                             </div>
                         )}
@@ -157,6 +160,22 @@ const MobileChat: React.FC = () => {
 
             {/* Input Area */}
             <div className="mobile-chat-footer">
+                {/* Quick Replies */}
+                 {messages.length > 0 && !loading && (
+                    <div className="flex gap-2 overflow-x-auto py-2 px-4 no-scrollbar" style={{ maskImage: 'linear-gradient(to right, transparent, black 10%, black 90%, transparent)' }}>
+                        {['Cotizar', 'Ayuda', 'Agendar', 'Soporte', 'Mis Datos'].map((reply) => (
+                            <button
+                                key={reply}
+                                onClick={() => handleSend(reply)}
+                                className="whitespace-nowrap px-3 py-1 rounded-full text-xs font-medium bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
+                                style={{ backdropFilter: 'blur(4px)' }}
+                            >
+                                {reply}
+                            </button>
+                        ))}
+                    </div>
+                 )}
+
                 <div className="chat-input-container">
                     <button 
                         className="mobile-icon-btn" 
@@ -166,7 +185,7 @@ const MobileChat: React.FC = () => {
                         <span className="material-icons-round">delete</span>
                     </button>
                     
-                    <div className="chat-input-wrapper">
+                    <div className="chat-input-wrapper glass-input-wrapper">
                         <input 
                             className="chat-input-field" 
                             placeholder={isListening ? "Escuchando..." : "Escribe tu mensaje..."}
@@ -196,6 +215,10 @@ const MobileChat: React.FC = () => {
                         className="send-btn"
                         onClick={() => handleSend()}
                         disabled={loading || !input.trim()}
+                        style={{
+                            color: input.trim() ? 'var(--neon-blue)' : 'inherit',
+                            opacity: input.trim() ? 1 : 0.5
+                        }}
                     >
                         <span className="material-icons-round" style={{ transform: 'rotate(-30deg) translateY(-1px) translateX(2px)' }}>send</span>
                     </button>
