@@ -1,15 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './Mobile.css';
 import MobileChat from './MobileChat';
 import MobileAccess from './MobileAccess';
 import MobileMeetings from './MobileMeetings';
 import MobileDocs from './MobileDocs';
 import MobileProfile from './MobileProfile';
+import MobileAdmin from './MobileAdmin';
 
-type Tab = 'chat' | 'accesses' | 'meetings' | 'docs' | 'profile';
+type Tab = 'chat' | 'accesses' | 'meetings' | 'docs' | 'profile' | 'admin';
 
-const MobileLayout: React.FC = () => {
+interface MobileLayoutProps {
+    user?: any; // Accepting user prop to check role
+}
+
+const MobileLayout: React.FC<MobileLayoutProps> = ({ user }) => {
     const [activeTab, setActiveTab] = useState<Tab>('chat');
+    const isAdmin = user?.role === 'admin';
 
     const renderContent = () => {
         switch (activeTab) {
@@ -23,6 +29,8 @@ const MobileLayout: React.FC = () => {
                 return <MobileDocs />;
             case 'profile':
                 return <MobileProfile />;
+            case 'admin':
+                return <MobileAdmin />;
             default:
                 return <MobileChat />;
         }
@@ -42,14 +50,6 @@ const MobileLayout: React.FC = () => {
                 </button>
                 
                 <button 
-                    className={`nav-item ${activeTab === 'accesses' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('accesses')}
-                >
-                    <span className="material-icons-round">rocket_launch</span>
-                    <span className="nav-label">Accesos</span>
-                </button>
-                
-                <button 
                     className={`nav-item ${activeTab === 'meetings' ? 'active' : ''}`}
                     onClick={() => setActiveTab('meetings')}
                 >
@@ -57,13 +57,58 @@ const MobileLayout: React.FC = () => {
                     <span className="nav-label">Reuniones</span>
                 </button>
                 
+                {isAdmin ? (
+                     <button 
+                        className={`nav-item ${activeTab === 'admin' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('admin')}
+                    >
+                        <span className="material-icons-round">admin_panel_settings</span>
+                        <span className="nav-label">Admin</span>
+                    </button>
+                ) : (
+                    <button 
+                        className={`nav-item ${activeTab === 'accesses' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('accesses')}
+                    >
+                        <span className="material-icons-round">rocket_launch</span>
+                        <span className="nav-label">Accesos</span>
+                    </button>
+                )}
+                
+                {/* 
                 <button 
                     className={`nav-item ${activeTab === 'docs' ? 'active' : ''}`}
                     onClick={() => setActiveTab('docs')}
                 >
                     <span className="material-icons-round">description</span>
                     <span className="nav-label">Docs</span>
-                </button>
+                </button> 
+                */}
+                {/* Keeping 5 items max for better spacing. Replacing Docs with Accesses/Admin for now or just squeezing them in? 
+                    Let's just keep Docs for everyone and swap Accesses for Admin if needed, or just add Admin.
+                    Mobile navs usually handle 5 items max well.
+                    Let's do: Chat | Meetings | Admin/Access | Docs | Profile
+                */}
+
+                 {!isAdmin && (
+                    <button 
+                        className={`nav-item ${activeTab === 'docs' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('docs')}
+                    >
+                        <span className="material-icons-round">description</span>
+                        <span className="nav-label">Docs</span>
+                    </button>
+                 )}
+                 
+                 {isAdmin && (
+                     <button 
+                        className={`nav-item ${activeTab === 'accesses' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('accesses')}
+                    >
+                        <span className="material-icons-round">rocket_launch</span>
+                        <span className="nav-label">Accesos</span>
+                    </button>
+                 )}
                 
                 <button 
                     className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`}

@@ -834,9 +834,9 @@ function App() {
   }
 
   // --- MOBILE VIEW --
-  // If user is logged in, NOT admin panel, and mobile: Show new Mobile Layout
-  if (isMobile && !(showAdminPanel && user.role === 'admin')) {
-      return <MobileLayout />;
+  // If user is logged in, and mobile: Show Mobile Layout (INCLUDING Admins now)
+  if (isMobile && user) {
+      return <MobileLayout user={user} />;
   }
 
   return (
