@@ -1,7 +1,8 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import './Mobile.css';
 import { useChat } from '../../hooks/useChat';
 import { markdownToHtml, hasMarkdown } from '../../lib/markdown';
+import { useSpeechToText } from '../../lib/speechToText';
 
 const MobileChat: React.FC = () => {
     const {
@@ -11,10 +12,11 @@ const MobileChat: React.FC = () => {
         handleSend,
         loading,
         loadingHistory,
-        userId
+        handleClearChat
     } = useChat();
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const [autoSendTriggered, setAutoSendTriggered] = useState(false);
 
     // Auto-scroll to bottom
     const scrollToBottom = () => {
@@ -28,6 +30,48 @@ const MobileChat: React.FC = () => {
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === 'Enter' && !loading) {
             handleSend();
+        }
+    };
+
+    // Speech to Text Integration
+    const {
+        start: startListening,
+        stop: stopListening,
+        isListening,
+        transcript,
+        isSupported
+    } = useSpeechToText({
+        onSpeechEnd: (finalTranscript) => {
+            if (finalTranscript && finalTranscript.trim().length > 0 && !autoSendTriggered) {
+                setAutoSendTriggered(true);
+                handleSend(); // Auto-send when speech ends
+                setTimeout(() => setAutoSendTriggered(false), 1000);
+            }
+        }
+    });
+
+    // Sync transcript to input
+    useEffect(() => {
+        if (isListening && transcript) {
+            setInput(transcript);
+        }
+    }, [transcript, isListening, setInput]);
+
+    const toggleListening = () => {
+        if (!isSupported) {
+            alert("Tu navegador no soporta reconocimiento de voz.");
+            return;
+        }
+        if (isListening) {
+            stopListening();
+        } else {
+            startListening();
+        }
+    };
+
+    const confirmClearChat = async () => {
+        if (window.confirm("¿Seguro que deseas borrar toda la conversación?")) {
+            await handleClearChat();
         }
     };
 
@@ -114,22 +158,37 @@ const MobileChat: React.FC = () => {
             {/* Input Area */}
             <div className="mobile-chat-footer">
                 <div className="chat-input-container">
-                    <button className="mobile-icon-btn">
+                    <button 
+                        className="mobile-icon-btn" 
+                        onClick={confirmClearChat}
+                        title="Limpiar chat"
+                    >
                         <span className="material-icons-round">delete</span>
                     </button>
                     
                     <div className="chat-input-wrapper">
                         <input 
                             className="chat-input-field" 
-                            placeholder="Escribe tu mensaje..." 
+                            placeholder={isListening ? "Escuchando..." : "Escribe tu mensaje..."}
                             type="text"
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
                             onKeyDown={handleKeyDown}
                             disabled={loading || loadingHistory}
                         />
-                        <button className="mobile-icon-btn" style={{ background: 'transparent', padding: '0 0 0 0.5rem' }}>
-                            <span className="material-icons-round" style={{ fontSize: '1.25rem' }}>mic</span>
+                        <button 
+                            className={`mobile-icon-btn ${isListening ? 'listening' : ''}`}
+                            style={{ 
+                                background: 'transparent', 
+                                padding: '0 0 0 0.5rem',
+                                color: isListening ? '#ef4444' : 'inherit'
+                            }}
+                            onClick={toggleListening}
+                            title={isListening ? "Detener grabación" : "Grabar audio"}
+                        >
+                            <span className="material-icons-round" style={{ fontSize: '1.25rem' }}>
+                                {isListening ? 'mic_off' : 'mic'}
+                            </span>
                         </button>
                     </div>
                     
