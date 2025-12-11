@@ -82,7 +82,7 @@ const MobileChat: React.FC = () => {
                 <p className="mobile-subtitle">Tu asistente virtual de MTZ</p>
             </header>
 
-            <div className="mobile-content">
+            <div className="mobile-content chat-view">
                 {loadingHistory ? (
                     <div className="flex justify-center items-center h-full" style={{ display: 'flex', justifyContent: 'center', height: '100%', alignItems: 'center' }}>
                         <div className="loader">Cargando...</div>

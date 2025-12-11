@@ -6,6 +6,12 @@ const MobileProfile: React.FC = () => {
     const [profile, setProfile] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [userEmail, setUserEmail] = useState<string>("");
+    const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+    const showToast = (msg: string) => {
+        setToastMessage(msg);
+        setTimeout(() => setToastMessage(null), 3000);
+    };
 
     useEffect(() => {
         const loadProfile = async () => {
@@ -35,6 +41,7 @@ const MobileProfile: React.FC = () => {
                 }
             } catch (error) {
                 console.error("Error loading profile:", error);
+                showToast("Error cargando perfil");
             } finally {
                 setLoading(false);
             }
@@ -43,8 +50,26 @@ const MobileProfile: React.FC = () => {
     }, []);
 
     const handleLogout = async () => {
+        showToast("Cerrando sesión...");
         await supabase.auth.signOut();
-        window.location.reload(); // Simple reload to reset state/auth
+        window.location.reload(); 
+    };
+
+    const handleEditProfile = () => {
+        showToast("Editar perfil: Próximamente");
+    };
+
+    const handleNotifications = () => {
+        showToast("Configuración de notificaciones: Próximamente");
+    };
+
+    const handleSecurity = () => {
+        showToast("Seguridad y contraseña: Próximamente");
+    };
+
+    const handleBack = () => {
+         // In a real router usage: history.goBack() or similar
+        showToast("Volviendo...");
     };
 
     if (loading) {
@@ -56,21 +81,36 @@ const MobileProfile: React.FC = () => {
     const displayCompany = profile?.company_name || "No registrada";
 
     return (
+        <div className="mobile-view-container relative">
+             {toastMessage && (
+                <div style={{
+                    position: 'absolute',
+                    top: '1rem',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    backgroundColor: 'rgba(59, 130, 246, 0.9)',
+                    color: 'white',
+                    padding: '0.75rem 1.5rem',
+                    borderRadius: '2rem',
+                    zIndex: 100,
+                    fontSize: '0.875rem',
+                    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                    whiteSpace: 'nowrap',
+                    backdropFilter: 'blur(4px)'
+                }}>
+                    {toastMessage}
+                </div>
+            )}
 
-        <div className="mobile-view-container">
-            <header className="mobile-header">
-                <button style={{ position: 'absolute', left: '1rem', color: '#6b7280', background: 'none', border: 'none', cursor: 'pointer' }}>
-                    <span className="material-icons-round" style={{ fontSize: '1.5rem' }}>arrow_back</span>
-                </button>
-                <h1 className="mobile-title">MTZ Ouroborus AI</h1>
-                <p className="mobile-subtitle">Tu asistente virtual de MTZ</p>
-            </header>
-
-            <div className="mobile-scroll-content">
+            {/* Header removed */}
+            <div className="mobile-scroll-content" style={{ paddingTop: '1.5rem' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: '0.5rem', marginBottom: '1.5rem' }}>
                     <div className="profile-avatar-container">
                         <span className="material-icons-round profile-avatar-icon">person</span>
-                        <div style={{ position: 'absolute', bottom: 0, right: 0, backgroundColor: 'var(--neon-blue)', color: 'white', padding: '0.375rem', borderRadius: '50%', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)', border: '2px solid #050b14', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <div 
+                            style={{ position: 'absolute', bottom: 0, right: 0, backgroundColor: 'var(--neon-blue)', color: 'white', padding: '0.375rem', borderRadius: '50%', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)', border: '2px solid #050b14', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                            onClick={handleEditProfile}
+                        >
                             <span className="material-icons-round" style={{ fontSize: '0.875rem' }}>edit</span>
                         </div>
                     </div>
@@ -87,7 +127,9 @@ const MobileProfile: React.FC = () => {
                                 <label style={{ display: 'block', fontSize: '0.625rem', color: '#6b7280', fontWeight: 500, textTransform: 'uppercase' }}>Nombre / Empresa</label>
                                 <input style={{ background: 'transparent', border: 'none', padding: 0, width: '100%', fontSize: '0.875rem', color: '#e5e7eb', outline: 'none' }} type="text" value={displayName} readOnly />
                             </div>
-                            <span className="material-icons-round" style={{ color: 'var(--neon-blue)', fontSize: '1.125rem' }}>edit</span>
+                            <button onClick={handleEditProfile} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                                <span className="material-icons-round" style={{ color: 'var(--neon-blue)', fontSize: '1.125rem' }}>edit</span>
+                            </button>
                         </div>
                         <div style={{ padding: '1rem', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                             <span className="material-icons-round" style={{ color: '#6b7280' }}>phone</span>
@@ -109,7 +151,10 @@ const MobileProfile: React.FC = () => {
                 <div style={{ marginBottom: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                     <h3 className="section-title">Configuración</h3>
                     <div style={{ backgroundColor: '#111118', borderRadius: '1rem', border: '1px solid var(--border-color)', overflow: 'hidden' }}>
-                        <button style={{ width: '100%', padding: '1rem', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'transparent', border: 'none', borderBottomWidth: '1px', cursor: 'pointer', textAlign: 'left' }}>
+                        <button 
+                            onClick={handleNotifications}
+                            style={{ width: '100%', padding: '1rem', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'transparent', border: 'none', borderBottomWidth: '1px', cursor: 'pointer', textAlign: 'left' }}
+                        >
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                                 <div style={{ padding: '0.5rem', borderRadius: '0.5rem', backgroundColor: '#050b14', color: '#6b7280', display: 'flex' }}>
                                     <span className="material-icons-round" style={{ fontSize: '1.125rem' }}>notifications</span>
@@ -120,7 +165,10 @@ const MobileProfile: React.FC = () => {
                                 <div style={{ position: 'absolute', right: '0.25rem', top: '0.25rem', width: '1rem', height: '1rem', backgroundColor: 'white', borderRadius: '50%' }}></div>
                             </div>
                         </button>
-                        <button style={{ width: '100%', padding: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
+                        <button 
+                            onClick={handleSecurity}
+                            style={{ width: '100%', padding: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' }}
+                        >
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                                 <div style={{ padding: '0.5rem', borderRadius: '0.5rem', backgroundColor: '#050b14', color: '#6b7280', display: 'flex' }}>
                                     <span className="material-icons-round" style={{ fontSize: '1.125rem' }}>lock</span>

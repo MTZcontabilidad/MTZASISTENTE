@@ -1,23 +1,74 @@
-import React from 'react';
+import React, { useState } from 'react';
 import './Mobile.css';
 
 const MobileMeetings: React.FC = () => {
-    return (
-        <div className="mobile-view-container">
-            <header className="mobile-header">
-                <h1 className="mobile-title">MTZ Ouroborus AI</h1>
-                <p className="mobile-subtitle">Tu asistente virtual de MTZ</p>
-            </header>
+    const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-            <div className="mobile-scroll-content">
+    const showToast = (msg: string) => {
+        setToastMessage(msg);
+        setTimeout(() => setToastMessage(null), 3000);
+    };
+
+    const handleJoinMeeting = (meetingTitle: string) => {
+        showToast(`Uniéndose a ${meetingTitle}...`);
+        // Simulate redirect
+        setTimeout(() => {
+            window.location.href = "https://meet.google.com"; // Example redirect
+        }, 1500);
+    };
+
+    const handleSchedule = () => {
+        showToast("Abriendo calendario de reservas...");
+    };
+
+    const handleCalendarNav = (direction: 'next' | 'prev') => {
+        showToast(`Navegando al ${direction === 'next' ? 'siguiente' : 'anterior'} mes...`);
+    };
+
+    const handleDayClick = (day: string) => {
+        showToast(`Cargando eventos del ${day}...`);
+    };
+
+    return (
+        <div className="mobile-view-container relative">
+            {toastMessage && (
+                <div style={{
+                    position: 'absolute',
+                    top: '1rem',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    backgroundColor: 'rgba(59, 130, 246, 0.9)',
+                    color: 'white',
+                    padding: '0.75rem 1.5rem',
+                    borderRadius: '2rem',
+                    zIndex: 100,
+                    fontSize: '0.875rem',
+                    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                    whiteSpace: 'nowrap',
+                    backdropFilter: 'blur(4px)'
+                }}>
+                    {toastMessage}
+                </div>
+            )}
+
+            {/* Header removed */}
+            <div className="mobile-scroll-content" style={{ paddingTop: '1.5rem' }}>
                 <div style={{ marginBottom: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 0.25rem' }}>
                         <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'white' }}>Octubre 2023</h2>
                         <div style={{ display: 'flex', gap: '0.5rem' }}>
-                            <button className="mobile-icon-btn" style={{ padding: '0.25rem', background: 'transparent' }}>
+                            <button 
+                                className="mobile-icon-btn" 
+                                style={{ padding: '0.25rem', background: 'transparent' }}
+                                onClick={() => handleCalendarNav('prev')}
+                            >
                                 <span className="material-icons-round">chevron_left</span>
                             </button>
-                            <button className="mobile-icon-btn" style={{ padding: '0.25rem', background: 'transparent' }}>
+                            <button 
+                                className="mobile-icon-btn" 
+                                style={{ padding: '0.25rem', background: 'transparent' }}
+                                onClick={() => handleCalendarNav('next')}
+                            >
                                 <span className="material-icons-round">chevron_right</span>
                             </button>
                         </div>
@@ -26,11 +77,11 @@ const MobileMeetings: React.FC = () => {
                     {/* Calendar Strip */}
                     <div className="calendar-strip">
                          {/* Static Day Items for Demo */}
-                        <div className="calendar-day-item">
+                        <div className="calendar-day-item" onClick={() => handleDayClick('Lunes 23')}>
                             <span className="day-name">LUN</span>
                             <span className="day-number">23</span>
                         </div>
-                        <div className="calendar-day-item">
+                        <div className="calendar-day-item" onClick={() => handleDayClick('Martes 24')}>
                             <span className="day-name">MAR</span>
                             <span className="day-number">24</span>
                         </div>
@@ -38,11 +89,11 @@ const MobileMeetings: React.FC = () => {
                             <span className="day-name">MIE</span>
                             <span className="day-number">25</span>
                         </div>
-                         <div className="calendar-day-item">
+                         <div className="calendar-day-item" onClick={() => handleDayClick('Jueves 26')}>
                             <span className="day-name">JUE</span>
                             <span className="day-number">26</span>
                         </div>
-                        <div className="calendar-day-item">
+                        <div className="calendar-day-item" onClick={() => handleDayClick('Viernes 27')}>
                             <span className="day-name">VIE</span>
                             <span className="day-number">27</span>
                         </div>
@@ -75,7 +126,10 @@ const MobileMeetings: React.FC = () => {
                                 </p>
                             </div>
 
-                            <button className="mobile-btn-primary">
+                            <button 
+                                className="mobile-btn-primary"
+                                onClick={() => handleJoinMeeting('Revisión KPIs')}
+                            >
                                 <span className="material-icons-round" style={{ fontSize: '1.125rem' }}>videocam</span>
                                 Unirse
                             </button>
@@ -87,7 +141,7 @@ const MobileMeetings: React.FC = () => {
                     <h3 className="section-title">Resto del día</h3>
                     
                     {/* Event Item */}
-                    <div className="mobile-card" style={{ display: 'flex', gap: '1rem', alignItems: 'center', padding: '1rem' }}>
+                    <div className="mobile-card" style={{ display: 'flex', gap: '1rem', alignItems: 'center', padding: '1rem' }} onClick={() => showToast('Detalles: Almuerzo de Equipo')}>
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '3.5rem' }}>
                             <span style={{ fontSize: '0.75rem', color: '#9ca3af', fontWeight: 500 }}>13:00</span>
                             <span style={{ fontSize: '0.625rem', color: '#4b5563' }}>PM</span>
@@ -103,7 +157,7 @@ const MobileMeetings: React.FC = () => {
                     </div>
 
                     {/* Event Item */}
-                    <div className="mobile-card" style={{ display: 'flex', gap: '1rem', alignItems: 'center', padding: '1rem' }}>
+                    <div className="mobile-card" style={{ display: 'flex', gap: '1rem', alignItems: 'center', padding: '1rem' }} onClick={() => showToast('Detalles: Brainstorming')}>
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '3.5rem' }}>
                             <span style={{ fontSize: '0.75rem', color: '#9ca3af', fontWeight: 500 }}>15:30</span>
                             <span style={{ fontSize: '0.625rem', color: '#4b5563' }}>PM</span>
@@ -123,7 +177,10 @@ const MobileMeetings: React.FC = () => {
 
              {/* Floating Action Button */}
              <div style={{ position: 'fixed', bottom: '80px', right: '1.25rem', zIndex: 30 }}>
-                <button style={{ width: '3.5rem', height: '3.5rem', backgroundColor: 'var(--neon-blue)', borderRadius: '50%', boxShadow: '0 0 20px rgba(0, 180, 216, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', border: '1px solid rgba(255,255,255,0.2)', cursor: 'pointer' }}>
+                <button 
+                    onClick={handleSchedule}
+                    style={{ width: '3.5rem', height: '3.5rem', backgroundColor: 'var(--neon-blue)', borderRadius: '50%', boxShadow: '0 0 20px rgba(0, 180, 216, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', border: '1px solid rgba(255,255,255,0.2)', cursor: 'pointer' }}
+                >
                     <span className="material-icons-round" style={{ fontSize: '1.875rem' }}>add</span>
                 </button>
             </div>

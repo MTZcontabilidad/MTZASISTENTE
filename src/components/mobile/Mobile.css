@@ -622,3 +622,13 @@
   font-size: 24px; 
 }
 
+/* Chat Overlap Fix */
+.mobile-content.chat-view {
+  padding-bottom: 160px; /* Nav (65) + Input (~80) + buffer */
+}
+
+/* Header Tweaks to save space if needed */
+.mobile-header.compact {
+  padding: 1rem;
+}
+
