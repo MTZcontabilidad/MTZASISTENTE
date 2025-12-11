@@ -2,17 +2,6 @@ import React, { useState } from 'react';
 import './Mobile.css';
 import { supabase } from '../../lib/supabase';
 
-// Helper to show toasts (duplicated from other mobile components for self-containment)
-// In a real app we'd use a context.
-const MobileAdmin: React.FC = () => {
-    const [toastMessage, setToastMessage] = useState<string | null>(null);
-
-    const showToast = (msg: string) => {
-        setToastMessage(msg);
-        setTimeout(() => setToastMessage(null), 3000);
-    };
-
-// Sub-components for views (Mock Data)
 const UsersView: React.FC<{ onBack: () => void }> = ({ onBack }) => (
     <div className="animate-slide-in">
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: '1.5rem', gap: '1rem' }}>
@@ -128,21 +117,50 @@ const MobileAdmin: React.FC = () => {
                     <>
                         <div style={{ textAlign: 'center', marginBottom: '1.5rem' }} className="animate-slide-in">
                             <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'white' }}>Panel de Administración</h2>
-                            <p style={{ fontSize: '0.875rem', color: '#9ca3af' }}>Gestión rápida móvil</p>
+                            <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>Gestión centralizada</p>
                         </div>
-
-                        <div className="grid-2 animate-slide-in" style={{ animationDelay: '0.1s' }}>
+                        
+                        <div className="admin-grid animate-slide-in" style={{ 
+                            display: 'grid', 
+                            gridTemplateColumns: 'repeat(2, 1fr)', 
+                            gap: '0.75rem',
+                            animationDelay: '0.1s' 
+                        }}>
                             {adminModules.map((module) => (
                                 <button 
                                     key={module.id}
-                                    className="mobile-card premium-card"
-                                    style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '1.5rem', gap: '0.75rem', textAlign: 'center', cursor: 'pointer' }}
+                                    className="premium-card"
+                                    style={{ 
+                                        padding: '1rem', 
+                                        display: 'flex', 
+                                        flexDirection: 'column', 
+                                        alignItems: 'center', 
+                                        textAlign: 'center',
+                                        gap: '0.75rem',
+                                        borderRadius: '1rem',
+                                        background: 'rgba(30, 41, 59, 0.6)'
+                                    }}
                                     onClick={() => handleModuleClick(module)}
                                 >
-                                    <div style={{ width: '3rem', height: '3rem', borderRadius: '50%', backgroundColor: 'rgba(59, 130, 246, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: module.color, border: `1px solid ${module.color}`, boxShadow: `0 0 10px ${module.color}30` }}>
+                                    <div style={{ 
+                                        padding: '0.75rem', 
+                                        borderRadius: '0.75rem', 
+                                        backgroundColor: `rgba(${
+                                            module.color === 'blue' ? '59, 130, 246' : 
+                                            module.color === 'purple' ? '168, 85, 247' : 
+                                            module.color === 'green' ? '34, 197, 94' : 
+                                            module.color === 'orange' ? '249, 115, 22' : 
+                                            module.color === 'red' ? '239, 68, 68' : '107, 114, 128'
+                                        }, 0.1)`, 
+                                        color: module.color === 'blue' ? '#60a5fa' : 
+                                               module.color === 'purple' ? '#c084fc' : 
+                                               module.color === 'green' ? '#4ade80' : 
+                                               module.color === 'orange' ? '#fb923c' : 
+                                               module.color === 'red' ? '#f87171' : '#9ca3af'
+                                    }}>
                                         <span className="material-icons-round" style={{ fontSize: '1.5rem' }}>{module.icon}</span>
                                     </div>
-                                    <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#f3f4f6' }}>{module.label}</span>
+                                    <span style={{ fontSize: '0.875rem', fontWeight: 500, color: '#e5e7eb' }}>{module.label}</span>
                                 </button>
                             ))}
                         </div>
