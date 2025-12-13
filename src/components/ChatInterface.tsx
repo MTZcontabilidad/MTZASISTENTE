@@ -9,10 +9,8 @@ import {
 } from "../lib/conversations";
 import { getUserMemories, createMemory } from "../lib/memories";
 import {
-  generateResponse,
   detectImportantInfo,
-  type ResponseWithMenu,
-} from "../lib/responseEngine";
+} from "../lib/chatUtils";
 import { handleChat, ChatState, getInitialChatState } from "../lib/chatbot/chatEngine";
 import { markdownToHtml, hasMarkdown } from "../lib/markdown";
 import { Message, UserType, UserRole, Conversation } from "../types";
@@ -636,7 +634,7 @@ function ChatInterface({}: ChatInterfaceProps = {}) {
       }
       
       // Detectar y guardar información del cliente (RUT, giro, etc.)
-      const { detectAndSaveClientInfo } = await import("../lib/responseEngine");
+      const { detectAndSaveClientInfo } = await import("../lib/chatUtils");
       await detectAndSaveClientInfo(user.id, currentInput);
 
       // Verificar si se canceló la operación

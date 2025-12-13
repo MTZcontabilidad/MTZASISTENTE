@@ -10,7 +10,7 @@ import './App.css'
 import type { UserRole, UserType } from './types'
 
 function AppContent() {
-  const { user, loading, isAdmin, devMode, setDevMode, refreshProfile } = useAuth()
+  const { user, loading, isAdmin, devMode, setDevMode, refreshProfile, setUser } = useAuth()
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768)
   const [showNormalAuth, setShowNormalAuth] = useState(false)
   const [welcomeCompleted, setWelcomeCompleted] = useState(false)
@@ -40,11 +40,26 @@ function AppContent() {
           return (
             <DevModeSelector 
                 onSelectRole={(role: UserRole, userType?: UserType) => {
-                    if (role === 'admin' || role === 'cliente') setShowNormalAuth(true);
-                    else {
-                        // Invitado/Inclusion logic for dev mode (mock login?)
-                        // For now just show normal auth to login
-                        setShowNormalAuth(true);
+                    if (role === 'admin') {
+                        // Mock Admin Login
+                        setUser({
+                            id: 'dev-admin',
+                            email: 'admin@dev.local',
+                            role: 'admin',
+                            user_type: 'invitado'
+                        });
+                        setDevMode(true);
+                    } else if (role === 'cliente') {
+                        setShowNormalAuth(true); // Clients test normal auth for now
+                    } else {
+                        // Guest/Inclusion mock
+                        setUser({
+                             id: 'dev-user',
+                             email: 'dev@local.com',
+                             role: role,
+                             user_type: userType || 'invitado'
+                        });
+                        setDevMode(true);
                     }
                 }}
                 onStartNormalAuth={() => setShowNormalAuth(true)}
@@ -55,7 +70,7 @@ function AppContent() {
   }
 
   // Mobile View
-  if (isMobile && !devMode) {
+  if (isMobile) {
     return <MobileLayout user={user} />
   }
 

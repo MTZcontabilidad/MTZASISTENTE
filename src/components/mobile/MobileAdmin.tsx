@@ -92,11 +92,10 @@ const UsersView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
             </div>
 
             <div style={{ padding: '0 1rem 1rem' }}>
-                <div className="mobile-input-group search-bar-modern" style={{ margin: '1rem 0' }}>
-                    <span className="mobile-input-icon material-icons-round">search</span>
+                <div className="mobile-input-group glass-input-wrapper mb-4 flex items-center px-3 border border-white/10 rounded-xl" style={{ margin: '1rem 0' }}>
+                    <span className="material-icons-round text-gray-400 mr-2">search</span>
                     <input 
-                        className="mobile-input" 
-                        style={{ background: 'transparent', border: 'none' }}
+                        className="bg-transparent border-none w-full text-sm text-white outline-none placeholder-gray-500 py-2" 
                         placeholder="Buscar por nombre o email..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
@@ -399,7 +398,7 @@ const MobileAdmin: React.FC = () => {
     };
 
     return (
-        <div className="mobile-view-container bg-slate-900">
+        <div className="mobile-view-container">
             {toastMessage && (
                 <div style={{ position: 'fixed', top: '1rem', left: '50%', transform: 'translateX(-50%)', zIndex: 200 }} className="status-badge neutral animate-fade-in shadow-lg backdrop-blur-md">
                     {toastMessage}

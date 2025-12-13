@@ -174,7 +174,7 @@ function normalizeInput(str: string): string {
 }
 
 function isGlobalCommand(input: string): boolean {
-  return ['cancelar', 'salir', 'menu', 'inicio', 'volver', 'ayuda', 'hola'].includes(input);
+  return ['cancelar', 'salir', 'menu', 'inicio', 'volver', 'ayuda'].includes(input);
 }
 
 function handleGlobalCommand(input: string, userRole: string, userName?: string): ChatResponse {
@@ -197,8 +197,9 @@ function handleMenuRequest(menuId: string, userName?: string): ChatResponse {
     label: `${i + 1}. ${opt.label}` // "1. Opción"
   }));
 
+  const safeName = (userName && userName !== 'undefined') ? userName : 'Usuario';
   return {
-    text: menu.text.replace('[Nombre]', userName || 'Usuario'),
+    text: menu.text.replace('[Nombre]', safeName),
     show_menu: true,
     options: numberedOptions,
     nextState: { 
@@ -236,17 +237,20 @@ async function generateAIResponse(
     ]);
     const aiProfile = extendedInfo?.ai_profile || { tone: 'neutral' };
 
+    const safeName = (userName && userName !== 'undefined') ? userName : 'Usuario';
     const systemPrompt = `
     Eres Arise, asistente de MTZ.
     
-    USUARIO: ${userName || 'Usuario'} | ROL: ${userRole}
+    USUARIO: ${safeName} | ROL: ${userRole}
     ESTADO ACTUAL: ${JSON.stringify(currentState)}
     
     OBJETIVO:
-    1. Responder la duda del usuario de forma útil y concisa (max 2 párrafos).
+    1. Responder la duda del usuario de forma útil, empática y concisa (max 2 párrafos).
     2. SIEMPRE SUGERIR UN MENÚ VISUAL ("menu_suggestion") que tenga sentido con la respuesta.
        - IDs Disponibles: invitado_root, invitado_cotizar, cliente_root, cliente_docs, inclusion_workshop, inclusion_transport.
     3. Si el usuario intenta hacer algo que requiere un Agente (como "Agendar Traslado"), indícalo.
+    
+    IMPORTANTE: Nunca te dirijas al usuario como "undefined". Si no tienes nombre, usa un saludo genérico o "Usuario".
 
     FORMATO JSON:
     {

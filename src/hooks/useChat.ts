@@ -8,7 +8,8 @@ import {
   clearConversation,
 } from "../lib/conversations";
 import { getUserMemories, createMemory } from "../lib/memories";
-import { detectImportantInfo, type ResponseWithMenu } from "../lib/responseEngine";
+import { detectImportantInfo } from "../lib/chatUtils";
+
 import { handleChat, ChatState, getInitialChatState } from "../lib/chatbot/chatEngine";
 import { Message, UserType, UserRole } from "../types";
 // We don't import specific UI components like VoiceControls here, but we manage the state they need.
@@ -49,12 +50,14 @@ export function useChat() {
 
   // Load Conversation & User
   useEffect(() => {
+    console.log('[DEBUG] useChat useEffect started');
     let mounted = true;
     let isCancelled = false;
     setLoading(false);
     setInput("");
 
     const loadConversation = async () => {
+      console.log('[DEBUG] loadConversation function started');
       try {
         if (!mounted || isCancelled) return;
         setLoadingHistory(true);
@@ -118,9 +121,12 @@ export function useChat() {
         }
 
         // 3. Get Active Conversation
+        console.log('[DEBUG] Getting active conversation for user:', user.id);
         const activeConvId = await getActiveConversation(user.id);
+        console.log('[DEBUG] Active conversation ID:', activeConvId);
         if (!mounted || isCancelled) return;
         setConversationId(activeConvId);
+        console.log('[DEBUG] Conversation ID set to:', activeConvId);
 
         // 4. Load Messages with Summaries
         const { getOptimizedConversationMessages, shouldCreateSummary, createConversationSummary } = await import("../lib/conversationSummaries");
@@ -269,8 +275,12 @@ export function useChat() {
   };
 
   const handleSend = useCallback(async (customMessage?: string) => {
+    console.log('[DEBUG] handleSend called', { customMessage, input, loading, loadingHistory, conversationId });
     const messageToSend = customMessage || input.trim();
-    if (!messageToSend || loading || loadingHistory || !conversationId) return;
+    if (!messageToSend || loading || loadingHistory) {
+      console.log('[DEBUG] handleSend early return (no message or loading)', { messageToSend, loading, loadingHistory });
+      return;
+    }
 
     let user = null;
     try { const { data } = await supabase.auth.getUser(); user = data.user; } catch(e) {}
@@ -278,7 +288,22 @@ export function useChat() {
         const cached = sessionCache.get();
         if (cached && cached.id) user = { id: cached.id, email: cached.email || '' } as any;
     }
-    if (!user) return;
+    if (!user) {
+      console.log('[DEBUG] No user found');
+      return;
+    }
+    console.log('[DEBUG] User found:', user.id);
+
+    // Fallback: Si conversationId es null, crear uno temporal
+    let activeConvId = conversationId;
+    if (!activeConvId) {
+      console.log('[DEBUG] conversationId is null, creating temporary conversation');
+      activeConvId = await getActiveConversation(user.id);
+      setConversationId(activeConvId);
+      console.log('[DEBUG] Created temporary conversationId:', activeConvId);
+    }
+
+
 
     if (!customMessage) setInput("");
     const controller = new AbortController();
@@ -286,17 +311,17 @@ export function useChat() {
     setLoading(true);
 
     try {
-        const userMsg = await createMessage(conversationId, user.id, messageToSend, "user");
+        const userMsg = await createMessage(activeConvId, user.id, messageToSend, "user");
         if (userMsg) {
             setMessages(prev => [...prev, { ...userMsg, timestamp: new Date(userMsg.created_at) }]);
         }
 
         const importantInfo = detectImportantInfo(messageToSend);
         if (importantInfo.shouldSave && importantInfo.type) {
-            await createMemory(user.id, conversationId, importantInfo.type, messageToSend, importantInfo.type === "important_info" ? 7 : 5);
+            await createMemory(user.id, activeConvId, importantInfo.type, messageToSend, importantInfo.type === "important_info" ? 7 : 5);
         }
         
-        const { detectAndSaveClientInfo } = await import("../lib/responseEngine");
+        const { detectAndSaveClientInfo } = await import("../lib/chatUtils");
         await detectAndSaveClientInfo(user.id, messageToSend);
 
         if (controller.signal.aborted) return;
@@ -316,7 +341,7 @@ export function useChat() {
             responseMenu = { type: 'options', title: 'Acciones sugeridas:', options: assistantResponse.options };
         }
 
-        const assistantMsg = await createMessage(conversationId, user.id, assistantResponse.text, "assistant");
+        const assistantMsg = await createMessage(activeConvId, user.id, assistantResponse.text, "assistant");
         if (assistantMsg) {
              const newMessage = { ...assistantMsg, timestamp: new Date(assistantMsg.created_at), menu: responseMenu };
              setMessages(prev => [...prev, newMessage]);
@@ -327,7 +352,7 @@ export function useChat() {
         if (!controller.signal.aborted) {
             console.error("HandleSend Error:", error);
             setMessages(prev => [...prev, {
-                id: Date.now().toString(), conversation_id: conversationId,
+                id: Date.now().toString(), conversation_id: activeConvId,
                 text: "Lo siento, hubo un error. Por favor intenta de nuevo.",
                 sender: "assistant", user_id: user.id, created_at: new Date().toISOString(), timestamp: new Date()
             }]);

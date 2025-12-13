@@ -44,7 +44,7 @@ const MobileLayout: React.FC<MobileLayoutProps> = ({ user }) => {
     };
 
     return (
-        <div className="mobile-layout">
+        <div id="mobile-app-root" className="mobile-layout">
             {renderContent()}
             
             <nav className="mobile-nav">

@@ -5,19 +5,40 @@
 }
 
 :root {
-  --bg-primary: #0a0a0f;
-  --bg-secondary: #111118;
-  --bg-tertiary: #1a1a24;
+  /* Core Brand Colors */
   --neon-blue: #00d4ff;
   --neon-blue-dark: #0099cc;
   --neon-blue-light: #33ddff;
+  
+  /* Backgrounds */
+  --bg-primary: #0a0a0f;
+  --bg-secondary: #111118;
+  --bg-tertiary: #1a1a24;
+  --mobile-bg-gradient: linear-gradient(to bottom, #0f172a, #020617);
+
+  /* Text */
   --text-primary: #e0e0e0;
   --text-secondary: #a0a0a0;
+  
+  /* Borders & Shadows */
   --border-color: #1e1e2e;
   --shadow-neon: 0 0 10px rgba(0, 212, 255, 0.3),
     0 0 20px rgba(0, 212, 255, 0.2);
   --shadow-neon-strong: 0 0 15px rgba(0, 212, 255, 0.5),
     0 0 30px rgba(0, 212, 255, 0.3);
+
+  /* Glassmorphism System Tokens */
+  --glass-bg: rgba(30, 41, 59, 0.6);
+  --glass-bg-heavy: rgba(15, 23, 42, 0.9);
+  --glass-border: rgba(0, 212, 255, 0.1);
+  --glass-border-active: rgba(0, 212, 255, 0.3);
+  --glass-blur: 12px;
+  --glass-blur-sm: 4px;
+
+  /* Premium Theme Tokens */
+  --premium-gradient: linear-gradient(135deg, rgba(30,41,59,0.9), rgba(15,23,42,0.95));
+  --premium-card-bg: var(--glass-bg);
+  --premium-border: 1px solid var(--glass-border);
 }
 
 body {
@@ -185,4 +206,25 @@ body::before {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.25rem;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.text-gradient {
+  background: linear-gradient(to right, #60a5fa, #00d4ff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }

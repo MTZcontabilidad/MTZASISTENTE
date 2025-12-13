@@ -50,19 +50,13 @@ class TextToSpeechService {
       
       if (isSpanish) {
         // En lugar de advertencia, solo log informativo
-        console.log('ℹ️ Voz española detectada en loadVoices. Se intentará buscar una latina, pero se permitirá si no hay otra.');
+
         // No forzamos cambio inmediato aquí, dejamos que selectBestVoice decida
       }
     }
     
     // Log de todas las voces disponibles para depuración
-    console.log('📢 Voces disponibles:', this.availableVoices.map(v => ({
-      name: v.name,
-      lang: v.lang,
-      local: v.localService,
-      isChile: v.lang.startsWith("es-CL"),
-      isSpain: v.lang.startsWith("es-ES")
-    })));
+
   }
 
   /**
@@ -86,12 +80,12 @@ class TextToSpeechService {
       const localChileVoice = chileVoices.find(v => v.localService);
       if (localChileVoice) {
         this.preferredVoice = localChileVoice;
-        console.log('✅ Voz chilena seleccionada (local):', localChileVoice.name, localChileVoice.lang);
+
         return;
       }
       // Cualquier voz de Chile
       this.preferredVoice = chileVoices[0];
-      console.log('✅ Voz chilena seleccionada:', this.preferredVoice.name, this.preferredVoice.lang);
+
       return;
     }
 
@@ -126,7 +120,6 @@ class TextToSpeechService {
       }
       // Cualquier voz latinoamericana
       this.preferredVoice = latinAmericanVoices[0];
-      console.log('✅ Voz latinoamericana seleccionada:', this.preferredVoice.name, this.preferredVoice.lang);
       return;
     }
 
@@ -230,7 +223,7 @@ class TextToSpeechService {
       }
       // Permitimos cualquier voz en español como último recurso
       this.preferredVoice = anyVoice;
-      console.log('⚠️ Fallback: Usando voz disponible (posiblemente España):', anyVoice.name);
+
       return;
     }
 
@@ -436,12 +429,7 @@ class TextToSpeechService {
       
       utterance.voice = selectedVoice;
       
-      // Log final para depuración
-      if (selectedVoice) {
-        console.log('🎤 Voz final seleccionada:', selectedVoice.name, selectedVoice.lang, 
-                   selectedVoice.lang.startsWith("es-CL") ? "✅ CHILENA" : 
-                   selectedVoice.lang.startsWith("es-ES") ? "❌ ESPAÑOLA" : "⚠️ LATINOAMERICANA");
-      }
+
 
       // Eventos
       utterance.onend = () => {
