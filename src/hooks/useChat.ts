@@ -12,7 +12,7 @@ import { detectImportantInfo, type ResponseWithMenu } from "../lib/responseEngin
 import { handleChat, ChatState, getInitialChatState } from "../lib/chatbot/chatEngine";
 import { Message, UserType, UserRole } from "../types";
 // We don't import specific UI components like VoiceControls here, but we manage the state they need.
-import { useTextToSpeech } from "../lib/textToSpeech";
+import { useTextToSpeech, type TTSOptions } from "../lib/textToSpeech";
 
 export interface MessageWithMenu extends Message {
   menu?: any;
@@ -254,10 +254,13 @@ export function useChat() {
       : `¡Hola! Soy Arise, tu asistente de MTZ. ¿En qué te ayudo?`;
     
     try {
-        let options: any = { rate: 1.1, pitch: 1.1, volume: 1.0, useGemini: false };
+        let options: TTSOptions = { rate: 1.1, pitch: 1.1, volume: 1.0, useGemini: false };
         try {
             const saved = localStorage.getItem('voiceSettings');
-            if (saved) options = { ...options, ...JSON.parse(saved) };
+            if (saved) {
+                const parsed = JSON.parse(saved as string);
+                options = { ...options, ...parsed };
+            }
         } catch(e) {}
         
         await tts.speak(audioText, options);

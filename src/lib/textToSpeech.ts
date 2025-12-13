@@ -6,7 +6,7 @@
 import { useState, useCallback } from "react";
 import { speakWithGemini } from "./geminiTTS";
 
-interface TTSOptions {
+export interface TTSOptions {
   rate?: number; // Velocidad de habla (0.1 a 10, default: 1)
   pitch?: number; // Tono de voz (0 a 2, default: 1)
   volume?: number; // Volumen (0 a 1, default: 1)
