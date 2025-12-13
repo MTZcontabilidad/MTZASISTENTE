@@ -49,8 +49,9 @@ class TextToSpeechService {
                        this.preferredVoice.name.toLowerCase().includes("españa");
       
       if (isSpanish) {
-        console.warn('⚠️ Voz española detectada en loadVoices, forzando voz chilena...');
-        this.forceChileanVoice();
+        // En lugar de advertencia, solo log informativo
+        console.log('ℹ️ Voz española detectada en loadVoices. Se intentará buscar una latina, pero se permitirá si no hay otra.');
+        // No forzamos cambio inmediato aquí, dejamos que selectBestVoice decida
       }
     }
     
@@ -227,7 +228,9 @@ class TextToSpeechService {
       if (anyVoice.lang.startsWith("es-ES")) {
         console.warn('⚠️ ADVERTENCIA: Solo se encontraron voces de España. Se recomienda instalar voces latinoamericanas.');
       }
+      // Permitimos cualquier voz en español como último recurso
       this.preferredVoice = anyVoice;
+      console.log('⚠️ Fallback: Usando voz disponible (posiblemente España):', anyVoice.name);
       return;
     }
 
@@ -283,7 +286,14 @@ class TextToSpeechService {
       this.preferredVoice = nonSpanishVoice;
       console.log('✅ Voz no-española forzada:', nonSpanishVoice.name, nonSpanishVoice.lang);
     } else {
-      console.error('❌ No se encontró ninguna voz latinoamericana disponible');
+      console.warn('⚠️ No se encontró voz latinoamericana. Usando cualquier voz en español disponible.');
+      const anySpanish = this.availableVoices.find(v => v.lang.startsWith("es"));
+      if (anySpanish) {
+          this.preferredVoice = anySpanish;
+          console.log('✅ Fallback final a:', anySpanish.name);
+      } else {
+          console.error('❌ No se encontró NINGUNA voz en español.');
+      }
     }
   }
 
@@ -388,7 +398,7 @@ class TextToSpeechService {
                          selectedVoice.name.toLowerCase().includes("españa");
         
         if (isSpanish) {
-          console.warn('⚠️ Voz española detectada, buscando alternativa chilena/latinoamericana...');
+          console.log('⚠️ Voz española solicitada. Intentando mejorar...');
           // Buscar voz chilena
           const chileVoice = this.availableVoices.find(v => 
             v.lang.startsWith("es-CL") && !v.lang.startsWith("es-ES")
@@ -412,19 +422,9 @@ class TextToSpeechService {
               selectedVoice = latinVoice;
               console.log('✅ Voz latinoamericana forzada:', latinVoice.name, latinVoice.lang);
             } else {
-              // Último recurso: cualquier voz que NO sea España
-              const nonSpanishVoice = this.availableVoices.find(v => 
-                v.lang.startsWith("es") && 
-                !v.lang.startsWith("es-ES") &&
-                !v.name.toLowerCase().includes("spain") &&
-                !v.name.toLowerCase().includes("españa")
-              );
-              if (nonSpanishVoice) {
-                selectedVoice = nonSpanishVoice;
-                console.log('✅ Voz no-española forzada:', nonSpanishVoice.name, nonSpanishVoice.lang);
-              } else {
-                console.error('❌ No se encontró ninguna voz latinoamericana. Solo hay voces de España disponibles.');
-              }
+               // Si llegamos aqui, es porque NO hay voces latinas.
+               // PERMITIMOS la voz de España en lugar de fallar o buscar "nonSpanishVoice"
+               console.log('⚠️ No hay voces latinas. Manteniendo voz seleccionada (España) como fallback.');
             }
           }
         }

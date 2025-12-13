@@ -14,8 +14,15 @@ interface MobileLayoutProps {
 }
 
 const MobileLayout: React.FC<MobileLayoutProps> = ({ user }) => {
-    const [activeTab, setActiveTab] = useState<Tab>('chat');
+    const [activeTab, setActiveTab] = useState<Tab>(() => {
+        const saved = sessionStorage.getItem('mobile_active_tab');
+        return (saved as Tab) || 'chat';
+    });
     const isAdmin = user?.role === 'admin';
+
+    useEffect(() => {
+        sessionStorage.setItem('mobile_active_tab', activeTab);
+    }, [activeTab]);
 
     const renderContent = () => {
         switch (activeTab) {

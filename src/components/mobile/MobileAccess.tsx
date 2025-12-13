@@ -76,7 +76,7 @@ const MobileAccess: React.FC = () => {
                 </div>
             )}
 
-            <div className="mobile-scroll-content" style={{ paddingTop: '1.5rem' }}>
+            <div className="mobile-scroll-content">
                 <div className="mobile-input-group animate-slide-in" style={{ animationDelay: '0s' }}>
                     <span className="mobile-input-icon material-icons-round">search</span>
                     <input 

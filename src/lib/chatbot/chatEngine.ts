@@ -1,8 +1,10 @@
 import { supabase } from '../supabase';
-import { getGeminiApiKey } from '../geminiApiKey';
+// import { getGeminiApiKey } from '../geminiApiKey'; // Deprecated
+
 import { getOrCreateClientInfo } from '../clientInfo';
 import { getClientExtendedInfo } from '../clientExtendedInfo';
-import { generateResponse as generateAIResponseFn } from '../responseEngine';
+
+
 
 import { CHAT_TREES, MenuOption } from './chatTrees';
 
@@ -228,25 +230,6 @@ async function generateAIResponse(
   currentState: ChatState
 ): Promise<ChatResponse> {
   try {
-    const apiKey = await getGeminiApiKey();
-    if (!apiKey) {
-      // Fallback amigable si no hay API key (Modo Offline / Sin IA)
-      const rootMenuId = userRole === 'cliente' ? 'cliente_root' : 
-                         userRole === 'inclusion' ? 'inclusion_root' : 
-                         'invitado_root';
-      const rootMenuFallback = handleMenuRequest(rootMenuId, userName);
-      
-      return {
-        text: "No entendí lo que dijiste. 😅 Por favor selecciona una de las opciones del menú:",
-        show_menu: true,
-        options: rootMenuFallback.options,
-        nextState: {
-             ...currentState,
-             lastMenuId: rootMenuId 
-        }
-      };
-    }
-
     const [basicInfo, extendedInfo] = await Promise.all([
        getOrCreateClientInfo(userId),
        getClientExtendedInfo(userId)
@@ -272,24 +255,23 @@ async function generateAIResponse(
     }
     `;
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: `${systemPrompt}\n\nUser: "${message}"` }] }],
-          generationConfig: { temperature: 0.5 }
-        })
-      }
-    );
+    // Call Supabase Edge Function 'gemini-chat'
+    const { data: responseData, error } = await supabase.functions.invoke('gemini-chat', {
+        body: {
+            contents: [{ parts: [{ text: `${systemPrompt}\n\nUser: "${message}"` }] }],
+            generationConfig: { temperature: 0.5 },
+            model: "gemini-2.0-flash" // Usando modelo más rápido
+        }
+    });
 
-    if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(`API fail: ${response.status} - ${errText}`);
+    if (error) {
+        console.error('Error enviando mensaje a Edge Function:', error);
+        throw error;
     }
     
-    const data = await response.json();
+    const data = responseData;
+    console.log('Gemini API Success via Edge Function:', data);
+    
     let textRaw = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
     textRaw = textRaw.replace(/```json/g, '').replace(/```/g, '').trim();
     
@@ -311,15 +293,29 @@ async function generateAIResponse(
 
     return responseObj;
 
-  } catch (e) {
-    console.error("Gemini Error:", e);
+  } catch (e: any) {
+    const isQuotaError = e.message?.includes('429') || e.message?.includes('RESOURCE_EXHAUSTED') || e.message?.includes('quota');
+    
+    if (isQuotaError) {
+        console.warn("Gemini Quota Exceeded (429). Notify user without menu.");
+        return {
+             text: "⚠️ El sistema de IA está recibiendo muchas consultas en este momento (Límite de cuota gratuito). Por favor, intenta tu pregunta nuevamente en unos segundos.",
+             nextState: currentState,
+             show_menu: false 
+        };
+    } else {
+        console.error("Gemini Error:", e);
+    }
+    
     const rootMenuId = userRole === 'cliente' ? 'cliente_root' : 
                        userRole === 'inclusion' ? 'inclusion_root' : 
                        'invitado_root';
     const rootMenuFallback = handleMenuRequest(rootMenuId, userName);
 
+    const fallbackText = "Tuve un pequeño problema técnico. 🤕 ¿Podemos intentar con una de estas opciones?";
+
     return { 
-      text: "Tuve un pequeño problema técnico. 🤕 ¿Podemos intentar con una de estas opciones?", 
+      text: fallbackText, 
       nextState: currentState,
       show_menu: true,
       options: rootMenuFallback.options

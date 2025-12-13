@@ -46,14 +46,9 @@ export default function VoiceSettingsPanel() {
         }
         
         // Verificar si Gemini TTS está disponible
-        try {
-          const { getGeminiApiKey } = await import('../lib/geminiApiKey');
-          const apiKey = await getGeminiApiKey();
-          setGeminiAvailable(!!apiKey);
-        } catch (error) {
-          console.log('No se pudo verificar Gemini TTS:', error);
-          setGeminiAvailable(false);
-        }
+        // Verificar si Gemini TTS está disponible
+        // Con Edge Functions, asumimos disponibilidad (el backend maneja la API Key)
+        setGeminiAvailable(true);
       } catch (error) {
         console.error('Error cargando configuración de voz:', error);
       } finally {

@@ -4,7 +4,8 @@
  */
 
 import { supabase } from './supabase';
-import { getGeminiApiKey } from './geminiApiKey';
+// import { getGeminiApiKey } from './geminiApiKey'; // Deprecated
+
 
 interface GeminiAnalyzeOptions {
   url: string;
@@ -97,24 +98,9 @@ export async function generateWelcomeMessage(
   userRole?: string
 ): Promise<string> {
   try {
-    const apiKey = await getGeminiApiKey();
-    
     // Determinar si es invitado o cliente
     const isInvitado = userRole === 'invitado';
     
-    // Fallback específico por rol si no hay API key
-    if (!apiKey) {
-      if (isInvitado) {
-        return userName 
-          ? `¡Hola ${userName}! 👋 Soy Arise, tu asistente de MTZ. ¿Qué te trae por aquí hoy?`
-          : `¡Hola! 👋 Soy Arise, tu asistente de MTZ. ¿Qué te trae por aquí hoy?`;
-      } else {
-        return userName 
-          ? `¡Hola ${userName}! 👋 Soy Arise, tu asistente de MTZ. ¿En qué puedo ayudarte hoy?`
-          : `¡Hola! 👋 Soy Arise, tu asistente de MTZ. ¿En qué puedo ayudarte hoy?`;
-      }
-    }
-
     // Prompt diferente según el rol
     let prompt = '';
     
@@ -159,49 +145,29 @@ Ejemplo de estilo: "¡Hola ${userName || ''}! 👋 Soy Arise, tu asistente de MT
 Genera solo el mensaje, sin explicaciones adicionales.`;
     }
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
+    // Call Supabase Edge Function 'gemini-chat'
+    const { data: responseData, error: functionError } = await supabase.functions.invoke('gemini-chat', {
+        body: {
+            contents: [
                 {
-                  text: prompt,
-                },
-              ],
-            },
-          ],
-          generationConfig: {
-            temperature: 0.7,
-            topK: 40,
-            topP: 0.95,
-            maxOutputTokens: 150,
-          },
-        }),
-      }
-    );
+                    parts: [{ text: prompt }]
+                }
+            ],
+            generationConfig: {
+                temperature: 0.7,
+                topK: 40,
+                topP: 0.95,
+                maxOutputTokens: 150,
+            }
+        }
+    });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      console.warn('Error al generar mensaje de bienvenida con Gemini:', errorData);
-      // Fallback específico por rol
-      if (isInvitado) {
-        return userName 
-          ? `¡Hola ${userName}! 👋 Soy Arise, tu asistente de MTZ. ¿Qué te trae por aquí hoy?`
-          : `¡Hola! 👋 Soy Arise, tu asistente de MTZ. ¿Qué te trae por aquí hoy?`;
-      } else {
-        return userName 
-          ? `¡Hola ${userName}! 👋 Soy Arise, tu asistente de MTZ. ¿En qué puedo ayudarte hoy?`
-          : `¡Hola! 👋 Soy Arise, tu asistente de MTZ. ¿En qué puedo ayudarte hoy?`;
-      }
+    if (functionError) {
+      console.warn('Error al generar mensaje de bienvenida con Gemini Edge Function:', functionError);
+      throw functionError;
     }
 
-    const data = await response.json();
+    const data = responseData;
     
     if (data.candidates && data.candidates[0] && data.candidates[0].content) {
       let generatedText = data.candidates[0].content.parts[0].text.trim();
@@ -217,16 +183,9 @@ Genera solo el mensaje, sin explicaciones adicionales.`;
       return generatedText;
     }
 
-    // Fallback específico por rol si no hay respuesta válida
-    if (isInvitado) {
-      return userName 
-        ? `¡Hola ${userName}! 👋 Soy Arise, tu asistente de MTZ. ¿Qué te trae por aquí hoy?`
-        : `¡Hola! 👋 Soy Arise, tu asistente de MTZ. ¿Qué te trae por aquí hoy?`;
-    } else {
-      return userName 
-        ? `¡Hola ${userName}! 👋 Soy Arise, tu asistente de MTZ. ¿En qué puedo ayudarte hoy?`
-        : `¡Hola! 👋 Soy Arise, tu asistente de MTZ. ¿En qué puedo ayudarte hoy?`;
-    }
+    // Fallback si no hay respuesta válida
+    throw new Error('Respuesta inválida de Gemini Edge Function');
+    
   } catch (error) {
     console.error('Error al generar mensaje de bienvenida:', error);
     // Fallback específico por rol en caso de error
@@ -250,16 +209,6 @@ export async function analyzeSIILink(
   options: GeminiAnalyzeOptions
 ): Promise<GeminiResponse> {
   try {
-    const apiKey = await getGeminiApiKey();
-    
-    if (!apiKey) {
-      return {
-        text: '',
-        success: false,
-        error: 'No hay API key de Gemini configurada',
-      };
-    }
-
     const { url, question, context } = options;
 
     // Intentar obtener contenido web
@@ -300,41 +249,27 @@ IMPORTANTE - Sigue estas instrucciones:
       userPrompt += `\n\nNota: Si el contenido de la página es limitado, usa tu conocimiento sobre el proceso del F29 en Chile. El F29 es la declaración mensual de IVA que incluye: Débito Fiscal (ventas), Crédito Fiscal (compras), y PPM (Pagos Provisionales Mensuales).`;
     }
 
-    // Llamar a la API de Gemini
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{
-              text: `${systemPrompt}\n\n${userPrompt}`
-            }]
-          }],
-          generationConfig: {
-            temperature: 0.7,
-            topK: 40,
-            topP: 0.95,
-            maxOutputTokens: 2048,
-          },
-        }),
-      }
-    );
+    // Call Supabase Edge Function 'gemini-chat'
+    const { data: responseData, error: functionError } = await supabase.functions.invoke('gemini-chat', {
+        body: {
+            contents: [{
+                parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }]
+            }],
+            generationConfig: {
+                temperature: 0.7,
+                topK: 40,
+                topP: 0.95,
+                maxOutputTokens: 2048,
+            }
+        }
+    });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Error en Gemini API:', errorText);
-      return {
-        text: '',
-        success: false,
-        error: `Error al analizar el link: ${response.status}`,
-      };
+    if (functionError) {
+       console.error('Error en Gemini Edge Function:', functionError);
+       throw functionError;
     }
 
-    const data = await response.json();
+    const data = responseData;
     
     if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
       return {
@@ -412,9 +347,6 @@ export async function generateGeneralChatResponse(
   userRole?: string
 ): Promise<string | null> {
   try {
-    const apiKey = await getGeminiApiKey();
-    if (!apiKey) return null;
-
     const prompt = `Eres Arise, el asistente virtual de MTZ (Consultora Tributaria).
     
 Tu personalidad:
@@ -462,32 +394,27 @@ Respuesta:
 
 IMPORTANTE: Prioriza botones sobre explicaciones largas. NO uses markdown en el JSON.`;
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{
-              text: prompt
-            }]
-          }],
-          generationConfig: {
-            temperature: 0.7,
-            topK: 40,
-            topP: 0.95,
-            maxOutputTokens: 150,
-          },
-        }),
-      }
-    );
+    // Call Supabase Edge Function 'gemini-chat'
+    const { data: responseData, error: functionError } = await supabase.functions.invoke('gemini-chat', {
+        body: {
+            contents: [{
+                parts: [{ text: prompt }]
+            }],
+            generationConfig: {
+                temperature: 0.7,
+                topK: 40,
+                topP: 0.95,
+                maxOutputTokens: 150,
+            }
+        }
+    });
 
-    if (!response.ok) return null;
+    if (functionError) {
+        console.error('Error al generar respuesta general con Edge Function:', functionError);
+        return null;
+    }
 
-    const data = await response.json();
+    const data = responseData;
     if (data.candidates && data.candidates[0] && data.candidates[0].content) {
       return data.candidates[0].content.parts[0].text.trim();
     }

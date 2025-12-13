@@ -4,7 +4,6 @@
  */
 
 import {
-  responseTemplates,
   generateContextualMessages,
   replaceTemplateVariables,
   type ResponseContext,
@@ -72,46 +71,7 @@ export interface ResponseOptions {
 /**
  * Analiza el mensaje del usuario y encuentra la mejor plantilla de respuesta
  */
-function findBestTemplate(
-  userInput: string,
-  memories: UserMemory[],
-  options?: { requiresMemory?: { type?: string; minImportance?: number } }
-): (typeof responseTemplates)[0] | null {
-  const inputLower = userInput.toLowerCase();
 
-  // Filtrar plantillas que requieren memoria
-  let candidates = responseTemplates;
-
-  if (options?.requiresMemory) {
-    const { type, minImportance = 0 } = options.requiresMemory;
-
-    // Verificar si hay memoria que cumpla los requisitos
-    const hasRequiredMemory = memories.some((m) => {
-      if (type && m.memory_type !== type) return false;
-      if (m.importance < minImportance) return false;
-      return true;
-    });
-
-    if (!hasRequiredMemory) {
-      // Si requiere memoria pero no la hay, no usar esta plantilla
-      candidates = candidates.filter(
-        (t) => t !== candidates.find((c) => c.requiresMemory)
-      );
-    }
-  }
-
-  // Buscar plantillas que coincidan con triggers
-  const matchingTemplates = candidates
-    .filter((template) => {
-      if (template.triggers.length === 0) return true; // Plantilla genérica
-      return template.triggers.some((trigger) =>
-        inputLower.includes(trigger.toLowerCase())
-      );
-    })
-    .sort((a, b) => b.priority - a.priority); // Ordenar por prioridad
-
-  return matchingTemplates[0] || null;
-}
 
 /**
  * Construye el contexto para la respuesta
@@ -306,68 +266,15 @@ export async function generateResponse(
     // SEGUNDO: Detectar conversación general, saludos y preguntas fáticas (me escuchas, estás ahí)
     const inputLower = userInput.toLowerCase().trim();
 
-    // Palabras clave fáticas o conversacionales
-    const conversationalKeywords = [
-      'me escuchas', 'me oyes', 'estas ahi', 'estás ahí', 'hola aris', 'hola arise', 
-      'quien eres', 'quién eres', 'como estas', 'cómo estás', 'que tal', 'qué tal',
-      'gracias', 'adios', 'chao', 'nos vemos', 'buenos dias', 'buenas tardes', 'buenas noches'
-    ];
-
-    const isConversational = conversationalKeywords.some(kw => inputLower.includes(kw));
-
-    // Lógica mejorada: Si es corto (< 40 chars) y NO parece una solicitud de servicio específica,
-    // intentar usar la IA para una respuesta "lógica" y natural.
-    const seemsLikeServiceRequest = 
-        inputLower.includes('precio') || 
-        inputLower.includes('valor') ||
-        inputLower.includes('costo') ||
-        inputLower.includes('f29') ||
-        inputLower.includes('iva') ||
-        inputLower.includes('silla') ||
-        inputLower.includes('transporte');
-    
-    // Si es conversacional o una frase corta genérica (y no es servicio específico), usar IA
-    if (isConversational || ((inputLower.startsWith('hola') || inputLower.length < 50) && !seemsLikeServiceRequest)) {
-       const aiResponseStr = await generateGeneralChatResponse(userInput, userName, userType);
-       
-       if (aiResponseStr) {
-         try {
-           // Intentar ver si es un JSON generado con opciones
-           if (aiResponseStr.trim().startsWith('{')) {
-             const parsed = JSON.parse(aiResponseStr);
-             if (parsed.text && parsed.options) {
-               return {
-                 text: parsed.text,
-                 menu: {
-                    id: 'ai-generated-' + Date.now(),
-                    title: 'Opciones Sugeridas',
-                    options: parsed.options,
-                    menu_key: 'ai_generated',
-                    priority: 10,
-                    triggers: [],
-                    is_active: true,
-                    created_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString()
-                 }
-               };
-             }
-           }
-         } catch (e) {
-           // No es JSON, seguir normal
-         }
-
-         return {
-           text: aiResponseStr,
-           menu: undefined
-         };
-       }
-    }
-
     const isGreeting = 
       inputLower === 'hola' || 
       inputLower === 'hola!' || 
       inputLower === 'hola.';
-      // Eliminamos startswith('hola ') aquí porque lo manejamos arriba o queremos que sea específico
+    
+    // Si es un saludo simple, usar lógica específica o dejar pasar a Gemini más adelante
+    // (Mantendremos la lógica de isGreeting/isSimpleQuestion original por ahora si son útiles,
+    // pero el bloque "isConversational" restrictivo previo se elimina para dejar pasar todo a Gemini al final)
+
     
     const isSimpleQuestion = 
       inputLower === 'en que puedes ayudarme' ||
@@ -1004,183 +911,62 @@ export async function generateResponse(
     
     context.userName = formattedName;
 
-    // Obtener recuerdos para la búsqueda de plantilla
-    let memories: UserMemory[] = [];
+    // INTENTO FINAL: Usar Gemini para respuesta general (Reemplaza al sistema de árbol)
     try {
-      if (conversationId && !conversationId.startsWith("temp-")) {
-        memories = await getUserMemories(userId, conversationId);
-      } else {
-        memories = await getImportantMemories(userId);
-      }
-    } catch (error) {
-      console.warn("No se pudieron obtener recuerdos para plantilla:", error);
+       const aiResponseStr = await generateGeneralChatResponse(userInput, userName, userType);
+       
+       if (aiResponseStr) {
+         try {
+           // Intentar ver si es un JSON generado con opciones
+           if (aiResponseStr.trim().startsWith('{')) {
+             const parsed = JSON.parse(aiResponseStr);
+             if (parsed.text && parsed.options) {
+               return {
+                 text: parsed.text,
+                 menu: {
+                    id: 'ai-generated-' + Date.now(),
+                    title: 'Opciones Sugeridas',
+                    options: parsed.options,
+                    menu_key: 'ai_generated',
+                    priority: 10,
+                    triggers: [],
+                    is_active: true,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                 }
+               };
+             }
+           }
+         } catch (e) {
+           // No es JSON
+         }
+
+         return enrichWithMotivation(aiResponseStr, userInput);
+       }
+    } catch (err) {
+      console.error("Error llamando a Gemini en fallback:", err);
     }
 
-    // Encontrar la mejor plantilla
-    const template = findBestTemplate(userInput, memories);
-
-    if (!template) {
-      // Fallback: respuesta más útil y proactiva
-      // Importar generateContextualMessages antes de usarlo
-      const { generateContextualMessages: genContextualMessages } = await import("./responseConfig");
-      const messages = genContextualMessages(context, {
-        preferredName: clientInfo?.preferred_name,
-        useFormalAddress: clientInfo?.use_formal_address !== false,
-        gender: clientInfo?.gender || undefined,
-      });
-      let fallbackResponse = messages.defaultResponse;
-      
-      // Agregar sugerencias útiles basadas en el input
-      const inputLower = userInput.toLowerCase();
-      
-      // Intentar detectar intención básica
-      const hasServiceIntent = inputLower.includes('servicio') || inputLower.includes('ayuda') || inputLower.includes('necesito');
-      const hasInfoIntent = inputLower.includes('información') || inputLower.includes('informacion') || inputLower.includes('saber') || inputLower.includes('qué') || inputLower.includes('que');
-      
-      if (inputLower.length < 20 || hasServiceIntent || hasInfoIntent) {
-        // Mensaje corto o con intención clara, ofrecer ayuda estructurada
-        const { findRelevantMenu, generateMenuResponse } = await import("./menus");
-        const servicesMenu = await findRelevantMenu("servicios");
-        
-        fallbackResponse += `\n\n**Puedo ayudarte con:**\n\n`;
-        fallbackResponse += `• 📊 **Consultoría tributaria y contable** - Declaraciones, trámites, asesoría\n`;
-        fallbackResponse += `• 🪑 **Taller de Sillas de Ruedas** - Reparación, mantenimiento, adaptación\n`;
-        fallbackResponse += `• 🚐 **Transporte Inclusivo** - Fundación Te Quiero Feliz\n`;
-        fallbackResponse += `• 📋 **Trámites y documentos** - IVA, RUT, certificados\n`;
-        fallbackResponse += `• 💬 **Soporte personalizado** - Contacto directo con nuestro equipo\n`;
-        fallbackResponse += `• 📅 **Agendar reuniones** - Coordina una cita\n\n`;
-        fallbackResponse += `**¿Con cuál te puedo ayudar?**\n\nEscribe lo que necesitas o selecciona una opción:`;
-        
-        if (servicesMenu) {
-          fallbackResponse += `\n\n${generateMenuResponse(servicesMenu)}`;
-          return {
-            text: enrichWithMotivation(fallbackResponse, userInput),
-            menu: servicesMenu,
-          };
-        }
-      }
-      
-      return enrichWithMotivation(fallbackResponse, userInput);
-    }
-
-    // Generar mensajes contextuales con información de personalización
+    // SI GEMINI FALLA (o retorna null), usamos un mensaje genérico enriquecido
     const { generateContextualMessages } = await import("./responseConfig");
     const contextualMessages = generateContextualMessages(context, {
       preferredName: clientInfo?.preferred_name,
       useFormalAddress: clientInfo?.use_formal_address !== false,
       gender: clientInfo?.gender || undefined,
     });
-
+    
     // Agregar información de empresa si está disponible
     const companyInfo = await getCompanyInfo();
-
-    // Información de contacto principal (siempre incluida)
-    if (!contextualMessages.contactInfo.includes("+56990062213")) {
-      contextualMessages.contactInfo =
-        "Puedes contactarnos directamente a través de WhatsApp al +56990062213 (Carlos Alejandro Villagra Farias). Nuestra oficina de contabilidad está ubicada en Juan Martinez 616, Iquique. ";
-    }
-
-    // Información adicional de la empresa si está disponible
     if (companyInfo) {
-      if (companyInfo.business_hours) {
-        contextualMessages.contactInfo += ` Horarios de atención: ${companyInfo.business_hours}.`;
-      }
-      if (companyInfo.email && !contextualMessages.contactInfo.includes("@")) {
-        contextualMessages.contactInfo += ` También puedes escribirnos a ${companyInfo.email}.`;
+      if (!contextualMessages.contactInfo.includes("+56990062213")) {
+        contextualMessages.contactInfo = "Puedes contactarnos directamente a través de WhatsApp al +56990062213. ";
       }
     }
 
-    // Reemplazar variables en la plantilla
-    let response = replaceTemplateVariables(
-      template.template,
-      contextualMessages
-    );
+    // Respuesta base de fallback
+    let response = "Entendido. " + contextualMessages.defaultResponse;
 
-    // Mejorar la respuesta con información de memoria si está disponible
-    if (context.memories.length > 0 && template.requiresMemory) {
-      const relevantMemory = context.memories
-        .filter((m) => {
-          if (
-            template.requiresMemory?.type &&
-            m.type !== template.requiresMemory.type
-          ) {
-            return false;
-          }
-          if (
-            template.requiresMemory?.minImportance &&
-            m.importance < template.requiresMemory.minImportance
-          ) {
-            return false;
-          }
-          return true;
-        })
-        .sort((a, b) => b.importance - a.importance)[0];
-
-      if (relevantMemory) {
-        // Personalizar aún más la respuesta con el recuerdo específico
-        response = response.replace(
-          "{{personalizedResponse}}",
-          `recuerdo que ${relevantMemory.content.toLowerCase()}. ¿Te gustaría que te ayude con algo relacionado?`
-        );
-      }
-    }
-
-    // Detectar si el usuario está haciendo una pregunta específica
-    const isQuestion =
-      userInput.trim().endsWith("?") ||
-      userInput.toLowerCase().includes("cómo") ||
-      userInput.toLowerCase().includes("qué") ||
-      userInput.toLowerCase().includes("cuándo") ||
-      userInput.toLowerCase().includes("dónde") ||
-      userInput.toLowerCase().includes("por qué");
-
-    if (isQuestion && response === contextualMessages.defaultResponse) {
-      // Si es una pregunta pero no se encontró una plantilla específica, ser más útil
-      const questionLower = userInput.toLowerCase();
-      
-      // Intentar dar respuestas más específicas según el tipo de pregunta
-      if (questionLower.includes('cómo') || questionLower.includes('como')) {
-        response = `Te explico cómo podemos ayudarte. ${contextualMessages.defaultResponse}\n\n`;
-        response += `En MTZ nos encargamos de realizar los trámites por ti, así que no necesitas hacerlo tú mismo. `;
-        response += `Solo necesitamos algunos datos y nuestro equipo se encarga de todo el proceso.\n\n`;
-        response += `¿Te gustaría que te guíe paso a paso o prefieres que nuestro equipo lo haga directamente?`;
-      } else if (questionLower.includes('qué') || questionLower.includes('que')) {
-        response = `Con gusto te explico. ${contextualMessages.defaultResponse}\n\n`;
-        response += `Puedo ayudarte con información sobre nuestros servicios, trámites, documentos y más. `;
-        response += `¿Hay algo específico sobre lo que te gustaría saber más?`;
-      } else if (questionLower.includes('cuándo') || questionLower.includes('cuando')) {
-        response = `Sobre los tiempos, ${contextualMessages.defaultResponse}\n\n`;
-        response += `Los tiempos dependen del tipo de trámite o servicio. `;
-        response += `Nuestro equipo puede darte una estimación más precisa. `;
-        response += `¿Te gustaría que te contactemos o prefieres agendar una reunión?`;
-      } else if (questionLower.includes('dónde') || questionLower.includes('donde')) {
-        response = `Te indico dónde. ${contextualMessages.defaultResponse}\n\n`;
-        response += `Nuestra oficina está en Juan Martinez 616, Iquique. `;
-        response += `También podemos atenderte a domicilio en algunos casos. `;
-        response += `¿Te gustaría agendar una visita o prefieres que vayamos a tu ubicación?`;
-      } else {
-        response = `Entiendo tu pregunta. ${contextualMessages.defaultResponse} ¿Podrías darme más detalles para poder ayudarte mejor?`;
-      }
-    }
-
-    // Enriquecer la respuesta final con motivación y personalización
     const needs = detectUserNeedsEncouragement(userInput);
-    
-    // Agregar información personalizada si está disponible
-    const responsePersonalization = await getClientPersonalizationInfo(userId);
-    if (responsePersonalization.companyName && !response.includes(responsePersonalization.companyName)) {
-      // Usar el nombre de la empresa si está disponible
-      response = response.replace(/tu empresa/gi, responsePersonalization.companyName);
-      response = response.replace(/tu negocio/gi, responsePersonalization.companyName);
-    }
-    
-    // Si hay una situación difícil pero no se detectó antes, agregar mensaje de apoyo
-    const situation = detectDifficultSituation(userInput);
-    if (situation.detected && !situation.needsSupport) {
-      // Situación leve, agregar mensaje de apoyo sutil
-      response += " Recuerda que en MTZ estamos aquí para apoyarte y ser tu respaldo en lo que necesites.";
-    }
-    
     const enrichedResponse = enrichWithMotivation(response.trim(), userInput, {
       isFirstTime: context.memories.length === 0,
       hasErrors: needs.isFrustrated,

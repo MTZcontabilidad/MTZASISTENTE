@@ -689,6 +689,29 @@ function ChatInterface({}: ChatInterfaceProps = {}) {
       }
       
       let responseDocument: any = undefined; // chatEngine doesn't support docs yet in Phase 2
+      
+      // Execute actions returned by the engine (e.g., navigation)
+      if (assistantResponse.action_to_execute) {
+         const { type, payload } = assistantResponse.action_to_execute;
+         console.log("🤖 Engine requested action:", type, payload);
+         
+         if (type === 'navigate' && payload?.route) {
+             // Small delay to allow message to appear first
+             setTimeout(() => {
+                 try {
+                     // Check if it's a valid tab
+                     const validTabs = ['chat', 'mtz-consultores', 'fundacion', 'taller-mmc', 'abuelita-alejandra', 'services', 'meetings', 'documents', 'company', 'requests', 'requests-wheelchair', 'requests-transport', 'notes', 'profile'];
+                     if (validTabs.includes(payload.route)) {
+                        setActiveTab(payload.route as ClientTab);
+                     } else {
+                        console.warn("Invalid route requested:", payload.route);
+                     }
+                 } catch(e) {
+                     console.error("Navigation action failed:", e);
+                 }
+             }, 800);
+         }
+      }
       // -------------------------------------
 
       // Crear mensaje del asistente
@@ -1327,6 +1350,11 @@ function ChatInterface({}: ChatInterfaceProps = {}) {
                                setLastAssistantMessage(content);
                              }
                         }
+                      }
+                      
+                      // Handle Support Action
+                      if (action === "contact_support") {
+                          setShowHumanSupport(true);
                       }
                     }}
                   />

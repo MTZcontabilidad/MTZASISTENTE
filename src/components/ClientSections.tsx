@@ -771,6 +771,17 @@ export function ClientProfileSection({ userId, userEmail, userName, onBack }: Cl
           ← Volver
         </button>
         <h2>👤 Mi Perfil</h2>
+        <button 
+          onClick={async () => {
+            if (confirm('¿Estás seguro que deseas cerrar sesión?')) {
+              await supabase.auth.signOut();
+            }
+          }}
+          className="create-button"
+          style={{ backgroundColor: '#ff4444', color: 'white' }}
+        >
+          Cerrar Sesión
+        </button>
       </div>
 
       <div className="profile-section-content">

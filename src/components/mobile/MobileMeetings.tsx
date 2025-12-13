@@ -1,192 +1,278 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './Mobile.css';
+import { supabase } from '../../lib/supabase';
 
 const MobileMeetings: React.FC = () => {
+    const [meetings, setMeetings] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
     const [toastMessage, setToastMessage] = useState<string | null>(null);
-    const [selectedDate, setSelectedDate] = useState('25');
+    const [selectedDate, setSelectedDate] = useState(new Date());
     const [showScheduleModal, setShowScheduleModal] = useState(false);
+
+    // Schedule Modal State
+    const [newTitle, setNewTitle] = useState('');
+    const [newDate, setNewDate] = useState('');
+    const [newTime, setNewTime] = useState('');
+    
+    // Derived state for calendar strip
+    const startOfWeek = new Date(selectedDate);
+    // startOfWeek.setDate(selectedDate.getDate() - selectedDate.getDay() + 1); // Start from Monday or simply center around selected
 
     const showToast = (msg: string) => {
         setToastMessage(msg);
         setTimeout(() => setToastMessage(null), 3000);
     };
 
-    const handleJoinMeeting = (meetingTitle: string) => {
-        showToast(`Uniéndose a ${meetingTitle}...`);
-        setTimeout(() => {
-            window.location.href = "https://meet.google.com"; 
-        }, 1500);
+    const fetchMeetings = async () => {
+        setLoading(true);
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
+            const { data, error } = await supabase
+                .from('meetings')
+                .select('*')
+                .eq('user_id', user.id)
+                .order('meeting_date', { ascending: true });
+
+            if (error) throw error;
+            setMeetings(data || []);
+        } catch (error) {
+            console.error('Error fetching meetings:', error);
+            showToast('Error cargando reuniones');
+        } finally {
+            setLoading(false);
+        }
     };
 
-    const handleSchedule = () => {
-        setShowScheduleModal(true);
+    useEffect(() => {
+        fetchMeetings();
+    }, []);
+
+    const handleSchedule = async () => {
+        if (!newTitle || !newDate || !newTime) {
+            showToast("Completa todos los campos");
+            return;
+        }
+
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
+             const dateTimeStr = `${newDate}T${newTime}:00`;
+             const { error } = await supabase
+                .from('meetings')
+                .insert([{
+                    user_id: user.id,
+                    title: newTitle,
+                    meeting_date: dateTimeStr,
+                    duration_minutes: 60,
+                    status: 'scheduled',
+                    type: 'video' // Default
+                }]);
+
+            if (error) throw error;
+            showToast("Reunión agendada");
+            setShowScheduleModal(false);
+            setNewTitle('');
+            fetchMeetings();
+        } catch (e) {
+            console.error(e);
+            showToast("Error al crear reunión");
+        }
     };
 
-    const confirmSchedule = () => {
-        setShowScheduleModal(false);
-        showToast("¡Reunión agendada con éxito!");
+    const renderCalendarStrip = () => {
+        const days = [];
+        // Show 7 days starting from today or selected date context
+        // Simple approach: Show today + 6 days forward for actionable agenda
+        const baseDate = new Date(); 
+        
+        for (let i = 0; i < 7; i++) {
+            const d = new Date(baseDate);
+            d.setDate(baseDate.getDate() + i);
+            const isSelected = d.toDateString() === selectedDate.toDateString();
+            
+            days.push(
+                <button 
+                    key={i} 
+                    className={`flex flex-col items-center justify-center p-2 rounded-2xl min-w-[3.5rem] transition-all ${
+                        isSelected 
+                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30 scale-105' 
+                        : 'bg-gray-800/50 text-gray-400 border border-gray-700/50'
+                    }`}
+                    onClick={() => setSelectedDate(d)}
+                >
+                    <span className="text-[10px] uppercase font-bold opacity-80">
+                        {d.toLocaleDateString('es-CL', { weekday: 'short' }).slice(0, 3)}
+                    </span>
+                    <span className={`text-lg font-bold ${isSelected ? 'text-white' : 'text-gray-300'}`}>
+                        {d.getDate()}
+                    </span>
+                </button>
+            );
+        }
+        return <div className="flex gap-2 overflow-x-auto pb-4 pt-2 px-1 no-scrollbar">{days}</div>;
     };
 
-    const handleCalendarNav = (direction: 'next' | 'prev') => {
-        showToast(`Navegando al ${direction === 'next' ? 'siguiente' : 'anterior'} mes...`);
-    };
-
-    // Helper to render days dynamically
-    const renderCalendarDays = () => {
-        const days = [
-            { day: 'LUN', date: '23' },
-            { day: 'MAR', date: '24' },
-            { day: 'MIE', date: '25' },
-            { day: 'JUE', date: '26' },
-            { day: 'VIE', date: '27' },
-        ];
-
-        return days.map(item => (
-            <div 
-                key={item.date}
-                className={`calendar-day-item ${selectedDate === item.date ? 'active' : ''}`}
-                onClick={() => setSelectedDate(item.date)}
-                style={selectedDate === item.date ? { 
-                    boxShadow: '0 0 15px rgba(0, 212, 255, 0.4)', 
-                    background: 'linear-gradient(to bottom, rgba(0, 212, 255, 0.1), rgba(0, 212, 255, 0.2))' 
-                } : {}}
-            >
-                <span className="day-name" style={{ color: selectedDate === item.date ? 'var(--neon-blue)' : '#9ca3af' }}>{item.day}</span>
-                <span className="day-number" style={{ color: selectedDate === item.date ? 'white' : '#d1d5db' }}>{item.date}</span>
-            </div>
-        ));
-    };
+    // Filter meetings for selected date
+    const dailyMeetings = meetings.filter(m => 
+        new Date(m.meeting_date).toDateString() === selectedDate.toDateString()
+    );
 
     return (
-        <div className="mobile-view-container relative">
-            {toastMessage && (
-                <div style={{
-                    position: 'absolute', top: '1rem', left: '50%', transform: 'translateX(-50%)',
-                    backgroundColor: 'rgba(59, 130, 246, 0.9)', color: 'white', padding: '0.75rem 1.5rem',
-                    borderRadius: '2rem', zIndex: 100, fontSize: '0.875rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-                    whiteSpace: 'nowrap', backdropFilter: 'blur(4px)'
-                }}>
+        <div className="mobile-view-container relative h-full flex flex-col bg-slate-900">
+             {toastMessage && (
+                <div style={{ position: 'fixed', top: '1rem', left: '50%', transform: 'translateX(-50%)', zIndex: 200 }} className="status-badge success animate-fade-in shadow-lg">
                     {toastMessage}
                 </div>
             )}
 
-            {/* Schedule Modal */}
-            {showScheduleModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-                    <div className="premium-card w-full max-w-sm p-6 rounded-2xl animate-scale-in" style={{ backgroundColor: '#111827', border: '1px solid rgba(0, 212, 255, 0.2)' }}>
-                        <h3 className="section-title text-center mb-4">Agendar Reunión</h3>
-                        <div className="flex flex-col gap-4">
-                            <div className="glass-input-wrapper">
-                                <input type="text" placeholder="Título de la reunión" className="w-full bg-transparent text-white p-2 outline-none" autoFocus />
-                            </div>
-                            <div className="glass-input-wrapper">
-                                <input type="datetime-local" className="w-full bg-transparent text-white p-2 outline-none" style={{ colorScheme: 'dark' }} />
-                            </div>
-                            <div className="glass-input-wrapper">
-                                <textarea placeholder="Descripción (opcional)" className="w-full bg-transparent text-white p-2 outline-none h-20" />
-                            </div>
-                            <div className="flex gap-2 mt-2">
-                                <button onClick={() => setShowScheduleModal(false)} className="mobile-btn-ghost flex-1 justify-center">Cancelar</button>
-                                <button onClick={confirmSchedule} className="mobile-btn-primary flex-1 justify-center">Agendar</button>
-                            </div>
-                        </div>
-                    </div>
+            <div className="glass-header">
+                <div>
+                     <h1 className="text-lg font-bold text-gradient">Agenda</h1>
+                     <p className="text-xs text-gray-400">Próximas reuniones</p>
                 </div>
-            )}
+                 <button 
+                    onClick={() => setShowScheduleModal(true)}
+                    className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/30 transition-transform active:scale-95"
+                >
+                    <span className="material-icons-round text-white">add</span>
+                </button>
+            </div>
 
-            <div className="mobile-scroll-content" style={{ paddingTop: '1.5rem' }}>
-                <div style={{ marginBottom: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 0.25rem' }}>
-                        <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'white' }}>Octubre 2023</h2>
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
-                            <button className="mobile-icon-btn" style={{ padding: '0.25rem', background: 'transparent' }} onClick={() => handleCalendarNav('prev')}>
-                                <span className="material-icons-round">chevron_left</span>
-                            </button>
-                            <button className="mobile-icon-btn" style={{ padding: '0.25rem', background: 'transparent' }} onClick={() => handleCalendarNav('next')}>
-                                <span className="material-icons-round">chevron_right</span>
-                            </button>
-                        </div>
-                    </div>
-                    
-                    {/* Calendar Strip */}
-                    <div className="calendar-strip calendar-strip-modern animate-slide-in" style={{ animationDelay: '0.1s' }}>
-                        {renderCalendarDays()}
-                    </div>
+            <div className="mobile-scroll-content px-4 pb-24 pt-4">
+                {/* Calendar Strip */}
+                <div className="mb-4">
+                    {renderCalendarStrip()}
                 </div>
 
-                {selectedDate === '25' ? (
-                    <div className="animate-slide-in" style={{ marginBottom: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', animationDelay: '0.2s' }}>
-                        <h3 className="section-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <span style={{ width: '0.5rem', height: '0.5rem', borderRadius: '50%', backgroundColor: '#ef4444', boxShadow: '0 0 8px rgba(239, 68, 68, 0.6)', animation: 'pulse-glow 2s infinite' }}></span>
-                            En curso
-                        </h3>
-                        
-                        <div className="mobile-card meeting-card-live premium-card" style={{ border: '1px solid rgba(0, 212, 255, 0.3)' }}>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                    <div className="time-badge" style={{ background: 'rgba(0, 212, 255, 0.15)', borderColor: 'rgba(0, 212, 255, 0.3)' }}>
-                                        <span className="material-icons-round" style={{ fontSize: '1rem' }}>timer</span>
-                                        15 min restantes
-                                    </div>
-                                    <button style={{ color: '#9ca3af', background: 'none', border: 'none' }}>
-                                        <span className="material-icons-round">more_horiz</span>
-                                    </button>
-                                </div>
-                                
-                                <div>
-                                    <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'white', marginBottom: '0.5rem', lineHeight: 1.3 }}>Revisión Mensual de KPIs</h2>
-                                    <p style={{ fontSize: '0.875rem', color: '#9ca3af', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                        <span className="material-icons-round" style={{ fontSize: '1rem' }}>schedule</span>
-                                        10:00 AM - 11:30 AM
-                                    </p>
-                                </div>
-
-                                <button 
-                                    className="mobile-btn-primary"
-                                    style={{ boxShadow: '0 0 20px rgba(0, 212, 255, 0.4)' }}
-                                    onClick={() => handleJoinMeeting('Revisión KPIs')}
-                                >
-                                    <span className="material-icons-round" style={{ fontSize: '1.125rem' }}>videocam</span>
-                                    Unirse
+                {loading ? (
+                    <div className="flex justify-center py-10"><div className="loader"></div></div>
+                ) : (
+                    <div className="flex flex-col gap-3">
+                         {dailyMeetings.length === 0 ? (
+                            <div className="text-center py-10 text-gray-500 flex flex-col items-center">
+                                <span className="material-icons-round text-5xl mb-2 opacity-20">event_busy</span>
+                                <p>No hay reuniones para este día</p>
+                                <button className="mt-4 mobile-btn-ghost text-xs" onClick={() => setShowScheduleModal(true)}>
+                                    + Agendar ahora
                                 </button>
                             </div>
-                        </div>
+                        ) : (
+                            dailyMeetings.map((meeting, idx) => {
+                                const mDate = new Date(meeting.meeting_date);
+                                // Simple "isLive" logic: if accurate time range matches now
+                                const isLive = meeting.status === 'En curso' || (
+                                    mDate <= new Date() && 
+                                    (new Date(mDate.getTime() + (meeting.duration_minutes || 60) * 60000)) > new Date()
+                                );
 
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
-                            <h3 className="section-title">Resto del día</h3>
-                            <div className="mobile-card" style={{ display: 'flex', gap: '1rem', alignItems: 'center', padding: '1rem' }}>
-                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '3.5rem' }}>
-                                    <span style={{ fontSize: '0.75rem', color: '#9ca3af', fontWeight: 500 }}>13:00</span>
-                                    <span style={{ fontSize: '0.625rem', color: '#4b5563' }}>PM</span>
-                                </div>
-                                <div style={{ width: '2px', height: '2.5rem', backgroundColor: '#374151', borderRadius: '9999px' }}></div>
-                                <div style={{ flex: 1 }}>
-                                    <h4 style={{ fontWeight: 700, color: '#f3f4f6', fontSize: '0.875rem' }}>Almuerzo de Equipo</h4>
-                                    <p style={{ fontSize: '0.75rem', color: '#9ca3af' }}>Restaurante La Plaza</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                ) : (
-                    <div className="animate-fade-in" style={{ padding: '3rem 1rem', textAlign: 'center', color: '#6b7280' }}>
-                        <span className="material-icons-round" style={{ fontSize: '3rem', marginBottom: '1rem', opacity: 0.5 }}>event_available</span>
-                        <p>No hay reuniones programadas para este día.</p>
-                        <button onClick={handleSchedule} style={{ color: 'var(--neon-blue)', marginTop: '1rem', background: 'none', border: 'none', fontWeight: 600 }}>
-                            + Agendar una reunión
-                        </button>
+                                return (
+                                    <div 
+                                        key={meeting.id} 
+                                        className={`premium-card p-4 rounded-xl group relative overflow-hidden animate-slide-up ${isLive ? 'border-green-500/50 shadow-green-500/10' : ''}`}
+                                        style={{ animationDelay: `${idx * 0.1}s` }}
+                                    >
+                                        {isLive && (
+                                            <div className="absolute top-0 right-0 bg-green-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-bl-lg shadow-lg animate-pulse">
+                                                EN VIVO
+                                            </div>
+                                        )}
+                                        
+                                        <div className="flex justify-between items-start mb-3">
+                                            <div className="flex gap-3">
+                                                <div className={`p-3 rounded-xl flex items-center justify-center ${
+                                                    meeting.type === 'video' ? 'bg-purple-900/20 text-purple-400' : 'bg-blue-900/20 text-blue-400'
+                                                }`}>
+                                                    <span className="material-icons-round">
+                                                        {meeting.type === 'video' ? 'videocam' : 'location_on'}
+                                                    </span>
+                                                </div>
+                                                <div>
+                                                    <h3 className="font-bold text-white text-sm line-clamp-1">{meeting.title}</h3>
+                                                    <div className="flex items-center gap-2 text-xs text-gray-400 mt-1">
+                                                        <span className="material-icons-round text-[12px]">schedule</span>
+                                                        {mDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {new Date(mDate.getTime() + (meeting.duration_minutes || 60) * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex gap-2 mt-3">
+                                            {meeting.link && (
+                                                <a 
+                                                    href={meeting.link} 
+                                                    target="_blank" 
+                                                    rel="noopener noreferrer"
+                                                    className="mobile-btn-primary flex-1 justify-center text-xs py-2 shadow-lg shadow-blue-500/20"
+                                                >
+                                                    Unirse
+                                                </a>
+                                            )}
+                                            <button className="mobile-btn-ghost flex-1 justify-center text-xs py-2 border-gray-700 text-gray-300">
+                                                Detalles
+                                            </button>
+                                        </div>
+                                    </div>
+                                );
+                            })
+                        )}
                     </div>
                 )}
             </div>
 
-             {/* Floating Action Button */}
-             <div style={{ position: 'fixed', bottom: '80px', right: '1.25rem', zIndex: 30 }}>
-                <button 
-                    onClick={handleSchedule}
-                    style={{ width: '3.5rem', height: '3.5rem', backgroundColor: 'var(--neon-blue)', borderRadius: '50%', boxShadow: '0 0 20px rgba(0, 180, 216, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', border: '1px solid rgba(255,255,255,0.2)', cursor: 'pointer' }}
-                >
-                    <span className="material-icons-round" style={{ fontSize: '1.875rem' }}>add</span>
-                </button>
-            </div>
+            {/* Schedule Modal */}
+            {showScheduleModal && (
+                <div className="modal-overlay" onClick={() => setShowScheduleModal(false)}>
+                    <div className="bottom-sheet" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex justify-between items-center mb-4 border-b border-gray-700 pb-3">
+                            <h3 className="text-lg font-bold text-white">Agendar Reunión</h3>
+                            <button onClick={() => setShowScheduleModal(false)}>
+                                <span className="material-icons-round text-gray-400">close</span>
+                            </button>
+                        </div>
+                        
+                        <div className="space-y-4">
+                            <div>
+                                <label className="text-xs text-gray-400 mb-1 block">Título</label>
+                                <input 
+                                    className="mobile-input bg-gray-900 border-gray-700 w-full" 
+                                    placeholder="Motivo de la reunión" 
+                                    value={newTitle}
+                                    onChange={e => setNewTitle(e.target.value)}
+                                />
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="text-xs text-gray-400 mb-1 block">Fecha</label>
+                                    <input 
+                                        type="date" 
+                                        className="mobile-input bg-gray-900 border-gray-700 w-full" 
+                                        value={newDate}
+                                        onChange={e => setNewDate(e.target.value)}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-xs text-gray-400 mb-1 block">Hora</label>
+                                    <input 
+                                        type="time" 
+                                        className="mobile-input bg-gray-900 border-gray-700 w-full" 
+                                        value={newTime}
+                                        onChange={e => setNewTime(e.target.value)}
+                                    />
+                                </div>
+                            </div>
+                            <button 
+                                className="mobile-btn-primary w-full justify-center mt-4"
+                                onClick={handleSchedule}
+                            >
+                                Confirmar Agendamiento
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

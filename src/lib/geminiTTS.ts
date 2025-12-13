@@ -3,7 +3,9 @@
  * Usa las mismas voces que Gemini para una experiencia más natural
  */
 
-import { getGeminiApiKey } from './geminiApiKey';
+import { supabase } from './supabase';
+// import { getGeminiApiKey } from './geminiApiKey'; // Deprecated
+
 
 export interface GeminiTTSOptions {
   text: string;
@@ -21,7 +23,8 @@ interface GeminiTTSResponse {
 }
 
 // Re-exportar getGeminiApiKey para compatibilidad
-export { getGeminiApiKey };
+// export { getGeminiApiKey };
+
 
 /**
  * Convierte texto a audio usando Google Cloud Text-to-Speech API
@@ -31,38 +34,30 @@ export async function textToSpeechWithGemini(
   options: GeminiTTSOptions
 ): Promise<string | null> {
   try {
-    const apiKey = await getGeminiApiKey();
-    
-    // Si no hay API key, retornar null para usar fallback
-    if (!apiKey) {
-      console.log('No hay API key de Gemini disponible, usando TTS del navegador');
-      return null;
-    }
-
     const {
       text,
       languageCode = 'es-CL',
-      voiceName = 'es-CL-Neural2-A', // Voz neural de Chile - más natural y sin acento español
-      speakingRate = 1.1, // Velocidad ligeramente más rápida para sonar más fluida y genial
-      pitch = 2.0, // Pitch más alto para sonar más amigable y con carisma (rango: -20 a 20)
+      voiceName = 'es-CL-Neural2-A',
+      speakingRate = 1.1,
+      pitch = 2.0,
       volumeGainDb = 0,
       audioEncoding = 'MP3'
     } = options;
 
-    // Limpiar el texto (remover markdown, HTML, etc.)
+    // Limpiar el texto
     const cleanText = cleanTextForTTS(text);
     
     if (!cleanText.trim()) {
       return null;
     }
 
-    // Configurar la solicitud a Google Cloud TTS API
+    // Configurar el cuerpo para la Edge Function
     const requestBody = {
       input: { text: cleanText },
       voice: {
         languageCode,
         name: voiceName,
-        ssmlGender: 'NEUTRAL' as const
+        ssmlGender: 'NEUTRAL'
       },
       audioConfig: {
         audioEncoding,
@@ -72,45 +67,22 @@ export async function textToSpeechWithGemini(
       }
     };
 
-    // Llamar a la API de Google Cloud Text-to-Speech
-    const response = await fetch(
-      `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-      }
-    );
+    // Llamar a Supabase Edge Function 'google-tts'
+    const { data, error } = await supabase.functions.invoke('google-tts', {
+      body: requestBody
+    });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      let errorData;
-      try {
-        errorData = JSON.parse(errorText);
-      } catch {
-        errorData = { error: { message: errorText } };
-      }
-      
-      // Detectar si la API no está habilitada
-      if (response.status === 403 && errorData?.error?.status === 'PERMISSION_DENIED') {
-        const activationUrl = errorData?.error?.details?.[0]?.metadata?.activationUrl || 
-          `https://console.developers.google.com/apis/api/texttospeech.googleapis.com/overview?project=${errorData?.error?.details?.[0]?.metadata?.consumer || ''}`;
-        
-        console.warn('⚠️ Cloud Text-to-Speech API no está habilitada en el proyecto de Google Cloud.');
-        console.warn('📝 Para habilitarla, visita:', activationUrl);
-        console.warn('💡 Mientras tanto, se usará el TTS del navegador como fallback.');
-        
-        // Lanzar un error específico para que el componente pueda manejarlo
-        throw new Error(`TTS_API_DISABLED:${activationUrl}`);
-      }
-      
-      console.error('Error en Google Cloud TTS:', errorData);
-      return null; // Fallback a TTS del navegador
+    if (error) {
+      console.error('Error en Supabase Edge Function (google-tts):', error);
+      // Fallback a TTS del navegador si falla el servidor
+      return null;
     }
 
-    const data = await response.json();
+    if (!data || !data.audioContent) {
+       console.warn('Respuesta inválida de google-tts:', data);
+       return null;
+    }
+
     return data.audioContent; // Base64 encoded audio
   } catch (error) {
     console.error('Error en textToSpeechWithGemini:', error);

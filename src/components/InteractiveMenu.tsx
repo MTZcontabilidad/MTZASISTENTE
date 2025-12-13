@@ -185,9 +185,7 @@ export default function InteractiveMenu({
         }
 
         case "contact_support": {
-             // Fallback to whatsapp support
-             const whatsappUrl = getWhatsAppLink("Hola, necesito ayuda de un contador.");
-             openLink(whatsappUrl);
+             // Delegate to parent to show Human Support modal
              onActionComplete?.("contact_support", {});
              break;
         }

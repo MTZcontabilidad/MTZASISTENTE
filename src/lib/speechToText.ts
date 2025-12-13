@@ -215,7 +215,8 @@ export function useSpeechToText(options?: {
       
       // Reiniciar automáticamente después de un breve delay para continuar escuchando
       // Solo si no fue detención manual
-      if (!wasManualStop) {
+      // Reiniciar automáticamente disabled per user request
+      /* if (!wasManualStop) {
         setTimeout(() => {
           if (recognition && !(recognition as any)._manualStop) {
             try {
@@ -229,7 +230,7 @@ export function useSpeechToText(options?: {
             }
           }
         }, 300);
-      }
+      } */
       
       // Resetear el flag
       (recognition as any)._manualStop = false;

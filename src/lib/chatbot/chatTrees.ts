@@ -101,7 +101,7 @@ export const CHAT_TREES: Record<string, ChatMenu> = {
     id: 'inclusion_workshop',
     text: 'Bienvenido al Taller MMC. ¿Qué servicio necesitas para tu silla?',
     options: [
-      { id: 'new_request', label: 'Nueva Mantención', icon: '🛠️', action: 'link', params: { url: '/requests-wheelchair' } }, // Or trigger request flow
+      { id: 'new_request', label: 'Nueva Mantención', icon: '🛠️', action: 'navigate', params: { route: 'requests-wheelchair' } }, // Or trigger request flow
       { id: 'status', label: 'Estado de mi Silla', icon: '🔍', action: 'navigate', params: { route: 'requests-wheelchair' } },
       { id: 'tips', label: 'Tips de Cuidado', icon: '💡', action: 'show_tutorial', params: { id: 'wheelchair_tips' } }, // Future content
       { id: 'back', label: '🔙 Volver al inicio', action: 'show_menu', params: { menu: 'inclusion_root' } }

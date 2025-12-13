@@ -247,6 +247,7 @@ export function useChat() {
   };
 
   const playWelcomeAudio = async (greeting: string, welcomeMsg: string, displayName: string) => {
+    return; // Feature disabled per user request
     if (welcomePlayed) return;
     const audioText = userName 
       ? `¡Hola ${displayName}! Soy Arise, tu asistente de MTZ. ¿En qué te ayudo?`
