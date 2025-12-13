@@ -57,29 +57,17 @@ function Auth({ onAuthSuccess, onGuestLogin, onBackToDevMode, isFromDevMode }: A
       // En desarrollo: usar localhost:5173 (puerto de Vite)
       // En producción: usar la URL actual (Vercel)
       const getRedirectUrl = () => {
-        const origin = window.location.origin
-        const pathname = window.location.pathname || '/'
+        // En cualquier entorno, preferimos usar la URL actual del navegador
+        // Esto funciona tanto para producción (Vercel) como desarrollo (localhost)
+        // y evita hardcodes problemáticos
+        const origin = window.location.origin;
+        const pathname = window.location.pathname || '/';
         
-        // Detectar si estamos en producción (Vercel o cualquier dominio que no sea localhost)
-        const isProduction = origin.includes('vercel.app') || 
-                            origin.includes('vercel.com') ||
-                            (!origin.includes('localhost') && 
-                             !origin.includes('127.0.0.1') && 
-                             !origin.includes('0.0.0.0'))
+        // Eliminar slash final si existe para evitar doble slash
+        const cleanOrigin = origin.endsWith('/') ? origin.slice(0, -1) : origin;
+        const cleanPath = pathname.startsWith('/') ? pathname : `/${pathname}`;
         
-        // Si estamos en producción, SIEMPRE usar la URL actual
-        if (isProduction) {
-          return `${origin}${pathname}`
-        }
-        
-        // Si estamos en desarrollo (localhost), usar localhost:5173
-        // Verificar si el servidor está corriendo en el puerto actual
-        const currentPort = window.location.port
-        if (currentPort === '5173' || !currentPort) {
-          return `${origin}${pathname}`
-        }
-        // Si estamos en otro puerto, usar 5173
-        return `http://localhost:5173${pathname}`
+        return `${cleanOrigin}${cleanPath}`;
       }
       
       const redirectUrl = getRedirectUrl()
