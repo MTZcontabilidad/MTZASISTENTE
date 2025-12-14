@@ -34,9 +34,14 @@ export async function detectImportantInfo(userInput: string): Promise<{
     SCHEMA:
     {
       "shouldSave": boolean,
-      "type": "important_info" | "preference" | "fact" | null,
+      "type": "important_info" | "preference" | "fact" | "style_update" | null,
       "content": "resumen en tercera persona",
-      "importance": number (1-10)
+      "importance": number (1-10),
+      "ai_profile_update": { // SOLO si detectas preferencias de cómo hablarle
+         "tone": "formal" | "casual" | "direct" | null,
+         "verbosity": "high" | "low" | null,
+         "greeting": boolean | null // false si pide no saludar
+      }
     }`;
 
     let responseText = "";
@@ -68,6 +73,33 @@ export async function detectImportantInfo(userInput: string): Promise<{
     const jsonStr = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
     const aiRes = JSON.parse(jsonStr);
 
+    // NUEVO: Si hay actualización de perfil, guardarla inmediatamente
+    if (aiRes.ai_profile_update) {
+        // Obtenemos el usuario actual del contexto (truco rápido: auth.getUser es lento aquí, asumimos que caller maneja identidad, 
+        // pero detectImportantInfo no recibe userId. Necesitamos refactorizar o usar un hack. 
+        // MEJOR: Retornamos el update y que el caller lo guarde, PERO chatUtils es librería.
+        // SOLUCIÓN: Intentar obtener usuario actual de supabase.auth si es posible.
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+             // Fetch existing first to merge? upsertClientExtendedInfo handles merge? 
+             // upsertClientExtendedInfo hace un upsert simple. Necesitamos mergear con lo existente.
+             // Para simplificar y velocidad, hacemos un "patch" ciego al campo jsonb si es posible, 
+             // o leemos antes. upsertClientExtendedInfo en realidad hace un merge de columnas, no de JSON profundo.
+             // Vamos a leer el actual primero.
+             const { getClientExtendedInfo } = await import("./clientExtendedInfo");
+             const currentInfo = await getClientExtendedInfo(user.id);
+             const currentProfile = currentInfo?.ai_profile || {};
+             
+             const newProfile = { ...currentProfile, ...aiRes.ai_profile_update };
+             
+             // Remove nulls
+             Object.keys(newProfile).forEach(key => newProfile[key] === null && delete newProfile[key]);
+
+             await upsertClientExtendedInfo(user.id, { ai_profile: newProfile });
+             console.log('[Style Learning] Perfil actualizado:', newProfile);
+        }
+    }
+
     return {
         shouldSave: aiRes.shouldSave,
         type: aiRes.type as "important_info" | "preference" | "fact" | null,
@@ -89,7 +121,7 @@ function fallbackDetect(userInput: string): {
 } {
   // Lógica original (simplificada) para fallback
   const inputLower = userInput.toLowerCase();
-  const importantKeywords = ["nombre", "soy", "empresa", "celular", "correo", "prefiero"];
+  const importantKeywords = ["nombre", "soy", "empresa", "celular", "correo", "prefiero", "gusta", "odia"];
   const hasKeyword = importantKeywords.some(k => inputLower.includes(k));
   
   if (!hasKeyword) return { shouldSave: false, type: null };
@@ -140,6 +172,30 @@ export async function detectAndSaveClientInfo(userId: string, userInput: string)
         else if (millones < 500) updates.monthly_revenue_range = '200_500';
         else updates.monthly_revenue_range = 'mas_500';
       }
+    }
+
+    // --- NUEVO: DETECCIÓN DE RÉGIMEN TRIBUTARIO ---
+    if (inputLower.includes('14') || inputLower.includes('pro pyme') || inputLower.includes('renta presunta')) {
+         if (inputLower.includes('d3') || (inputLower.includes('pro pyme') && inputLower.includes('general'))) {
+             updates.tax_regime = 'Pro Pyme General (14 D3)';
+         } else if (inputLower.includes('d8') || (inputLower.includes('pro pyme') && inputLower.includes('transparente'))) {
+             updates.tax_regime = 'Pro Pyme Transparente (14 D8)';
+         } else if (inputLower.includes('renta presunta')) {
+             updates.tax_regime = 'Renta Presunta';
+         } else if (inputLower.includes('semi integrad')) {
+             updates.tax_regime = 'Semi Integrado (14 A)';
+         }
+    }
+
+    // --- NUEVO: DETECCIÓN DE ESTADO DE PAGO / DEUDAS ---
+    if (inputLower.includes('iva') || inputLower.includes('deuda') || inputLower.includes('pago')) {
+        if (inputLower.includes('atrasado') || inputLower.includes('debo') || inputLower.includes('pendiente')) {
+            updates.payment_status = 'deudor';
+            updates.iva_declaration_status = 'atrasado';
+        } else if (inputLower.includes('al día') || inputLower.includes('pagado') || inputLower.includes('listo')) {
+            updates.payment_status = 'al_dia';
+            updates.iva_declaration_status = 'declarado';
+        }
     }
     
     // Si hay actualizaciones, guardarlas

@@ -236,46 +236,7 @@ const MobileProfile: React.FC = () => {
                             </div>
                         </div>
 
-                        {/* SETTINGS */}
-                        <div className="mb-2">
-                            <h3 className="section-label">Configuración</h3>
-                            <div className="system-list-container">
-                                 <div 
-                                    className="system-list-item"
-                                    style={{ width: '100%', justifyContent: 'space-between' }}
-                                >
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                        <span className="material-icons-round" style={{ color: 'var(--mobile-text-muted)', fontSize: '1.25rem' }}>notifications</span>
-                                        <span className="item-title">Notificaciones</span>
-                                    </div>
-                                    <div 
-                                        className={`toggle-switch ${notificationsEnabled ? 'active' : ''}`}
-                                        onClick={toggleNotifications}
-                                    >
-                                        <div className="toggle-knob"></div>
-                                    </div>
-                                </div>
 
-                                <div 
-                                    className="system-list-item"
-                                    style={{ width: '100%', justifyContent: 'space-between' }}
-                                >
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                        <span className="material-icons-round" style={{ color: 'var(--mobile-text-muted)', fontSize: '1.25rem' }}>lock</span>
-                                        <div style={{ textAlign: 'left' }}>
-                                            <div className="item-title">Biometría</div>
-                                            <div className="item-subtitle">FaceID / TouchID</div>
-                                        </div>
-                                    </div>
-                                    <div 
-                                        className={`toggle-switch ${securityEnabled ? 'active' : ''}`}
-                                        onClick={() => setSecurityEnabled(!securityEnabled)}
-                                    >
-                                        <div className="toggle-knob"></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
 
                         {/* LOGOUT */}
                         <div className="pt-4 pb-6">

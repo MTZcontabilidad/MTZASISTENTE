@@ -11,7 +11,7 @@ import { ClientExtendedInfo } from '../types';
  */
 export async function getClientExtendedInfo(userId: string): Promise<ClientExtendedInfo | null> {
   try {
-    if (userId.startsWith('dev-')) return null;
+    if (userId.startsWith('dev-') || userId.startsWith('guest-')) return null;
 
     const { data, error } = await supabase
       .from('client_extended_info')
@@ -38,7 +38,7 @@ export async function upsertClientExtendedInfo(
   updates: Partial<Omit<ClientExtendedInfo, 'id' | 'user_id' | 'created_at' | 'updated_at'>>
 ): Promise<ClientExtendedInfo | null> {
   try {
-    if (userId.startsWith('dev-')) return null;
+    if (userId.startsWith('dev-') || userId.startsWith('guest-')) return null;
 
     const { data, error } = await supabase
       .from('client_extended_info')

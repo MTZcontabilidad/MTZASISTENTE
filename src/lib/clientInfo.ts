@@ -6,11 +6,11 @@ import { ClientInfo } from '../types'
  */
 export async function getOrCreateClientInfo(userId: string): Promise<ClientInfo | null> {
   try {
-    // Detectar usuarios de desarrollo (IDs que no son UUIDs válidos)
-    const isDevUser = userId.startsWith('dev-') || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId);
+    // Detectar usuarios de desarrollo o invitados (IDs que no son UUIDs válidos)
+    const isDevUser = userId.startsWith('dev-') || userId.startsWith('guest-') || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId);
     
     if (isDevUser) {
-      // Usuario de desarrollo: retornar null sin consultar Supabase
+      // Usuario de desarrollo/invitado: retornar null sin consultar Supabase
       return null
     }
 

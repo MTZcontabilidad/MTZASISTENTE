@@ -161,5 +161,17 @@ export const CHAT_TREES: Record<string, ChatMenu> = {
       { id: 'guide_boleta', label: '📄 Emitir Boleta Honorarios', icon: '📄', action: 'show_tutorial', params: { id: 'emitir_boleta' } },
       { id: 'back', label: '🔙 Volver al inicio', action: 'show_menu', params: { menu: 'invitado_root' } }
     ]
+  },
+
+  'invitado_guiar': {
+    id: 'invitado_guiar',
+    text: '¡Entiendo! A veces es mucha información. Vamos paso a paso. ¿Cuál de estas situaciones describe mejor lo que buscas?',
+    options: [
+      { id: 'unsure_create', label: '🏢 Quiero armar mi empresa', description: 'Tengo una idea y quiero formalizarla', action: 'show_menu', params: { menu: 'invitado_cotizar_creacion_empresa' } },
+      { id: 'unsure_accounting', label: '⚖️ Ya tengo empresa (Contabilidad)', description: 'Busco contador o cambiar el actual', action: 'show_menu', params: { menu: 'invitado_servicios_contables' } },
+      { id: 'unsure_problems', label: '🆘 Tengo problemas con el SII', description: 'Multas, bloqueos o declaraciones pendientes', action: 'link', params: { url: 'https://wa.me/56912345678?text=Hola,%20tengo%20problemas%20urgentes%20con%20el%20SII' } },
+      { id: 'unsure_browse', label: '👀 Solo estoy mirando', description: 'Quiero ver tutoriales o info general', action: 'show_menu', params: { menu: 'invitado_tutorials' } },
+      { id: 'back_root', label: '🔙 Volver al inicio', action: 'show_menu', params: { menu: 'invitado_root' } }
+    ]
   }
 };

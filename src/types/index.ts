@@ -92,6 +92,32 @@ export interface ClientExtendedInfo {
   tax_regime: string | null
   employee_count: number | null
   monthly_revenue_range: string | null
+  
+  // New Fields (Expanded Schema)
+  company_rut?: string | null
+  fantasy_name?: string | null
+  legal_representative?: {
+    name?: string
+    rut?: string
+    email?: string
+    phone?: string
+  }
+  capital_initial?: number | null
+  economic_sector?: string | null
+  sii_credentials?: {
+    status?: 'active' | 'invalid' | 'unknown'
+    last_check?: string
+  }
+  previred_credentials?: {
+    status?: 'active' | 'invalid' | 'unknown'
+    last_check?: string
+  }
+  bank_accounts?: Array<{
+    bank: string
+    type: string
+    number?: string
+  }>
+
   notes: string | null
   internal_notes: string | null
   metadata: Record<string, any>

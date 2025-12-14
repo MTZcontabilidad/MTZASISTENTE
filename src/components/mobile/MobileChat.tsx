@@ -117,7 +117,7 @@ const MobileChat: React.FC = () => {
                     </p>
                 </header>
 
-                <div className="mobile-content-scroll chat-content">
+                <div className="mobile-content-scroll chat-content" style={{ paddingBottom: '0' }}>
                     {loadingHistory ? (
                         <div className="loader-container">
                             <div className="loader" style={{ borderTopColor: '#00d4ff', borderRightColor: '#00d4ff' }}></div>
@@ -151,12 +151,11 @@ const MobileChat: React.FC = () => {
                                                 {msg.menu.options.map((option: any, idx: number) => (
                                                     <button 
                                                         key={idx} 
-                                                        className="system-btn-primary"
+                                                        className="chat-option-btn"
                                                         onClick={() => handleSend(option.label || option.text)}
-                                                        style={{ marginBottom: idx < msg.menu.options.length - 1 ? '0.5rem' : '0' }}
                                                     >
                                                         {option.icon && (
-                                                            <span className="material-icons-round" style={{ fontSize: '1.125rem' }}>
+                                                            <span className="material-icons-round">
                                                                 {option.icon}
                                                             </span>
                                                         )}
