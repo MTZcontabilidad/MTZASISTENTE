@@ -412,14 +412,39 @@ export function useChat() {
         await detectAndSaveClientInfo(user.id, messageToSend);
 
         if (controller.signal.aborted) return;
-        await new Promise(r => setTimeout(r, 800)); // Sim delay
         if (controller.signal.aborted) return;
+        // await new Promise(r => setTimeout(r, 800)); // Remove sim delay for speed
+
+        // Create temp message for streaming
+        const tempMsgId = 'temp-' + Date.now();
+        setMessages(prev => [...prev, {
+            id: tempMsgId,
+            conversation_id: activeConvId,
+            text: "...", 
+            sender: 'assistant',
+            user_id: user.id,
+            created_at: new Date().toISOString(),
+            timestamp: new Date(),
+        }]);
+
+        let streamedText = "";
 
         const assistantResponse = await handleChat(
             user.id, messageToSend, chatUtilsState, 
             (userRole as 'cliente' | 'invitado') || 'invitado', 
             userName,
-            memories // Pass memories here
+            memories,
+            (chunk) => {
+                streamedText += chunk;
+                // Filter out tags from the streaming view to avoid ugly glitches
+                const cleanText = streamedText.replace(/\[.*?\]/g, ''); 
+                
+                setMessages(prev => prev.map(m => 
+                    m.id === tempMsgId 
+                        ? { ...m, text: cleanText || "..." } 
+                        : m
+                ));
+            }
         );
 
         let responseMenu: any = undefined;
@@ -437,7 +462,8 @@ export function useChat() {
                menu: responseMenu,
                leadForm: assistantResponse.show_lead_form 
              };
-             setMessages(prev => [...prev, newMessage]);
+             // Replace temp message with final persisted message
+             setMessages(prev => prev.map(m => m.id === tempMsgId ? newMessage : m));
              setLastAssistantMessage(assistantResponse.text);
         }
 

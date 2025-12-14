@@ -44,7 +44,8 @@ export async function handleChat(
   currentState: ChatState,
   userRole: 'cliente' | 'invitado' = 'invitado',
   userName?: string,
-  memories: UserMemory[] = [] // New argument: Memories
+  memories: UserMemory[] = [],
+  onChunk?: (text: string) => void
 ): Promise<ChatResponse> {
   const input = normalizeInput(userMessage);
 
@@ -63,7 +64,7 @@ export async function handleChat(
   }
 
   // 3.4 Smart Fallback (Gemini)
-  return await generateAIResponse(userId, userMessage, userRole, userName, currentState, memories);
+  return await generateAIResponse(userId, userMessage, userRole, userName, currentState, memories, onChunk);
 }
 
 // --- SUB-AGENTS ---
@@ -130,7 +131,8 @@ async function generateAIResponse(
   userRole: string,
   userName: string | undefined,
   currentState: ChatState,
-  memories: UserMemory[] = []
+  memories: UserMemory[] = [],
+  onChunk?: (text: string) => void
 ): Promise<ChatResponse> {
   try {
     // Obtener información de la empresa para contexto
@@ -143,14 +145,21 @@ async function generateAIResponse(
     ]);
     const aiProfile = extendedInfo?.ai_profile || { tone: 'neutral' };
 
+    // Determine Provider
+    const aiProvider = import.meta.env.VITE_AI_PROVIDER || 'gemini';
+    const isLocalProvider = aiProvider === 'local';
+
     const safeName = (userName && userName !== 'undefined') ? userName : 'Usuario';
 
-    // Construir contexto de memoria
-    const memoryContext = memories
+    // Construir contexto de memoria (OPT: Limit to 5 for speed)
+    const recentMemories = memories.slice(-5);
+    const memoryContext = recentMemories
       .map(m => `- [${m.importance >= 7 ? 'IMPORTANTE' : 'Info'}] ${m.content} (${new Date(m.created_at).toLocaleDateString()})`)
       .join('\n');
 
-    // Construir contexto de empresa
+    // Construir contexto de empresa (Same as before)
+
+    
     const companyContext = companyInfo ? `
     INFORMACIÓN DE LA EMPRESA (MTZ):
     - Nombre: ${companyInfo.company_name}
@@ -161,73 +170,126 @@ async function generateAIResponse(
     - Web: ${companyInfo.website || ''}
     ` : '';
     
-    // Construir contexto de FAQs relevantes (top 5)
     const faqContext = faqs.length > 0 ? `
     PREGUNTAS FRECUENTES (Reference):
     ${faqs.slice(0, 5).map(f => `Q: ${f.question} | A: ${f.answer}`).join('\n')}
     ` : '';
 
-    const systemPrompt = `
-    Eres Arise, asistente de MTZ.
-    
-    ${companyContext}
-    ${faqContext}
-    
-    USUARIO: ${safeName} | ROL: ${userRole}
-    ESTADO ACTUAL: ${JSON.stringify(currentState)}
-    
-    MEMORIAS DEL USUARIO (Información que debes recordar):
-    ${memoryContext || "No hay memorias previas."}
-    
-    OBJETIVO:
-    1. Responder la duda del usuario de forma útil, empática y concisa (max 2 párrafos).
-    2. USA LAS MEMORIAS para personalizar la respuesta si es relevante (ej. si sabes su nombre o preferencias, úsalo).
-    3. SIEMPRE SUGERIR UN MENÚ VISUAL ("menu_suggestion") que tenga sentido con la respuesta.
-       - IDs Disponibles para ${userRole}: ${userRole === 'cliente' ? 'cliente_root, cliente_docs, cliente_taxes, cliente_tutorials' : 'invitado_root, invitado_cotizar, invitado_tutorials'}.
-    4. ROLES:
-       - Si ROL es 'cliente': Tu foco es servicio, soporte técnico y retención.
-       - Si ROL es 'invitado': Tu foco es VENTAS y CAPTURA DE LEADS (SDR).
-         * Intenta sutilmente obtener: Qué servicio busca, Giro de empresa, Nombre y Correo/Teléfono.
-         * No seas invasivo, pero si muestra interés, invita a dejar sus datos para que un experto lo contacte.
-    
-    IMPORTANTE: Nunca te dirijas al usuario como "undefined". Si no tienes nombre, usa un saludo genérico o "Usuario".
+    let aiRes: any = {};
 
-    FORMATO JSON:
-    {
-      "text": "Respuesta...",
-      "suggested_menu_id": "optional_menu_id", // ID del menú a mostrar
-      "show_lead_form": boolean // true si ves alta intención y quieres mostrar formulario
-    }
-    `;
+    if (isLocalProvider) {
+        // --- LOCAL LLM EXECUTION (STREAMING OPTIMIZED) ---
+        // Prompt for Plain Text + Tags to prevent ugly JSON streaming
+        const systemPromptLocal = `
+        Eres Arise, asistente de MTZ.
+        ${companyContext}
+        ${faqContext}
+        USUARIO: ${safeName} | ROL: ${userRole}
+        MEMORIAS: ${memoryContext || "Ninguna"}
+        
+        OBJETIVO:
+        1. Responder útil y conciso.
+        2. SU PROVEEDOR ES LOCAL LLM.
+        3. FORMATO DE RESPUESTA: Texto plano conversacional.
+        4. METADATA: 
+           - Si sugieres un menú, pon al final: [MENU:id_menu]
+           - Si detectas intención de venta alta, pon al final: [LEAD]
+           - IDs Menú: ${userRole === 'cliente' ? 'cliente_root, cliente_docs, cliente_taxes' : 'invitado_root, invitado_cotizar'}
+        `;
 
-    // Call Supabase Edge Function 'gemini-chat'
-    const { data: responseData, error } = await supabase.functions.invoke('gemini-chat', {
-        body: {
-            contents: [{ parts: [{ text: `${systemPrompt}\n\nUser: "${message}"` }] }],
-            generationConfig: { temperature: 0.5 },
-            model: "gemini-2.0-flash-exp" // Updated to correct experimental model ID
+        const { callLocalLLM } = await import('../localLLMClient');
+        const localUrl = import.meta.env.VITE_LOCAL_LLM_URL || 'http://localhost:1234/v1';
+        const localModel = import.meta.env.VITE_LOCAL_LLM_MODEL || 'llama-3.2-3b-instruct';
+
+        const messages = [
+            { role: "system", content: systemPromptLocal },
+            { role: "user", content: message }
+        ];
+
+        // Streaming Handler
+        const data = await callLocalLLM(messages, {
+            url: localUrl,
+            model: localModel,
+            temperature: 0.7
+        }, (chunk) => {
+             if (onChunk) onChunk(chunk);
+        });
+
+        let fullText = data.choices?.[0]?.message?.content || "";
+        
+        // Parse Tags
+        aiRes.text = fullText.replace(/\[MENU:.*?\]/g, '').replace(/\[LEAD\]/g, '').trim();
+        
+        const menuMatch = fullText.match(/\[MENU:(.*?)\]/);
+        if (menuMatch) aiRes.suggested_menu_id = menuMatch[1];
+        
+        if (fullText.includes('[LEAD]')) aiRes.show_lead_form = true;
+
+    } else {
+        // --- GEMINI EDGE FUNCTION EXECUTION (JSON) ---
+        const systemPromptJSON = `
+        Eres Arise, asistente de MTZ.
+        
+        ${companyContext}
+        ${faqContext}
+        
+        USUARIO: ${safeName} | ROL: ${userRole}
+        ESTADO ACTUAL: ${JSON.stringify(currentState)}
+        
+        MEMORIAS DEL USUARIO (Información que debes recordar):
+        ${memoryContext || "No hay memorias previas."}
+        
+        OBJETIVO:
+        1. Responder la duda del usuario de forma útil, empática y concisa (max 2 párrafos).
+        2. USA LAS MEMORIAS para personalizar la respuesta si es relevante (ej. si sabes su nombre o preferencias, úsalo).
+        3. PROVEEDOR: Gemini via Supabase.
+        4. SIEMPRE SUGERIR UN MENÚ VISUAL ("menu_suggestion") que tenga sentido con la respuesta.
+           - IDs Disponibles para ${userRole}: ${userRole === 'cliente' ? 'cliente_root, cliente_docs, cliente_taxes, cliente_tutorials' : 'invitado_root, invitado_cotizar, invitado_tutorials'}.
+        5. ROLES:
+           - Si ROL es 'cliente': Tu foco es servicio, soporte técnico y retención.
+           - Si ROL es 'invitado': Tu foco es VENTAS y CAPTURA DE LEADS (SDR).
+             * Intenta sutilmente obtener: Qué servicio busca, Giro de empresa, Nombre y Correo/Teléfono.
+             * No seas invasivo, pero si muestra interés, invita a dejar sus datos para que un experto lo contacte.
+        
+        IMPORTANTE: Nunca te dirijas al usuario como "undefined". Si no tienes nombre, usa un saludo genérico o "Usuario".
+    
+        FORMATO JSON (IMPORTANTE: RESPONDE SOLO JSON VÁLIDO):
+        {
+          "text": "Respuesta...",
+          "suggested_menu_id": "optional_menu_id", // ID del menú a mostrar
+          "show_lead_form": boolean // true si ves alta intención y quieres mostrar formulario
         }
-    });
+        `;
 
-    if (error) {
-        console.error('Error enviando mensaje a Edge Function:', error);
-        throw error;
-    }
-    
-    const data = responseData;
-    
-    // Check for application-level errors returned by the function
-    if (data.error) {
-         console.error('Gemini API/Function Error:', data.error);
-         throw new Error(`Gemini Error: ${JSON.stringify(data.error)}`);
-    }
+        // Call Supabase Edge Function 'gemini-chat'
+        const { data: responseData, error } = await supabase.functions.invoke('gemini-chat', {
+            body: {
+                contents: [{ parts: [{ text: `${systemPromptJSON}\n\nUser: "${message}"` }] }],
+                generationConfig: { temperature: 0.5 },
+                model: "gemini-2.0-flash-exp"
+            }
+        });
 
-    console.log('Gemini API Success via Edge Function:', data);
+        if (error) {
+            console.error('Error enviando mensaje a Edge Function:', error);
+            throw error;
+        }
+        
+        const data = responseData;
+        
+        // Check for application-level errors returned by the function
+        if (data.error) {
+             console.error('Gemini API/Function Error:', data.error);
+             throw new Error(`Gemini Error: ${JSON.stringify(data.error)}`);
+        }
     
-    let textRaw = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
-    textRaw = textRaw.replace(/```json/g, '').replace(/```/g, '').trim();
-    
-    const aiRes = JSON.parse(textRaw);
+        console.log('Gemini API Success via Edge Function:', data);
+        
+        let textRaw = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+        textRaw = textRaw.replace(/```json/g, '').replace(/```/g, '').trim();
+        
+        aiRes = JSON.parse(textRaw);
+    }
     
     let responseObj: ChatResponse = {
       text: aiRes.text || "Entendido.",
