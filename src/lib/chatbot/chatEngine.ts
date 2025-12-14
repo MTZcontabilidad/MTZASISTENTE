@@ -245,9 +245,9 @@ async function generateAIResponse(
         
         if (fullText.includes('[LEAD]')) aiRes.show_lead_form = true;
 
+    } else {
         // --- GEMINI EDGE FUNCTION EXECUTION (JSON) ---
         
-        // 4. Integrar Knowledge Base (SII Links)
         // 4. Integrar Knowledge Base (SII Links)
         const detectedLinks = findSIILinks(message);
         let linksContextInfo = "";
