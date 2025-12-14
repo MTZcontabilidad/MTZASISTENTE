@@ -177,3 +177,10 @@ export async function captureGuestLead(
         console.warn('Error capturando guest lead:', e);
     }
 }
+
+/**
+ * Helper simple para determinar si es un usuario invitado basado en su ID o rol
+ */
+export function isGuestUser(userId: string): boolean {
+    return userId.startsWith('guest-') || userId === 'invitado';
+}

@@ -618,7 +618,7 @@ function ChatInterface({}: ChatInterfaceProps = {}) {
       }
 
       // Detectar si el mensaje contiene información importante para guardar en memoria
-      const importantInfo = detectImportantInfo(currentInput);
+      const importantInfo = await detectImportantInfo(currentInput);
 
       if (importantInfo.shouldSave && importantInfo.type) {
         // Guardar en memoria automáticamente con el tipo correcto
