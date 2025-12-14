@@ -136,29 +136,36 @@ async function generateAIResponse(
 ): Promise<ChatResponse> {
   try {
     // Obtener información de la empresa para contexto
-    const { getCompanyInfo, getActiveFAQs } = await import('../companyConfig');
-    const [basicInfo, extendedInfo, companyInfo, faqs] = await Promise.all([
+    // Obtener información de la empresa para contexto
+    const { getCompanyInfo, findMatchingFAQs, getActiveFAQs } = await import('../companyConfig');
+    
+    // Parallel fetch of all context
+    const [basicInfo, extendedInfo, companyInfo, relevantFAQs] = await Promise.all([
        getOrCreateClientInfo(userId),
        getClientExtendedInfo(userId),
        getCompanyInfo(),
-       getActiveFAQs()
+       findMatchingFAQs(message) // Use smart search first
     ]);
+    
+    // Fallback to top FAQs if no match found, to ensure some context
+    const faqs = relevantFAQs.length > 0 ? relevantFAQs : (await getActiveFAQs()).slice(0, 5);
+    
     const aiProfile = extendedInfo?.ai_profile || { tone: 'neutral' };
 
-    // Determine Provider
-    const aiProviderEnv = import.meta.env.VITE_AI_PROVIDER || 'gemini';
-    const forceLocal = typeof localStorage !== 'undefined' && localStorage.getItem('MTZ_USE_LOCAL_LLM') === 'true';
-    const isLocalProvider = forceLocal || aiProviderEnv === 'local';
+    // Determine Provider - FORCE LOCAL DEFAULT as requested
+    const aiProviderEnv = import.meta.env.VITE_AI_PROVIDER || 'local'; // Default to local
+    // Check for explicit 'false' to disable, otherwise default to true if env is local
+    const useLocalSetting = typeof localStorage !== 'undefined' ? localStorage.getItem('MTZ_USE_LOCAL_LLM') : null;
+    const forceLocal = useLocalSetting === 'true' || (useLocalSetting === null && aiProviderEnv === 'local');
+    const isLocalProvider = true; // Hardcode true as per user request "todos que usen la lm mia"
 
-    const safeName = (userName && userName !== 'undefined') ? userName : 'Usuario';
+    const safeName = (userName && userName !== 'undefined') ? userName : (basicInfo?.preferred_name || 'Usuario');
 
     // Construir contexto de memoria (OPT: Limit to 5 for speed)
     const recentMemories = memories.slice(-5);
     const memoryContext = recentMemories
       .map(m => `- [${m.importance >= 7 ? 'IMPORTANTE' : 'Info'}] ${m.content} (${new Date(m.created_at).toLocaleDateString()})`)
       .join('\n');
-
-    // Construir contexto de empresa (Same as before)
 
     
     const companyContext = companyInfo ? `
@@ -171,9 +178,18 @@ async function generateAIResponse(
     - Web: ${companyInfo.website || ''}
     ` : '';
     
+    const clientContext = extendedInfo ? `
+    PERFIL DEL CLIENTE (Supabase):
+    - Actividad: ${extendedInfo.business_activity || "No especificada"}
+    - Empleados: ${extendedInfo.employee_count || "N/A"}
+    - Ingresos: ${extendedInfo.monthly_revenue_range || "N/A"}
+    - Estado IVA: ${extendedInfo.iva_declaration_status || "Desconocido"}
+    - Estado Pago: ${extendedInfo.payment_status || "Desconocido"}
+    ` : '';
+    
     const faqContext = faqs.length > 0 ? `
-    PREGUNTAS FRECUENTES (Reference):
-    ${faqs.slice(0, 5).map(f => `Q: ${f.question} | A: ${f.answer}`).join('\n')}
+    PREGUNTAS FRECUENTES (Usar como referencia oficial):
+    ${faqs.map(f => `Q: ${f.question} | A: ${f.answer}`).join('\n')}
     ` : '';
 
     let aiRes: any = {};
@@ -184,6 +200,7 @@ async function generateAIResponse(
         const systemPromptLocal = `
         Eres Arise, asistente de MTZ.
         ${companyContext}
+        ${clientContext}
         ${faqContext}
         USUARIO: ${safeName} | ROL: ${userRole}
         MEMORIAS PREVIAS: ${memoryContext || "Ninguna"}
@@ -191,8 +208,9 @@ async function generateAIResponse(
         OBJETIVO:
         1. Tu misión es ANALIZAR la situación del usuario y GUIARLO.
         2. Tus respuestas deben ser CORTAS y directas al grano. Evita paja.
-        3. Usa las MEMORIAS para dar continuidad (ej: "Como mencionaste antes...").
+        3. Usa las MEMORIAS y PERFIL DEL CLIENTE para personalizar (ej: si tiene IVA atrasado, menciónalo con tacto).
         4. Si es INVITADO, tu objetivo es vender/captar lead. Si es CLIENTE, resolver dudas.
+        5. IMPORTANTE: Usa la información de PREGUNTAS FRECUENTES si la pregunta coincide.
         
         FORMATO: Texto plano.
         METADATA (Al final de tu respuesta):
