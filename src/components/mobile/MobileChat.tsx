@@ -152,7 +152,13 @@ const MobileChat: React.FC = () => {
                                                     <button 
                                                         key={idx} 
                                                         className="chat-option-btn"
-                                                        onClick={() => handleSend(option.label || option.text)}
+                                                        onClick={() => {
+                                                            if (option.url) {
+                                                                window.open(option.url, '_blank');
+                                                            } else {
+                                                                handleSend(option.label || option.text);
+                                                            }
+                                                        }}
                                                     >
                                                         {option.icon && (
                                                             <span className="material-icons-round">
@@ -160,6 +166,11 @@ const MobileChat: React.FC = () => {
                                                             </span>
                                                         )}
                                                         <span>{option.label || option.text}</span>
+                                                        {option.url && (
+                                                            <span className="material-icons-round" style={{ marginLeft: 'auto', fontSize: '1rem', opacity: 0.7 }}>
+                                                                open_in_new
+                                                            </span>
+                                                        )}
                                                     </button>
                                                 ))}
                                             </div>

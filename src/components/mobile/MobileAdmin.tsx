@@ -9,6 +9,7 @@ const UsersView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [toastMessage, setToastMessage] = useState<string | null>(null);
     const [editForm, setEditForm] = useState({ fullName: '', role: '', isActive: false });
+    const [userFilter, setUserFilter] = useState<'pending' | 'clients' | 'all'>('pending'); // Nueva gestión de tabs
 
     const showToast = (msg: string) => {
         setToastMessage(msg);
@@ -41,7 +42,7 @@ const UsersView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
         setSelectedUser(user);
         setEditForm({
             fullName: user.full_name || '',
-            role: user.role || 'client',
+            role: user.role || 'invitado',
             isActive: user.is_active || false
         });
     };
@@ -68,10 +69,37 @@ const UsersView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
         }
     };
 
-    const filteredUsers = users.filter(user => 
-        (user.full_name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-        (user.email?.toLowerCase() || '').includes(searchTerm.toLowerCase())
-    );
+    // Función rápida para asignar como cliente
+    const handleAssignAsClient = async () => {
+        if (!selectedUser) return;
+        try {
+            const { error } = await supabase
+                .from('user_profiles')
+                .update({ 
+                    role: 'cliente',
+                    is_active: true
+                })
+                .eq('id', selectedUser.id);
+            
+            if (error) throw error;
+            showToast('¡Usuario asignado como Cliente!');
+            setSelectedUser(null);
+            fetchUsers();
+        } catch (error) {
+            showToast('Error al asignar cliente');
+        }
+    };
+
+    const filteredUsers = users.filter(user => {
+        const matchesSearch = (user.full_name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+                              (user.email?.toLowerCase() || '').includes(searchTerm.toLowerCase());
+        
+        if (!matchesSearch) return false;
+
+        if (userFilter === 'pending') return user.role === 'invitado' || !user.role;
+        if (userFilter === 'clients') return user.role === 'cliente';
+        return true; // 'all'
+    });
 
     return (
         <div className="flex flex-col h-full animate-slide-in">
@@ -87,6 +115,36 @@ const UsersView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                 </button>
                 <h2 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--mobile-text)' }}>Gestión de Usuarios</h2>
                 <div style={{ width: '2.5rem' }} />
+            </div>
+
+            {/* Tabs de Filtro */}
+            <div style={{ display: 'flex', gap: '0.5rem', padding: '1rem', borderBottom: '1px solid rgba(255, 255, 255, 0.1)' }}>
+                 <button 
+                    className={`category-filter ${userFilter === 'pending' ? 'active' : ''}`}
+                    onClick={() => setUserFilter('pending')}
+                    style={{ fontSize: '0.85rem', flex: 1 }}
+                >
+                    Nuevos / Gmail 
+                    {users.filter(u => u.role === 'invitado' || !u.role).length > 0 && 
+                        <span className="info-badge" style={{ marginLeft: '0.5rem', fontSize: '0.7rem' }}>
+                            {users.filter(u => u.role === 'invitado' || !u.role).length}
+                        </span>
+                    }
+                </button>
+                 <button 
+                    className={`category-filter ${userFilter === 'clients' ? 'active' : ''}`}
+                    onClick={() => setUserFilter('clients')}
+                    style={{ fontSize: '0.85rem', flex: 1 }}
+                >
+                    Clientes
+                </button>
+                <button 
+                    className={`category-filter ${userFilter === 'all' ? 'active' : ''}`}
+                    onClick={() => setUserFilter('all')}
+                    style={{ fontSize: '0.85rem', width: 'auto' }}
+                >
+                    Todos
+                </button>
             </div>
 
             <div style={{ padding: '1rem', flex: 1, overflowY: 'auto' }}>
@@ -118,17 +176,29 @@ const UsersView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                                     height: '2.5rem',
                                     border: '2px solid rgba(255, 255, 255, 0.1)'
                                 }}>
-                                    <span className="material-icons-round" style={{ fontSize: '1rem' }}>person</span>
+                                    {user.avatar_url ? (
+                                        <img src={user.avatar_url} alt="Avatar" style={{ width: '100%', height: '100%', borderRadius: '50%' }} />
+                                    ) : (
+                                        <span className="material-icons-round" style={{ fontSize: '1rem' }}>person</span>
+                                    )}
                                 </div>
                                 <div className="item-info" style={{ textAlign: 'left' }}>
-                                    <div className="item-title">{user.full_name || 'Sin Nombre'}</div>
-                                    <div className="item-subtitle" style={{ textTransform: 'uppercase', fontSize: '0.75rem' }}>
-                                        {user.role} • {user.is_active ? 'Activo' : 'Inactivo'}
+                                    <div className="item-title">{user.full_name || user.email || 'Usuario Google'}</div>
+                                    <div className="item-email" style={{ fontSize: '0.75rem', color: 'var(--mobile-text-muted)' }}>{user.email}</div>
+                                    <div className="item-subtitle" style={{ textTransform: 'uppercase', fontSize: '0.7rem', marginTop: '0.2rem' }}>
+                                        <span className={`status-badge ${user.role === 'cliente' ? 'success' : user.role === 'admin' ? 'warning' : 'neutral'}`} style={{ padding: '0.1rem 0.4rem' }}>
+                                            {user.role || 'Invitado'}
+                                        </span>
                                     </div>
                                 </div>
-                                <span className="material-icons-round" style={{ color: 'var(--mobile-text-muted)', fontSize: '1.25rem' }}>chevron_right</span>
+                                <span className="material-icons-round" style={{ color: 'var(--mobile-text-muted)', fontSize: '1.25rem' }}>edit</span>
                             </button>
                         ))}
+                         {filteredUsers.length === 0 && (
+                            <div className="empty-state-mobile">
+                                <p className="empty-subtitle">No se encontraron usuarios</p>
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
@@ -137,8 +207,29 @@ const UsersView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
             {selectedUser && (
                 <div className="modal-overlay bottom-sheet" onClick={() => setSelectedUser(null)}>
                     <div className="modal-content" onClick={e => e.stopPropagation()}>
-                        <h3 style={{ marginBottom: '1.5rem' }}>Editar Usuario</h3>
+                        <h3 style={{ marginBottom: '1rem' }}>Administrar Usuario</h3>
+                        <p style={{ fontSize: '0.875rem', color: 'var(--mobile-text-muted)', marginBottom: '1.5rem' }}>
+                            {selectedUser.email}
+                        </p>
+
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                            {/* Quick Action for Pending Users */}
+                            {(editForm.role === 'invitado' || !editForm.role) && (
+                                <button 
+                                    onClick={handleAssignAsClient} 
+                                    className="btn-primary"
+                                    style={{ 
+                                        width: '100%', 
+                                        marginBottom: '1rem',
+                                        background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                                        borderColor: 'rgba(16, 185, 129, 0.5)'
+                                    }}
+                                >
+                                    <span className="material-icons-round">how_to_reg</span>
+                                    Aprobar como Cliente
+                                </button>
+                            )}
+
                             <div>
                                 <label className="section-label">Nombre Completo</label>
                                 <input 
@@ -148,15 +239,15 @@ const UsersView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                                 />
                             </div>
                             <div>
-                                <label className="section-label">Rol</label>
+                                <label className="section-label">Rol del Sistema</label>
                                 <select 
                                     className="system-input"
                                     value={editForm.role}
                                     onChange={e => setEditForm({...editForm, role: e.target.value})}
                                 >
-                                    <option value="client">Cliente</option>
-                                    <option value="admin">Administrador</option>
-                                    <option value="staff">Staff</option>
+                                    <option value="invitado">Invitado (Por defecto)</option>
+                                    <option value="cliente">Cliente Confirmado</option>
+                                    <option value="admin">Administrador Total</option>
                                 </select>
                             </div>
                             <div style={{ 
@@ -168,7 +259,7 @@ const UsersView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                                 border: '1px solid rgba(255, 255, 255, 0.1)',
                                 borderRadius: '0.75rem'
                             }}>
-                                <span style={{ color: 'var(--mobile-text)', fontWeight: 600 }}>Estado Activo</span>
+                                <span style={{ color: 'var(--mobile-text)', fontWeight: 600 }}>Acceso Activo</span>
                                 <div 
                                     className={`toggle-switch ${editForm.isActive ? 'active' : ''}`}
                                     onClick={() => setEditForm({...editForm, isActive: !editForm.isActive})}
@@ -176,13 +267,23 @@ const UsersView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                                     <div className="toggle-knob"></div>
                                 </div>
                             </div>
-                            <button 
-                                onClick={handleSaveUser} 
-                                className="btn-primary"
-                                style={{ width: '100%', marginTop: '0.5rem' }}
-                            >
-                                Guardar Cambios
-                            </button>
+                            
+                            <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
+                                <button 
+                                    onClick={() => setSelectedUser(null)} 
+                                    className="btn-ghost"
+                                    style={{ flex: 1 }}
+                                >
+                                    Cancelar
+                                </button>
+                                <button 
+                                    onClick={handleSaveUser} 
+                                    className="btn-primary"
+                                    style={{ flex: 1 }}
+                                >
+                                    Guardar
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

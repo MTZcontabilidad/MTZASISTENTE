@@ -1,6 +1,6 @@
-import { supabase } from '../supabase';
-// import { getGeminiApiKey } from '../geminiApiKey'; // Deprecated
 
+import { supabase } from '../supabase';
+import { findSIILinks } from '../sii_links';
 import { getOrCreateClientInfo } from '../clientInfo';
 import { getClientExtendedInfo } from '../clientExtendedInfo';
 import { UserMemory } from '../../types'; // Fix relative path to types
@@ -245,10 +245,19 @@ async function generateAIResponse(
         
         if (fullText.includes('[LEAD]')) aiRes.show_lead_form = true;
 
-    } else {
         // --- GEMINI EDGE FUNCTION EXECUTION (JSON) ---
+        
+        // 4. Integrar Knowledge Base (SII Links)
+        // 4. Integrar Knowledge Base (SII Links)
+        const detectedLinks = findSIILinks(message);
+        let linksContextInfo = "";
+        if (detectedLinks.length > 0) {
+            linksContextInfo = `\n[SISTEMA: Se encontraron ${detectedLinks.length} enlaces oficiales relevantes (ej: ${detectedLinks[0].text}). ESTÁN DISPONIBLES COMO BOTONES. Menciónalos o invita a usarlos.]`;
+        }
+
         const systemPromptJSON = `
         Eres Arise, asistente de MTZ.
+        ${linksContextInfo}
         
         ${companyContext}
         ${clientContext}
@@ -330,6 +339,17 @@ async function generateAIResponse(
         textRaw = textRaw.replace(/```json/g, '').replace(/```/g, '').trim();
         
         aiRes = JSON.parse(textRaw);
+        
+        // Add detected links strictly as options
+        if (detectedLinks.length > 0) {
+            aiRes.options = detectedLinks.map(link => ({
+                id: 'link_' + Math.random().toString(36).substr(2, 9),
+                text: link.text,
+                label: link.text,
+                url: link.url,
+                icon: 'link' // Material icon definition
+            }));
+        }
     }
     
     let responseObj: ChatResponse = {
@@ -337,6 +357,12 @@ async function generateAIResponse(
       nextState: currentState,
       show_lead_form: aiRes.show_lead_form
     };
+
+    // If AI provides direct options (links), use them
+    if (aiRes.options && aiRes.options.length > 0) {
+        responseObj.show_menu = true;
+        responseObj.options = aiRes.options;
+    }
 
     // If AI suggests a menu, attach it
     if (aiRes.suggested_menu_id && CHAT_TREES[aiRes.suggested_menu_id]) {
