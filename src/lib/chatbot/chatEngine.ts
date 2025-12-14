@@ -146,8 +146,9 @@ async function generateAIResponse(
     const aiProfile = extendedInfo?.ai_profile || { tone: 'neutral' };
 
     // Determine Provider
-    const aiProvider = import.meta.env.VITE_AI_PROVIDER || 'gemini';
-    const isLocalProvider = aiProvider === 'local';
+    const aiProviderEnv = import.meta.env.VITE_AI_PROVIDER || 'gemini';
+    const forceLocal = typeof localStorage !== 'undefined' && localStorage.getItem('MTZ_USE_LOCAL_LLM') === 'true';
+    const isLocalProvider = forceLocal || aiProviderEnv === 'local';
 
     const safeName = (userName && userName !== 'undefined') ? userName : 'Usuario';
 

@@ -11,13 +11,15 @@ export async function callLocalLLM(
   onChunk?: (chunk: string) => void
 ): Promise<any> {
     const { url, model, temperature } = options;
+    const storedUrl = typeof localStorage !== 'undefined' ? localStorage.getItem('MTZ_LOCAL_LLM_URL') : null;
+    const finalUrl = storedUrl || url;
     const isStreaming = !!onChunk;
 
     try {
-        console.log('[LocalLLM] Sending request to:', url);
+        console.log('[LocalLLM] Sending request to:', finalUrl);
         console.log('[LocalLLM] Model:', model, 'Streaming:', isStreaming);
         
-        const response = await fetch(`${url}/chat/completions`, {
+        const response = await fetch(`${finalUrl}/chat/completions`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
