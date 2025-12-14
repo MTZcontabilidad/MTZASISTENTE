@@ -152,12 +152,10 @@ async function generateAIResponse(
     
     const aiProfile = extendedInfo?.ai_profile || { tone: 'neutral' };
 
-    // Determine Provider - FORCE LOCAL DEFAULT as requested
-    const aiProviderEnv = import.meta.env.VITE_AI_PROVIDER || 'local'; // Default to local
-    // Check for explicit 'false' to disable, otherwise default to true if env is local
-    const useLocalSetting = typeof localStorage !== 'undefined' ? localStorage.getItem('MTZ_USE_LOCAL_LLM') : null;
-    const forceLocal = useLocalSetting === 'true' || (useLocalSetting === null && aiProviderEnv === 'local');
-    const isLocalProvider = true; // Hardcode true as per user request "todos que usen la lm mia"
+    // Determine Provider
+    const aiProviderEnv = import.meta.env.VITE_AI_PROVIDER || 'gemini';
+    const forceLocal = (typeof localStorage !== 'undefined' && localStorage.getItem('MTZ_USE_LOCAL_LLM') === 'true') || aiProviderEnv === 'local';
+    const isLocalProvider = forceLocal;
 
     const safeName = (userName && userName !== 'undefined') ? userName : (basicInfo?.preferred_name || 'Usuario');
 
@@ -253,6 +251,7 @@ async function generateAIResponse(
         Eres Arise, asistente de MTZ.
         
         ${companyContext}
+        ${clientContext}
         ${faqContext}
         
         USUARIO: ${safeName} | ROL: ${userRole}

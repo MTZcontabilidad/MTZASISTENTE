@@ -24,8 +24,7 @@ export async function detectImportantInfo(userInput: string): Promise<{
     }
 
     // 2. Determinar si usar Local LLM
-    // 2. Determinar si usar Local LLM - DEFAULT TRUE (User Request)
-    const forceLocal = true; // Always use local as requested "todos que usen la lm mia"
+    const forceLocal = (typeof localStorage !== 'undefined' && localStorage.getItem('MTZ_USE_LOCAL_LLM') === 'true') || import.meta.env.VITE_AI_PROVIDER === 'local';
     const localUrl = (typeof localStorage !== 'undefined' ? localStorage.getItem('MTZ_LOCAL_LLM_URL') : '') || import.meta.env.VITE_LOCAL_LLM_URL || 'http://localhost:1234/v1';
     
     const systemPrompt = `Eres un experto en Memory Extraction. 
