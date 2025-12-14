@@ -43,7 +43,13 @@ serve(async (req) => {
 
     if (!response.ok) {
         console.error("Gemini API Error:", data)
-        return new Response(JSON.stringify({ error: data }), {
+        return new Response(JSON.stringify({ 
+            error: {
+                message: "Gemini API Error",
+                details: data,
+                status: response.status
+            } 
+        }), {
             status: response.status,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })
@@ -55,7 +61,12 @@ serve(async (req) => {
 
   } catch (error) {
     console.error("Edge Function Error:", error)
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ 
+        error: {
+            message: error.message || "Internal Server Error",
+            stack: error.stack
+        }
+    }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })

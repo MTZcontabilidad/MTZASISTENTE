@@ -19,6 +19,7 @@ const MobileLayout: React.FC<MobileLayoutProps> = ({ user }) => {
         return (saved as Tab) || 'chat';
     });
     const isAdmin = user?.role === 'admin';
+    const isGuest = user?.role === 'invitado';
 
     useEffect(() => {
         sessionStorage.setItem('mobile_active_tab', activeTab);
@@ -56,13 +57,16 @@ const MobileLayout: React.FC<MobileLayoutProps> = ({ user }) => {
                     <span className="nav-label">Chat</span>
                 </button>
                 
-                <button 
-                    className={`nav-item ${activeTab === 'meetings' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('meetings')}
-                >
-                    <span className="material-icons-round">event</span>
-                    <span className="nav-label">Reuniones</span>
-                </button>
+                {/* Meetings - Hide for Guests */}
+                {!isGuest && (
+                    <button 
+                        className={`nav-item ${activeTab === 'meetings' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('meetings')}
+                    >
+                        <span className="material-icons-round">event</span>
+                        <span className="nav-label">Reuniones</span>
+                    </button>
+                )}
                 
                 {isAdmin ? (
                      <button 
@@ -82,22 +86,8 @@ const MobileLayout: React.FC<MobileLayoutProps> = ({ user }) => {
                     </button>
                 )}
                 
-                {/* 
-                <button 
-                    className={`nav-item ${activeTab === 'docs' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('docs')}
-                >
-                    <span className="material-icons-round">description</span>
-                    <span className="nav-label">Docs</span>
-                </button> 
-                */}
-                {/* Keeping 5 items max for better spacing. Replacing Docs with Accesses/Admin for now or just squeezing them in? 
-                    Let's just keep Docs for everyone and swap Accesses for Admin if needed, or just add Admin.
-                    Mobile navs usually handle 5 items max well.
-                    Let's do: Chat | Meetings | Admin/Access | Docs | Profile
-                */}
-
-                 {!isAdmin && (
+                 {/* Docs - Hide for Guests and Admins (Admins have their own module) */}
+                 {!isAdmin && !isGuest && (
                     <button 
                         className={`nav-item ${activeTab === 'docs' ? 'active' : ''}`}
                         onClick={() => setActiveTab('docs')}

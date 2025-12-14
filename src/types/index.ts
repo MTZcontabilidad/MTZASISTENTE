@@ -1,7 +1,7 @@
 // Tipos para el sistema de chats individuales
 
-export type UserRole = 'admin' | 'invitado' | 'cliente' | 'inclusion'
-export type UserType = 'invitado' | 'cliente_nuevo' | 'cliente_existente' | 'inclusion'
+export type UserRole = 'admin' | 'invitado' | 'cliente'
+export type UserType = 'invitado' | 'cliente_nuevo' | 'cliente_existente'
 export type MemoryType = 'fact' | 'preference' | 'context' | 'important_info' | 'custom'
 export type MessageSender = 'user' | 'assistant'
 

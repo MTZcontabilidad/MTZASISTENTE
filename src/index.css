@@ -35,10 +35,20 @@
   --glass-blur: 12px;
   --glass-blur-sm: 4px;
 
-  /* Premium Theme Tokens */
-  --premium-gradient: linear-gradient(135deg, rgba(30,41,59,0.9), rgba(15,23,42,0.95));
-  --premium-card-bg: var(--glass-bg);
-  --premium-border: 1px solid var(--glass-border);
+  /* Premium Theme Tokens (Globalized from Mobile) */
+  --premium-bg-gradient: linear-gradient(to bottom, #0f172a, #020617);
+  --premium-card-gradient: linear-gradient(135deg, rgba(30,41,59,0.9), rgba(15,23,42,0.95));
+  --premium-card-bg: rgba(30, 41, 59, 0.5); /* Matching mobile glass-bg */
+  --premium-border: 1px solid rgba(0, 212, 255, 0.1);
+  --premium-border-active: 1px solid rgba(0, 212, 255, 0.3);
+  --glass-bg: rgba(30, 41, 59, 0.5);
+  --neon-glow: 0 0 15px rgba(0, 212, 255, 0.2);
+  --neon-glow-strong: 0 0 20px rgba(0, 212, 255, 0.4);
+
+  /* Mobile Palette Globalized */
+  --accent-cyan: #00d4ff;
+  --accent-green: #22c55e;
+  --accent-red: #ef4444;
 }
 
 body {

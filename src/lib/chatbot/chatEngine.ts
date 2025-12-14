@@ -3,7 +3,7 @@ import { supabase } from '../supabase';
 
 import { getOrCreateClientInfo } from '../clientInfo';
 import { getClientExtendedInfo } from '../clientExtendedInfo';
-
+import { UserMemory } from '../../types'; // Fix relative path to types
 
 
 import { CHAT_TREES, MenuOption } from './chatTrees';
@@ -11,7 +11,7 @@ import { CHAT_TREES, MenuOption } from './chatTrees';
 // --- TYPES & STATE ---
 
 export interface ChatState {
-  mode: 'idle' | 'booking_transport';
+  mode: 'idle';
   step: number;
   data: Record<string, any>;
   lastMenuId?: string;
@@ -41,8 +41,9 @@ export async function handleChat(
   userId: string,
   userMessage: string,
   currentState: ChatState,
-  userRole: 'cliente' | 'inclusion' | 'invitado' = 'invitado',
-  userName?: string
+  userRole: 'cliente' | 'invitado' = 'invitado',
+  userName?: string,
+  memories: UserMemory[] = [] // New argument: Memories
 ): Promise<ChatResponse> {
   const input = normalizeInput(userMessage);
 
@@ -51,38 +52,8 @@ export async function handleChat(
     return handleGlobalCommand(input, userRole, userName);
   }
 
-  // 2. ACTIVE AGENT (If in a flow)
-  if (currentState.mode === 'booking_transport') {
-    return runBookingAgent(userId, input, currentState);
-  }
+  // 3.2 Specific Intents (Eliminado: Transporte)
 
-  // 3. IDLE MODE LOGIC
-  // 3.1 Numeric Selection (Accessibility)
-  if (currentState.lastOptions && /^\d+$/.test(input)) {
-    const index = parseInt(input) - 1;
-    if (index >= 0 && index < currentState.lastOptions.length) {
-      const selectedOption = currentState.lastOptions[index];
-      // Simulate selecting the option
-      // If it's a navigating option, we might need to handle it or just return the action
-      if (selectedOption.action === 'show_menu' && selectedOption.params?.menu) {
-         // Recursively call for that menu
-         return handleMenuRequest(selectedOption.params.menu, userName);
-      }
-      return {
-        text: `Has seleccionado: ${selectedOption.label}`,
-        nextState: { ...currentState, lastOptions: undefined }, // Clear options after selection
-        action_to_execute: { type: selectedOption.action, payload: selectedOption.params }
-      };
-    }
-  }
-
-  // 3.2 Specific Intents (Start Booking)
-  if (input.includes('agendar') && (input.includes('traslado') || input.includes('viaje'))) {
-    return {
-      text: "¡Claro! Empecemos a coordinar tu traslado. 🚗\n\n¿Para qué **fecha** necesitas el transporte? (Ej: Mañana, El Lunes, 25 de Octubre)",
-      nextState: { mode: 'booking_transport', step: 1, data: {} } // Activate Agent
-    };
-  }
 
   // 3.3 Static Menu Match
   const strictMatch = findStaticMatch(input, userRole);
@@ -91,81 +62,12 @@ export async function handleChat(
   }
 
   // 3.4 Smart Fallback (Gemini)
-  return await generateAIResponse(userId, userMessage, userRole, userName, currentState);
+  return await generateAIResponse(userId, userMessage, userRole, userName, currentState, memories);
 }
 
 // --- SUB-AGENTS ---
 
-/**
- * AGENT: TRANSPORT BOOKING
- * Fills slots: Date -> Time -> Origin -> Destination -> Confirm
- */
-async function runBookingAgent(userId: string, input: string, state: ChatState): Promise<ChatResponse> {
-  const step = state.step;
-  const newData = { ...state.data };
 
-  // Helper to stay in agent
-  const stay = (text: string, nextStep: number = step): ChatResponse => ({
-    text,
-    nextState: { ...state, step: nextStep, data: newData }
-  });
-
-  // STEP 1: DATE
-  if (step === 1) {
-    // Simple validation (can be enhanced with regex)
-    if (input.length < 3) return stay("Por favor, indícame una fecha válida (Ej: 'Mañana', 'Lunes 15').");
-    
-    newData.date = input;
-    return stay("Entendido. ¿A qué **hora** te pasamos a buscar? (Ej: 10:30 AM)", 2);
-  }
-
-  // STEP 2: TIME
-  if (step === 2) {
-    newData.time = input;
-    return stay("Perfecto. ¿Desde **dónde** salimos y hacia **dónde** vas? (Origen - Destino)", 3);
-  }
-
-  // STEP 3: LOCATION
-  if (step === 3) {
-    newData.location = input;
-    
-    // Summary
-    const summary = `
-📋 **Resumen del Viaje**:
-- 📅 Fecha: ${newData.date}
-- 🕒 Hora: ${newData.time}
-- 📍 Ruta: ${newData.location}
-
-¿Es correcto? (Responde Sí o No)
-    `.trim();
-    
-    return stay(summary, 4);
-  }
-
-  // STEP 4: CONFIRMATION
-  if (step === 4) {
-    if (input.includes('si') || input.includes('ok') || input.includes('claro')) {
-      // SAVE TO DB (Mock for now, replacing with real insert later)
-      // await supabase.from('transport_requests').insert(...)
-      
-      return {
-        text: "¡Excelente! Tu solicitud ha sido registrada. ✅\nNuestro equipo de coordinación te contactará para confirmar el conductor.\n\n¿Necesitas algo más para el Taller de Sillas?",
-        nextState: { mode: 'idle', step: 0, data: {} },
-        show_menu: true,
-        options: CHAT_TREES['inclusion_root'].options // Back to hub
-      };
-    } else {
-      return {
-        text: "Entendido, cancelemos esta solicitud. ¿En qué más puedo ayudarte?",
-        nextState: { mode: 'idle', step: 0, data: {} },
-        show_menu: true,
-        options: CHAT_TREES['inclusion_root'].options
-      };
-    }
-  }
-
-  return stay("No entendí eso. ¿Podemos continuar?");
-}
 
 // --- HELPERS ---
 
@@ -180,7 +82,6 @@ function isGlobalCommand(input: string): boolean {
 function handleGlobalCommand(input: string, userRole: string, userName?: string): ChatResponse {
   const rootMenuId = 
     userRole === 'cliente' ? 'cliente_root' : 
-    userRole === 'inclusion' ? 'inclusion_root' : 
     'invitado_root';
     
   return handleMenuRequest(rootMenuId, userName);
@@ -214,8 +115,7 @@ function handleMenuRequest(menuId: string, userName?: string): ChatResponse {
 
 function findStaticMatch(input: string, userRole: string): string | null {
   // Simple keywords mapping
-  if (input.includes('taller') || input.includes('silla')) return 'inclusion_workshop';
-  if (input.includes('traslado') || input.includes('transporte')) return 'inclusion_transport';
+
   if (input.includes('cotizar') || input.includes('precios')) return 'invitado_cotizar';
   if (input.includes('f29') || input.includes('iva')) return 'cliente_taxes';
   return null;
@@ -228,7 +128,8 @@ async function generateAIResponse(
   message: string,
   userRole: string,
   userName: string | undefined,
-  currentState: ChatState
+  currentState: ChatState,
+  memories: UserMemory[] = []
 ): Promise<ChatResponse> {
   try {
     const [basicInfo, extendedInfo] = await Promise.all([
@@ -238,24 +139,34 @@ async function generateAIResponse(
     const aiProfile = extendedInfo?.ai_profile || { tone: 'neutral' };
 
     const safeName = (userName && userName !== 'undefined') ? userName : 'Usuario';
+
+    // Construir contexto de memoria
+    const memoryContext = memories
+      .map(m => `- [${m.importance >= 7 ? 'IMPORTANTE' : 'Info'}] ${m.content} (${new Date(m.created_at).toLocaleDateString()})`)
+      .join('\n');
+
     const systemPrompt = `
     Eres Arise, asistente de MTZ.
     
     USUARIO: ${safeName} | ROL: ${userRole}
     ESTADO ACTUAL: ${JSON.stringify(currentState)}
     
+    MEMORIAS DEL USUARIO (Información que debes recordar):
+    ${memoryContext || "No hay memorias previas."}
+    
     OBJETIVO:
     1. Responder la duda del usuario de forma útil, empática y concisa (max 2 párrafos).
-    2. SIEMPRE SUGERIR UN MENÚ VISUAL ("menu_suggestion") que tenga sentido con la respuesta.
-       - IDs Disponibles: invitado_root, invitado_cotizar, cliente_root, cliente_docs, inclusion_workshop, inclusion_transport.
-    3. Si el usuario intenta hacer algo que requiere un Agente (como "Agendar Traslado"), indícalo.
+    2. USA LAS MEMORIAS para personalizar la respuesta si es relevante (ej. si sabes su nombre o preferencias, úsalo).
+    3. SIEMPRE SUGERIR UN MENÚ VISUAL ("menu_suggestion") que tenga sentido con la respuesta.
+       - IDs Disponibles para ${userRole}: ${userRole === 'cliente' ? 'cliente_root, cliente_docs, cliente_taxes, cliente_tutorials' : 'invitado_root, invitado_cotizar, invitado_tutorials'}.
+    4. Si el usuario intenta hacer algo que requiere un Agente (como "Agendar Traslado"), indícalo.
     
     IMPORTANTE: Nunca te dirijas al usuario como "undefined". Si no tienes nombre, usa un saludo genérico o "Usuario".
 
     FORMATO JSON:
     {
       "text": "Respuesta...",
-      "suggested_menu_id": "inclusion_transport" (Opcional, si aplica)
+
     }
     `;
 
@@ -264,7 +175,7 @@ async function generateAIResponse(
         body: {
             contents: [{ parts: [{ text: `${systemPrompt}\n\nUser: "${message}"` }] }],
             generationConfig: { temperature: 0.5 },
-            model: "gemini-2.0-flash" // Usando modelo más rápido
+            model: "gemini-2.0-flash-exp" // Updated to correct experimental model ID
         }
     });
 
@@ -274,6 +185,13 @@ async function generateAIResponse(
     }
     
     const data = responseData;
+    
+    // Check for application-level errors returned by the function
+    if (data.error) {
+         console.error('Gemini API/Function Error:', data.error);
+         throw new Error(`Gemini Error: ${JSON.stringify(data.error)}`);
+    }
+
     console.log('Gemini API Success via Edge Function:', data);
     
     let textRaw = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
@@ -312,7 +230,6 @@ async function generateAIResponse(
     }
     
     const rootMenuId = userRole === 'cliente' ? 'cliente_root' : 
-                       userRole === 'inclusion' ? 'inclusion_root' : 
                        'invitado_root';
     const rootMenuFallback = handleMenuRequest(rootMenuId, userName);
 

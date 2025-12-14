@@ -99,6 +99,7 @@
   font-weight: 700;
   background: linear-gradient(to right, #60a5fa, #00d4ff);
   -webkit-background-clip: text;
+  background-clip: text; 
   -webkit-text-fill-color: transparent;
   margin: 0;
 }
@@ -433,6 +434,49 @@
   background: linear-gradient(90deg, var(--mobile-accent-cyan), transparent);
   opacity: 0.5;
 }
+
+/* Admin Module Buttons */
+.module-btn {
+  /* Base styles inherited from premium-card */
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.module-btn:hover {
+  transform: scale(1.02);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.module-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+  transition: background 0.3s;
+}
+
+/* Color Variants */
+.module-btn.blue .module-icon { background: rgba(59, 130, 246, 0.1); color: #60a5fa; }
+.module-btn.blue:hover .module-icon { background: rgba(59, 130, 246, 0.2); }
+
+.module-btn.red .module-icon { background: rgba(239, 68, 68, 0.1); color: #f87171; }
+.module-btn.red:hover .module-icon { background: rgba(239, 68, 68, 0.2); }
+
+.module-btn.purple .module-icon { background: rgba(168, 85, 247, 0.1); color: #c084fc; }
+.module-btn.purple:hover .module-icon { background: rgba(168, 85, 247, 0.2); }
+
+.module-btn.green .module-icon { background: rgba(34, 197, 94, 0.1); color: #4ade80; }
+.module-btn.green:hover .module-icon { background: rgba(34, 197, 94, 0.2); }
+
+.module-btn.orange .module-icon { background: rgba(249, 115, 22, 0.1); color: #fb923c; }
+.module-btn.orange:hover .module-icon { background: rgba(249, 115, 22, 0.2); }
+
+.module-btn.gray .module-icon { background: rgba(156, 163, 175, 0.1); color: #9ca3af; }
+.module-btn.gray:hover .module-icon { background: rgba(156, 163, 175, 0.2); }
 
 /* Note: .glass-header and .text-gradient already defined above within scope, duplicates removed */
 

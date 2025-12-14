@@ -11,7 +11,7 @@ import { getUserMemories, createMemory } from "../lib/memories";
 import { detectImportantInfo } from "../lib/chatUtils";
 
 import { handleChat, ChatState, getInitialChatState } from "../lib/chatbot/chatEngine";
-import { Message, UserType, UserRole } from "../types";
+import { Message, UserType, UserRole, UserMemory } from "../types";
 // We don't import specific UI components like VoiceControls here, but we manage the state they need.
 import { useTextToSpeech, type TTSOptions } from "../lib/textToSpeech";
 
@@ -32,6 +32,9 @@ export function useChat() {
   const [userEmail, setUserEmail] = useState<string | undefined>(undefined);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   
+  // Memory State
+  const [memories, setMemories] = useState<UserMemory[]>([]);
+
   // UI State managed by hook for convenience
   const [isLoading, setIsLoading] = useState(false); // redundant with loading? ChatInterface had both.
   const [showClearConfirm, setShowClearConfirm] = useState(false);
@@ -78,6 +81,38 @@ export function useChat() {
           }
         }
         
+        // GUEST / DEBUG USER FALLBACK
+        if (!user) {
+            try {
+                // First check for explicit debug user
+                const debugUserStr = localStorage.getItem('MTZ_DEBUG_USER');
+                if (debugUserStr) {
+                    const debugUser = JSON.parse(debugUserStr);
+                    if (debugUser && debugUser.id) {
+                        console.log('[DEBUG] Using MTZ_DEBUG_USER from localStorage:', debugUser);
+                        user = { id: debugUser.id, email: debugUser.email || 'debug@mtz.cl' } as any;
+                    }
+                }
+                
+                // If still no user, use/create generic GUEST user
+                if (!user) {
+                    const guestUserStr = localStorage.getItem('MTZ_GUEST_ID');
+                    if (guestUserStr) {
+                         user = JSON.parse(guestUserStr);
+                    } else {
+                         // Generate a guest ID that triggers "temp" mode in conversations.ts (starts with non-uuid or just unique string)
+                         // conversations.ts checks for UUID format. A simple timestamp-based ID works to trigger temp mode.
+                         const newGuestId = `guest-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+                         user = { id: newGuestId, email: undefined } as any;
+                         localStorage.setItem('MTZ_GUEST_ID', JSON.stringify(user));
+                         console.log('[DEBUG] Created new GUEST user:', user);
+                    }
+                }
+            } catch (e) {
+                console.warn('Error handling Guest/Debug user', e);
+            }
+        }
+        
         if (!user || !mounted || isCancelled) {
           if (mounted && !isCancelled) setLoadingHistory(false);
           return;
@@ -111,8 +146,15 @@ export function useChat() {
              setUserType('cliente_existente');
              setUserEmail(user.email || undefined);
              setUserName(undefined);
+          } else if (user.id.startsWith('guest-')) {
+             // Explicit Guest Handling
+             setUserRole('invitado');
+             setUserType('invitado'); // Assuming 'invitado' is a valid UserType or similar fallback
+             setUserName('Invitado');
           } else {
+             // Default fallthrough
             setUserEmail(user.email || undefined);
+            setUserRole('invitado'); 
           }
           setCurrentUserId(user.id);
         } catch (error) {
@@ -168,7 +210,9 @@ export function useChat() {
 
         // 6. Load Memories
         if (mounted && !isCancelled) {
-           await getUserMemories(user.id, activeConvId);
+           const userMemories = await getUserMemories(user.id, activeConvId);
+           // Limit to 20 most relevant/recent to prevent token overflow
+           setMemories(userMemories.slice(0, 20));
         }
 
       } catch (error: any) {
@@ -232,22 +276,16 @@ export function useChat() {
       const { CHAT_TREES } = await import('../lib/chatbot/chatTrees');
       let welcomeMessage = '';
       let initialMenu: any = undefined;
-      const safeUserRole = userRole || 'invitado';
-      
-      if (isInvitado) {
-          const rootMenu = CHAT_TREES['invitado_root'];
-          welcomeMessage = rootMenu.text;
-          initialMenu = { type: 'options', title: 'Opciones:', options: rootMenu.options };
-      } else {
-          const rootMenuId = safeUserRole === 'inclusion' ? 'inclusion_root' : 'cliente_root';
+          // Determinar rol efectivo
+          const safeUserRole = userRole || 'invitado'; 
+          const rootMenuId = 'cliente_root';
           const rootMenu = CHAT_TREES[rootMenuId];
           welcomeMessage = rootMenu.text.replace('[Nombre]', formattedClientName || displayNameForWelcome || 'Cliente');
           initialMenu = { type: 'options', title: 'Opciones:', options: rootMenu.options };
-      }
 
       const welcomeMsgData = await createMessage(activeConvId, user.id, welcomeMessage, "assistant");
       if (welcomeMsgData) {
-        setMessages([{ ...welcomeMsgData, timestamp: new Date(welcomeMsgData.created_at), menu: initialMenu }]);
+        setMessages([{ ...welcomeMsgData, timestamp: new Date(welcomeMsgData.created_at), menu: undefined }]);
         playWelcomeAudio(contextualMessages.greeting, contextualMessages.welcomeMessage, displayNameForWelcome);
       }
   };
@@ -288,8 +326,29 @@ export function useChat() {
         const cached = sessionCache.get();
         if (cached && cached.id) user = { id: cached.id, email: cached.email || '' } as any;
     }
+    
+    // GUEST / DEBUG USER FALLBACK (For Send)
     if (!user) {
-      console.log('[DEBUG] No user found');
+        try {
+            const debugUserStr = localStorage.getItem('MTZ_DEBUG_USER');
+            if (debugUserStr) {
+                 const debugUser = JSON.parse(debugUserStr);
+                 if (debugUser && debugUser.id) {
+                     user = { id: debugUser.id, email: debugUser.email || 'debug@mtz.cl' } as any;
+                 }
+            }
+            // Fallback to Guest
+            if (!user) {
+                 const guestUserStr = localStorage.getItem('MTZ_GUEST_ID');
+                 if (guestUserStr) {
+                     user = JSON.parse(guestUserStr);
+                 }
+            }
+        } catch (e) {}
+    }
+
+    if (!user) {
+      console.log('[DEBUG] No user found (even guest)');
       return;
     }
     console.log('[DEBUG] User found:', user.id);
@@ -318,7 +377,10 @@ export function useChat() {
 
         const importantInfo = detectImportantInfo(messageToSend);
         if (importantInfo.shouldSave && importantInfo.type) {
-            await createMemory(user.id, activeConvId, importantInfo.type, messageToSend, importantInfo.type === "important_info" ? 7 : 5);
+            const newMemory = await createMemory(user.id, activeConvId, importantInfo.type, messageToSend, importantInfo.type === "important_info" ? 7 : 5);
+            if (newMemory) {
+               setMemories(prev => [newMemory, ...prev]);
+            }
         }
         
         const { detectAndSaveClientInfo } = await import("../lib/chatUtils");
@@ -330,8 +392,9 @@ export function useChat() {
 
         const assistantResponse = await handleChat(
             user.id, messageToSend, chatUtilsState, 
-            (userRole as 'cliente' | 'inclusion' | 'invitado') || 'invitado', 
-            userName
+            (userRole as 'cliente' | 'invitado') || 'invitado', 
+            userName,
+            memories // Pass memories here
         );
 
         let responseMenu: any = undefined;
@@ -361,7 +424,7 @@ export function useChat() {
         setLoading(false);
         setAbortController(null);
     }
-  }, [input, loading, conversationId, loadingHistory, userType, userRole, userName, chatUtilsState]);
+  }, [input, loading, conversationId, loadingHistory, userType, userRole, userName, chatUtilsState, memories]); // Added memories dependency
 
   useEffect(() => { handleSendRef.current = handleSend; }, [handleSend]);
 
@@ -383,7 +446,7 @@ export function useChat() {
           setLoading(true);
           const newId = await clearConversation(currentUserId, conversationId);
           setMessages([]); setInput(""); setConversationId(newId); setWelcomePlayed(false);
-          setShowClearConfirm(false);
+          setShowClearConfirm(false); setMemories([]); // Clear memories from UI state too? Or reload? Better reload.
       } catch (e) {
           console.error("Error clearing chat", e);
       } finally { setLoading(false); }

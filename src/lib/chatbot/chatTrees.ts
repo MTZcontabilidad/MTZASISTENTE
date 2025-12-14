@@ -62,7 +62,7 @@ export const CHAT_TREES: Record<string, ChatMenu> = {
     options: [
       { id: 'taxes', label: '📊 Mis Impuestos', icon: '📊', action: 'show_menu', params: { menu: 'cliente_taxes' }, description: 'F29, Renta, Situación Tributaria' },
       { id: 'docs', label: '📂 Mis Documentos', icon: '📂', action: 'show_menu', params: { menu: 'cliente_docs' }, description: 'Carpetas, Balances, E-RUT' },
-      { id: 'help', label: '🎓 Tutoriales y Ayuda', icon: '🎓', action: 'show_menu', params: { menu: 'general_tutorials' } },
+      { id: 'help', label: '🎓 Tutoriales y Ayuda', icon: '🎓', action: 'show_menu', params: { menu: 'cliente_tutorials' } },
       { id: 'support', label: '💬 Hablar con Contador', icon: '🙋‍♂️', action: 'contact_support' }
     ]
   },
@@ -86,44 +86,13 @@ export const CHAT_TREES: Record<string, ChatMenu> = {
     ]
   },
 
-  // --- ROL: INCLUSIÓN (Enfoque en Taller y Traslados) ---
-  'inclusion_root': {
-    id: 'inclusion_root',
-    text: 'Hola, soy Arise. Estoy aquí para ayudarte con el Taller de Sillas y transportes de la Fundación. ¿En qué te ayudo hoy?',
-    options: [
-      { id: 'workshop', label: '🔧 Taller de Sillas', icon: '🪑', action: 'show_menu', params: { menu: 'inclusion_workshop' } },
-      { id: 'transport', label: '🚐 Transporte', icon: '🚐', action: 'show_menu', params: { menu: 'inclusion_transport' } },
-      { id: 'profile', label: '👤 Mi Perfil', icon: '👤', action: 'navigate', params: { route: 'profile' } },
-      { id: 'support', label: '💬 Operadora', icon: '🎧', action: 'contact_support' }
-    ]
-  },
-  'inclusion_workshop': {
-    id: 'inclusion_workshop',
-    text: 'Bienvenido al Taller MMC. ¿Qué servicio necesitas para tu silla?',
-    options: [
-      { id: 'new_request', label: 'Nueva Mantención', icon: '🛠️', action: 'navigate', params: { route: 'requests-wheelchair' } }, // Or trigger request flow
-      { id: 'status', label: 'Estado de mi Silla', icon: '🔍', action: 'navigate', params: { route: 'requests-wheelchair' } },
-      { id: 'tips', label: 'Tips de Cuidado', icon: '💡', action: 'show_tutorial', params: { id: 'wheelchair_tips' } }, // Future content
-      { id: 'back', label: '🔙 Volver al inicio', action: 'show_menu', params: { menu: 'inclusion_root' } }
-    ]
-  },
-  'inclusion_transport': {
-    id: 'inclusion_transport',
-    text: 'Transporte Inclusivo Fundación Te Quiero Feliz. ¿Qué necesitas?',
-    options: [
-      { id: 'request_trip', label: 'Solicitar Traslado', icon: '📅', action: 'navigate', params: { route: 'requests-transport' } },
-      { id: 'my_trips', label: 'Mis Viajes', icon: 'list', action: 'navigate', params: { route: 'requests-transport' } },
-      { id: 'back', label: '🔙 Volver al inicio', action: 'show_menu', params: { menu: 'inclusion_root' } }
-    ]
-  },
-
-  // --- INVITADO ROOT ---
+  // --- MENÚS COMPARTIDOS (Tutoriales) ---
   invitado_root: {
     id: 'invitado_root',
     text: '¡Hola! 👋 Bienvenido a MTZ. Soy Arise, tu asistente virtual. ¿En qué puedo ayudarte hoy?',
     options: [
       { id: 'opt_servicios', label: '🚀 Quiero Cotizar / Emprender', action: 'show_menu', params: { menu: 'invitado_cotizar' } },
-      { id: 'opt_guias', label: '📚 Guías y Tutoriales', action: 'show_menu', params: { menu: 'general_tutorials' } },
+      { id: 'opt_guias', label: '📚 Guías y Tutoriales', action: 'show_menu', params: { menu: 'invitado_tutorials' } },
       { id: 'opt_ubicacion', label: '📍 Ubicación y Contacto', action: 'show_menu', params: { menu: 'general_contact' } },
       { id: 'opt_login', label: '🔐 Iniciar Sesión', action: 'link', params: { url: '/login' } },
     ]
@@ -171,14 +140,26 @@ export const CHAT_TREES: Record<string, ChatMenu> = {
   },
 
   // --- MENÚS COMPARTIDOS (Tutoriales) ---
-  'general_tutorials': {
-    id: 'general_tutorials',
+  // --- MENÚS DE TUTORIALES (Separados por rol para navegación correcta) ---
+  'cliente_tutorials': {
+    id: 'cliente_tutorials',
     text: '¡Excelente iniciativa! Aprender a gestionar tus trámites te da poder. ¿Qué guía quieres ver hoy?',
     options: [
       { id: 'guide_f29', label: '📝 Cómo declarar IVA (F29)', icon: '📝', action: 'show_tutorial', params: { id: 'f29_step_by_step' } },
       { id: 'guide_start', label: '🚀 Inicio de Actividades', icon: '🚀', action: 'show_tutorial', params: { id: 'inicio_actividades_step' } },
       { id: 'guide_boleta', label: '📄 Emitir Boleta Honorarios', icon: '📄', action: 'show_tutorial', params: { id: 'emitir_boleta' } },
-      { id: 'back', label: '🔙 Volver al inicio', action: 'show_menu', params: { menu: 'root_back' } } // Dynamic back handled in engine ideally, or generic back
+      { id: 'back', label: '🔙 Volver al inicio', action: 'show_menu', params: { menu: 'cliente_root' } }
+    ]
+  },
+
+  'invitado_tutorials': {
+    id: 'invitado_tutorials',
+    text: '¡Excelente iniciativa! Aprender a gestionar tus trámites te da poder. ¿Qué guía quieres ver hoy?',
+    options: [
+      { id: 'guide_f29', label: '📝 Cómo declarar IVA (F29)', icon: '📝', action: 'show_tutorial', params: { id: 'f29_step_by_step' } },
+      { id: 'guide_start', label: '🚀 Inicio de Actividades', icon: '🚀', action: 'show_tutorial', params: { id: 'inicio_actividades_step' } },
+      { id: 'guide_boleta', label: '📄 Emitir Boleta Honorarios', icon: '📄', action: 'show_tutorial', params: { id: 'emitir_boleta' } },
+      { id: 'back', label: '🔙 Volver al inicio', action: 'show_menu', params: { menu: 'invitado_root' } }
     ]
   }
 };

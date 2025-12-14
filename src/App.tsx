@@ -13,7 +13,7 @@ function AppContent() {
   const { user, loading, isAdmin, devMode, setDevMode, refreshProfile, setUser } = useAuth()
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768)
   const [showNormalAuth, setShowNormalAuth] = useState(false)
-  const [welcomeCompleted, setWelcomeCompleted] = useState(false)
+  const [welcomeCompleted, setWelcomeCompleted] = useState(() => localStorage.getItem('mtz_welcome_completed') === 'true')
 
   // Mobile detection
   useEffect(() => {
@@ -52,7 +52,7 @@ function AppContent() {
                     } else if (role === 'cliente') {
                         setShowNormalAuth(true); // Clients test normal auth for now
                     } else {
-                        // Guest/Inclusion mock
+                        // Guest mock
                         setUser({
                              id: 'dev-user',
                              email: 'dev@local.com',
@@ -88,6 +88,7 @@ function AppContent() {
           <InvitadoWelcome 
               user={user} 
               onContinue={async () => {
+                  localStorage.setItem('mtz_welcome_completed', 'true');
                   setWelcomeCompleted(true);
                   await refreshProfile();
               }} 

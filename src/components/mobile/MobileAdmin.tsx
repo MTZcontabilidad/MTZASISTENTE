@@ -168,7 +168,7 @@ const UsersView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                                 >
                                     <option value="client">Cliente</option>
                                     <option value="admin">Administrador</option>
-                                    <option value="inclusion">Inclusión</option>
+
                                     <option value="staff">Staff</option>
                                 </select>
                             </div>
@@ -443,32 +443,20 @@ const MobileAdmin: React.FC = () => {
                             
                             <h3 className="section-title mb-3">Herramientas</h3>
                             <div className="grid grid-cols-2 gap-3 pb-20">
-                                {adminModules.map((module, idx) => {
-                                    // Color mapping for Tailwind
-                                    const colorMap: Record<string, string> = {
-                                        blue: 'bg-blue-500/10 text-blue-400 group-hover:bg-blue-500/20',
-                                        red: 'bg-red-500/10 text-red-400 group-hover:bg-red-500/20',
-                                        purple: 'bg-purple-500/10 text-purple-400 group-hover:bg-purple-500/20',
-                                        green: 'bg-green-500/10 text-green-400 group-hover:bg-green-500/20',
-                                        orange: 'bg-orange-500/10 text-orange-400 group-hover:bg-orange-500/20',
-                                        gray: 'bg-gray-500/10 text-gray-400 group-hover:bg-gray-500/20',
-                                    };
-                                    
-                                    return (
-                                        <button 
-                                            key={module.id}
-                                            className="premium-card p-4 text-left group hover:scale-[1.02] transition-all"
-                                            onClick={() => handleModuleClick(module)}
-                                            style={{ animationDelay: `${idx * 0.05}s` }}
-                                        >
-                                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center mb-3 transition-colors ${colorMap[module.color] || colorMap.gray}`}>
-                                                <span className="material-icons-round">{module.icon}</span>
-                                            </div>
-                                            <div className="font-semibold text-white mb-1">{module.label}</div>
-                                            <div className="text-xs text-gray-500">{module.desc}</div>
-                                        </button>
-                                    );
-                                })}
+                                {adminModules.map((module, idx) => (
+                                    <button 
+                                        key={module.id}
+                                        className={`premium-card p-4 text-left group module-btn ${module.color}`}
+                                        onClick={() => handleModuleClick(module)}
+                                        style={{ animationDelay: `${idx * 0.05}s` }}
+                                    >
+                                        <div className="module-icon">
+                                            <span className="material-icons-round">{module.icon}</span>
+                                        </div>
+                                        <div className="font-semibold text-white mb-1">{module.label}</div>
+                                        <div className="text-xs text-gray-500">{module.desc}</div>
+                                    </button>
+                                ))}
                             </div>
                         </div>
                     </>

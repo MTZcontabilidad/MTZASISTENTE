@@ -1052,9 +1052,9 @@ function EditUserModal({ user, onClose, onSave }: EditUserModalProps) {
                   value={role}
                   onChange={(e) => setRole(e.target.value as UserRole)}
                 >
-                  <option value="user">Usuario</option>
-                  <option value="admin">Administrador</option>
                   <option value="invitado">Invitado</option>
+                  <option value="cliente">Cliente</option>
+                  <option value="admin">Administrador</option>
                 </select>
               </div>
 

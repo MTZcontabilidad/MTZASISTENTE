@@ -15,14 +15,12 @@ function DevModeSelector({ onSelectRole, onStartNormalAuth }: DevModeSelectorPro
     { value: 'admin', label: 'Administrador', description: 'Acceso completo al panel de administración' },
     { value: 'cliente', label: 'Cliente', description: 'Usuario cliente con acceso al chat' },
     { value: 'invitado', label: 'Invitado', description: 'Usuario invitado - verá pantalla de bienvenida' },
-    { value: 'inclusion', label: 'Inclusión', description: 'Usuario con rol de inclusión' },
   ]
 
   const userTypes: { value: UserType; label: string }[] = [
     { value: 'invitado', label: 'Invitado' },
     { value: 'cliente_nuevo', label: 'Cliente Nuevo' },
     { value: 'cliente_existente', label: 'Cliente Existente' },
-    { value: 'inclusion', label: 'Inclusión' },
   ]
 
   const handleStart = () => {

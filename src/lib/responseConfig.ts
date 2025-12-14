@@ -178,13 +178,7 @@ export const userTypeMessages: Record<
     defaultResponse:
       "Como cliente existente, conozco tu historial. ¿Cómo puedo ayudarte hoy? ¡Siempre es un gusto trabajar contigo!",
   },
-  inclusion: {
-    greeting: "¡Hola",
-    welcomeMessage: "Bienvenido a MTZ Asistente",
-    closingMessage: "Fue un placer ayudarte",
-    defaultResponse:
-      "Gracias por contactarnos. Estoy aquí para ayudarte con cualquier consulta sobre nuestros servicios. ¡Estamos juntos en esto!",
-  },
+
 };
 
 /**

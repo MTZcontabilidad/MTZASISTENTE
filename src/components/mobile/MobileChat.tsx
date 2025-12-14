@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import './Mobile.css';
 import { useChat } from '../../hooks/useChat';
+import { useSpeechToText } from '../../lib/speechToText'; // Import speech hook
 import { supabase } from '../../lib/supabase';
 import { markdownToHtml, hasMarkdown } from '../../lib/markdown';
 
@@ -15,6 +16,22 @@ const MobileChat: React.FC = () => {
         loadingHistory,
         handleClearChat
     } = useChat();
+
+    // Voice Transcription Hook
+    const {
+        isListening,
+        transcript,
+        start: startListening,
+        stop: stopListening,
+        isSupported: isSpeechSupported
+    } = useSpeechToText();
+
+    // Sync transcript to input
+    useEffect(() => {
+        if (transcript) {
+            setInput(transcript);
+        }
+    }, [transcript, setInput]);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const [userAvatar, setUserAvatar] = useState<string | null>(null);
@@ -160,17 +177,6 @@ const MobileChat: React.FC = () => {
                             <span className="material-icons-round">delete_outline</span>
                         </button>
                         
-                        <button 
-                            className="icon-btn-secondary"
-                            onClick={() => {
-                                // TODO: Implement voice recording
-                                alert('Función de audio próximamente');
-                            }}
-                            title="Enviar audio"
-                        >
-                            <span className="material-icons-round">mic</span>
-                        </button>
-                        
                         <div className="chat-input-wrapper">
                             <input 
                                 className="mobile-input chat-input" 
@@ -182,6 +188,21 @@ const MobileChat: React.FC = () => {
                             />
                         </div>
                         
+                        <button 
+                            className={`icon-btn-secondary ${isListening ? 'listening pulse-animation' : ''}`}
+                            onClick={() => {
+                                if (isListening) {
+                                    stopListening();
+                                } else {
+                                    startListening();
+                                }
+                            }}
+                            title={isListening ? "Detener grabación" : "Enviar audio"}
+                            style={isListening ? { color: '#ef4444', borderColor: '#ef4444', marginRight: '4px' } : { marginRight: '4px' }}
+                        >
+                            <span className="material-icons-round">{isListening ? 'mic_off' : 'mic'}</span>
+                        </button>
+
                         <button 
                             className={`icon-btn-primary ${input.trim() ? 'active' : ''}`}
                             onClick={() => handleSend()}

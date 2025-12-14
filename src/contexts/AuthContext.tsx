@@ -7,7 +7,7 @@ interface User {
   id: string;
   email: string;
   role: UserRole;
-  user_type?: 'invitado' | 'cliente_nuevo' | 'cliente_existente' | 'inclusion';
+  user_type?: 'invitado' | 'cliente_nuevo' | 'cliente_existente';
 }
 
 interface AuthContextType {
@@ -26,14 +26,32 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   // Inicialización desde caché
   const cachedUser = sessionCache.get();
-  const initialUser = cachedUser && cachedUser.id && sessionCache.isValid() 
+  
+  // DEBUG USER CHECK
+  const getDebugUser = () => {
+    try {
+        const str = localStorage.getItem('MTZ_DEBUG_USER');
+        if (!str) return null;
+        const parsed = JSON.parse(str);
+        if (parsed && parsed.id) return {
+            id: parsed.id,
+            email: parsed.email || 'debug@mtz.cl',
+            role: parsed.role || 'cliente',
+            user_type: parsed.user_type || 'cliente_existente'
+        };
+    } catch(e) { console.warn('Invalid debug user', e); }
+    return null;
+  };
+  const debugUser = getDebugUser();
+
+  const initialUser = debugUser || (cachedUser && cachedUser.id && sessionCache.isValid() 
     ? {
         id: cachedUser.id,
         email: cachedUser.email,
         role: cachedUser.role as UserRole,
         user_type: cachedUser.user_type as any
       }
-    : null;
+    : null);
 
   const [user, setUser] = useState<User | null>(initialUser);
   const [loading, setLoading] = useState(!initialUser);
@@ -131,7 +149,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     // Check inicial si no hay usuario (y no teníamos caché válida)
-    if (!user) {
+    if (!user && !debugUser) {
         supabase.auth.getSession().then(({ data: { session } }) => {
             if (session?.user) {
                 loadUserProfile(session.user.id);
@@ -139,6 +157,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 setLoading(false);
             }
         });
+    } else if (debugUser) {
+        setLoading(false); // Valid debug user loaded instantly
     }
 
     return () => subscription.unsubscribe();

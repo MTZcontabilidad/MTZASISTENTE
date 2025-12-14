@@ -2,29 +2,25 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { getUserMeetings } from '../lib/meetings';
 import { getClientDocuments } from '../lib/documents';
-import { getWorkshopRequestsByUserId } from '../lib/wheelchairWorkshop';
-import { getTransportRequestsByUserId } from '../lib/transportRequests';
 import { getOrCreateClientInfo } from '../lib/clientInfo';
 import { getClientExtendedInfo } from '../lib/clientExtendedInfo';
 import type { UserProfile, Meeting, ClientInfo, ClientExtendedInfo } from '../types';
 import type { ClientDocument } from '../lib/documents';
 import './ClientSidebar.css';
 
-export type ClientTab = 'chat' | 'meetings' | 'documents' | 'company' | 'requests' | 'requests-wheelchair' | 'requests-transport' | 'notes' | 'profile' | 'services' | 'mtz-consultores' | 'fundacion' | 'taller-mmc' | 'abuelita-alejandra';
+export type ClientTab = 'chat' | 'meetings' | 'documents' | 'company' | 'requests' | 'notes' | 'profile' | 'services' | 'mtz-consultores' | 'abuelita-alejandra';
 
 interface ClientSidebarProps {
   activeTab: ClientTab;
   onTabChange: (tab: ClientTab) => void;
   userId: string;
-  userRole: 'cliente' | 'inclusion' | 'invitado';
+  userRole: 'cliente' | 'invitado'; // Removed inclusion
   onClose?: () => void;
 }
 
 interface ClientSidebarState {
   meetings: Meeting[];
   documents: ClientDocument[];
-  wheelchairRequests: any[];
-  transportRequests: any[];
   clientInfo: ClientInfo | null;
   clientExtendedInfo: ClientExtendedInfo | null;
   loading: {
@@ -46,8 +42,6 @@ export default function ClientSidebar({
   const [state, setState] = useState<ClientSidebarState>({
     meetings: [],
     documents: [],
-    wheelchairRequests: [],
-    transportRequests: [],
     clientInfo: null,
     clientExtendedInfo: null,
     loading: {
@@ -64,8 +58,6 @@ export default function ClientSidebar({
       loadMeetings();
     } else if (activeTab === 'documents') {
       loadDocuments();
-    } else if (activeTab === 'requests') {
-      loadRequests();
     } else if (activeTab === 'company') {
       loadCompanyInfo();
     }
@@ -95,26 +87,6 @@ export default function ClientSidebar({
     }
   };
 
-  const loadRequests = async () => {
-    if (state.loading.requests) return;
-    setState(prev => ({ ...prev, loading: { ...prev.loading, requests: true } }));
-    try {
-      const [wheelchair, transport] = await Promise.all([
-        getWorkshopRequestsByUserId(userId),
-        userRole === 'inclusion' ? getTransportRequestsByUserId(userId) : Promise.resolve([]),
-      ]);
-      setState(prev => ({
-        ...prev,
-        wheelchairRequests: wheelchair,
-        transportRequests: transport,
-        loading: { ...prev.loading, requests: false },
-      }));
-    } catch (error) {
-      console.error('Error al cargar solicitudes:', error);
-      setState(prev => ({ ...prev, loading: { ...prev.loading, requests: false } }));
-    }
-  };
-
   const loadCompanyInfo = async () => {
     if (state.loading.company) return;
     setState(prev => ({ ...prev, loading: { ...prev.loading, company: true } }));
@@ -136,51 +108,38 @@ export default function ClientSidebar({
   };
 
   // Menú para invitados (servicios de MTZ)
-  const invitadoMenuItems: Array<{ id: ClientTab; label: string; icon: string; showFor?: ('cliente' | 'inclusion')[] }> = [
+  const invitadoMenuItems: Array<{ id: ClientTab; label: string; icon: string; showFor?: ('cliente')[] }> = [
     { id: 'chat', label: 'Chat', icon: '💬' },
     { id: 'services', label: 'Accesos Rápidos', icon: '🚀' },
     { id: 'mtz-consultores', label: 'MTZ Consultores Tributarios', icon: '📊' },
-    { id: 'fundacion', label: 'Fundación Te Quiero Feliz', icon: '🚐' },
-    { id: 'taller-mmc', label: 'Taller de Sillas de Ruedas MMC', icon: '🪑' },
     { id: 'abuelita-alejandra', label: 'Fábrica de Ropa y Diseño Abuelita Alejandra', icon: '👗' },
     { id: 'profile', label: 'Mi Perfil', icon: '👤' },
   ];
 
-  // Menú para clientes e inclusión
-  const clienteMenuItems: Array<{ id: ClientTab; label: string; icon: string; showFor?: ('cliente' | 'inclusion')[] }> = [
+  // Menú para clientes
+  const clienteMenuItems: Array<{ id: ClientTab; label: string; icon: string; showFor?: ('cliente')[] }> = [
     { id: 'chat', label: 'Chat', icon: '💬' },
     { id: 'services', label: 'Accesos Rápidos', icon: '🚀' },
     { id: 'meetings', label: 'Mis Reuniones', icon: '📅' },
     { id: 'documents', label: 'Mis Documentos', icon: '📄' },
-    { id: 'company', label: 'Mi Empresa', icon: '🏢' }, // Removed showFor as this list is now strictly for 'cliente' role logic in filteredMenuItems usage needs update if we split logic
-    { id: 'requests', label: 'Mis Solicitudes', icon: '🪑' },
+    { id: 'company', label: 'Mi Empresa', icon: '🏢' },
+    { id: 'requests', label: 'Mis Solicitudes', icon: '🪑' }, // Keep generic requests if needed, but wheelchalr gone
     { id: 'notes', label: 'Notas', icon: '📝' },
     { id: 'profile', label: 'Mi Perfil', icon: '👤' },
   ];
 
-  // Menú específico para Rol Inclusión
-  const inclusionMenuItems: Array<{ id: ClientTab; label: string; icon: string }> = [
-    { id: 'chat', label: 'Chat', icon: '💬' },
-    { id: 'requests-wheelchair', label: 'Taller de Sillas', icon: '🪑' },
-    { id: 'requests-transport', label: 'Solicitud Traslados', icon: '🚐' },
-    { id: 'services', label: 'Accesos Rápidos', icon: '🚀' },
-    { id: 'profile', label: 'Mi Perfil', icon: '👤' },
-  ];
-
   // Seleccionar el menú según el rol
-  let menuItems: Array<{ id: ClientTab; label: string; icon: string; showFor?: ('cliente' | 'inclusion')[] }>;
+  let menuItems: Array<{ id: ClientTab; label: string; icon: string; showFor?: ('cliente')[] }>;
   
   if (userRole === 'invitado') {
     menuItems = invitadoMenuItems;
-  } else if (userRole === 'inclusion') {
-    menuItems = inclusionMenuItems;
   } else {
     menuItems = clienteMenuItems;
   }
 
   const filteredMenuItems = menuItems.filter(item => {
     if (!item.showFor) return true;
-    return item.showFor.includes(userRole as 'cliente' | 'inclusion');
+    return item.showFor.includes(userRole as 'cliente');
   });
 
   return (

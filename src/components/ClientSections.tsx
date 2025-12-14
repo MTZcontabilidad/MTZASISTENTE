@@ -3,8 +3,7 @@ import { supabase } from '../lib/supabase';
 import CompanyForm from './CompanyForm';
 import { getUserMeetings, createMeeting } from '../lib/meetings';
 import { getClientDocuments } from '../lib/documents';
-import { getWorkshopRequestsByUserId } from '../lib/wheelchairWorkshop';
-import { getTransportRequestsByUserId } from '../lib/transportRequests';
+
 import { getOrCreateClientInfo, updateClientInfo } from '../lib/clientInfo';
 import { getClientExtendedInfo, upsertClientExtendedInfo } from '../lib/clientExtendedInfo';
 import type { Meeting, ClientInfo, ClientExtendedInfo } from '../types';
@@ -491,7 +490,7 @@ export function ClientCompanyInfoSection({ userId, onBack }: ClientCompanyInfoSe
 
 interface ClientRequestsSectionProps {
   userId: string;
-  userRole: 'cliente' | 'inclusion';
+  userRole: 'cliente';
   onBack: () => void;
   initialTab?: 'wheelchair' | 'transport';
   viewMode?: 'combined' | 'wheelchair_only' | 'transport_only';
@@ -504,64 +503,13 @@ export function ClientRequestsSection({
   initialTab = 'wheelchair',
   viewMode = 'combined'
 }: ClientRequestsSectionProps) {
-  const [wheelchairRequests, setWheelchairRequests] = useState<any[]>([]);
-  const [transportRequests, setTransportRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  
-  // Si estamos en modo específico, forzamos el tab activo
-  const effectiveInitialTab = viewMode === 'transport_only' ? 'transport' : 
-                             viewMode === 'wheelchair_only' ? 'wheelchair' : 
-                             initialTab;
-                             
-  const [activeTab, setActiveTab] = useState<'wheelchair' | 'transport'>(effectiveInitialTab);
-
-  const loadRequests = async () => {
-    setLoading(true);
-    try {
-      const [wheelchair, transport] = await Promise.all([
-        getWorkshopRequestsByUserId(userId),
-        userRole === 'inclusion' ? getTransportRequestsByUserId(userId) : Promise.resolve([]),
-      ]);
-      setWheelchairRequests(wheelchair);
-      setTransportRequests(transport);
-    } catch (error) {
-      console.error('Error al cargar solicitudes:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   useEffect(() => {
-    loadRequests();
-  }, [userId, userRole]);
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('es-CL', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
-  };
-
-  const getStatusBadge = (status: string) => {
-    const badges: Record<string, { text: string; class: string }> = {
-      pending: { text: 'Pendiente', class: 'status-pending' },
-      confirmed: { text: 'Confirmada', class: 'status-approved' },
-      in_progress: { text: 'En Progreso', class: 'status-in-progress' },
-      completed: { text: 'Completada', class: 'status-completed' },
-      cancelled: { text: 'Cancelada', class: 'status-cancelled' },
-      rejected: { text: 'Rechazada', class: 'status-rejected' },
-    };
-    const badge = badges[status] || { text: status, class: 'status-default' };
-    return <span className={`status-badge ${badge.class}`}>{badge.text}</span>;
-  };
-
-  // Título dinámico según el modo
-  const getTitle = () => {
-    if (viewMode === 'wheelchair_only') return 'Taller de Sillas';
-    if (viewMode === 'transport_only') return 'Solicitud de Traslados';
-    return 'Mis Solicitudes';
-  };
+    // Simulate loading
+    const timer = setTimeout(() => setLoading(false), 500);
+    return () => clearTimeout(timer);
+  }, []);
 
   return (
     <div className="client-section">
@@ -569,26 +517,8 @@ export function ClientRequestsSection({
         <button onClick={onBack} className="back-button">
           ← Volver
         </button>
-        <h2>{getTitle()}</h2>
+        <h2>Mis Solicitudes</h2>
       </div>
-
-      {/* Mostrar tabs solo si estamos en modo combinado y el rol es inclusión */}
-      {viewMode === 'combined' && userRole === 'inclusion' && (
-        <div className="requests-tabs">
-          <button
-            className={activeTab === 'wheelchair' ? 'active' : ''}
-            onClick={() => setActiveTab('wheelchair')}
-          >
-            🪑 Taller de Sillas
-          </button>
-          <button
-            className={activeTab === 'transport' ? 'active' : ''}
-            onClick={() => setActiveTab('transport')}
-          >
-            🚐 Transporte
-          </button>
-        </div>
-      )}
 
       {loading ? (
         <div className="loading-state">
@@ -596,72 +526,9 @@ export function ClientRequestsSection({
           <p>Cargando solicitudes...</p>
         </div>
       ) : (
-        <>
-          {activeTab === 'wheelchair' && (
-            <div className="requests-list">
-              {wheelchairRequests.length === 0 ? (
-                <div className="empty-state">
-                  <p>No tienes solicitudes del taller de sillas.</p>
-                </div>
-              ) : (
-                wheelchairRequests.map((request) => (
-                  <div key={request.id} className="request-card">
-                    <div className="request-header">
-                      <h3>{request.service_type}</h3>
-                      {getStatusBadge(request.status)}
-                    </div>
-                    <p>{request.service_description}</p>
-                    {request.preferred_date && (
-                      <div className="request-details">
-                        <span>📅 {formatDate(request.preferred_date)}</span>
-                        {request.preferred_time && <span>⏰ {request.preferred_time}</span>}
-                      </div>
-                    )}
-                    {request.admin_notes && (
-                      <div className="admin-notes">
-                        <strong>Notas:</strong> {request.admin_notes}
-                      </div>
-                    )}
-                  </div>
-                ))
-              )}
-            </div>
-          )}
-
-          {activeTab === 'transport' && (
-            <div className="requests-list">
-              {transportRequests.length === 0 ? (
-                <div className="empty-state">
-                  <p>No tienes solicitudes de transporte.</p>
-                </div>
-              ) : (
-                transportRequests.map((request) => (
-                  <div key={request.id} className="request-card">
-                    <div className="request-header">
-                      <h3>Viaje: {request.trip_type}</h3>
-                      {getStatusBadge(request.status)}
-                    </div>
-                    <p>
-                      <strong>Origen:</strong> {request.origin_address}
-                    </p>
-                    <p>
-                      <strong>Destino:</strong> {request.destination_address}
-                    </p>
-                    <div className="request-details">
-                      <span>📅 {formatDate(request.trip_date)}</span>
-                      {request.trip_time && <span>⏰ {request.trip_time}</span>}
-                    </div>
-                    {request.admin_notes && (
-                      <div className="admin-notes">
-                        <strong>Notas:</strong> {request.admin_notes}
-                      </div>
-                    )}
-                  </div>
-                ))
-              )}
-            </div>
-          )}
-        </>
+        <div className="empty-state">
+           <p>No tienes solicitudes activas.</p>
+        </div>
       )}
     </div>
   );

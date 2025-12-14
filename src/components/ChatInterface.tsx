@@ -36,8 +36,6 @@ import {
 import { ClientServicesSection } from "./ClientServicesSection";
 import {
   MTZConsultoresSection,
-  FundacionTeQuieroFelizSection,
-  TallerMMCSection,
   AbuelitaAlejandraSection,
 } from "./InvitadoServices";
 import "./ChatInterface.css";
@@ -475,8 +473,8 @@ function ChatInterface({}: ChatInterfaceProps = {}) {
                 options: rootMenu.options
              };
           } else {
-             // Clientes o Inclusión
-             const rootMenuId = safeUserRole === 'inclusion' ? 'inclusion_root' : 'cliente_root';
+             // Clientes
+             const rootMenuId = 'cliente_root';
              const rootMenu = CHAT_TREES[rootMenuId];
              // Personalizar texto con nombre real
              welcomeMessage = rootMenu.text.replace('[Nombre]', formattedClientName || displayNameForWelcome || 'Cliente');
@@ -662,7 +660,7 @@ function ChatInterface({}: ChatInterfaceProps = {}) {
         user.id,
         currentInput, // normalized input is handled inside handleChat
         chatUtilsState,
-        (userRole as 'cliente' | 'inclusion' | 'invitado') || 'invitado',
+        (userRole as 'cliente' | 'invitado') || 'invitado',
         userName
       );
 
@@ -698,7 +696,7 @@ function ChatInterface({}: ChatInterfaceProps = {}) {
              setTimeout(() => {
                  try {
                      // Check if it's a valid tab
-                     const validTabs = ['chat', 'mtz-consultores', 'fundacion', 'taller-mmc', 'abuelita-alejandra', 'services', 'meetings', 'documents', 'company', 'requests', 'requests-wheelchair', 'requests-transport', 'notes', 'profile'];
+                     const validTabs = ['chat', 'mtz-consultores', 'abuelita-alejandra', 'services', 'meetings', 'documents', 'company', 'requests', 'notes', 'profile'];
                      if (validTabs.includes(payload.route)) {
                         setActiveTab(payload.route as ClientTab);
                      } else {
@@ -963,12 +961,6 @@ function ChatInterface({}: ChatInterfaceProps = {}) {
           {activeTab === 'mtz-consultores' && (
             <MTZConsultoresSection onBack={() => setActiveTab('chat')} />
           )}
-          {activeTab === 'fundacion' && (
-            <FundacionTeQuieroFelizSection onBack={() => setActiveTab('chat')} />
-          )}
-          {activeTab === 'taller-mmc' && (
-            <TallerMMCSection onBack={() => setActiveTab('chat')} />
-          )}
           {activeTab === 'abuelita-alejandra' && (
             <AbuelitaAlejandraSection onBack={() => setActiveTab('chat')} />
           )}
@@ -998,23 +990,7 @@ function ChatInterface({}: ChatInterfaceProps = {}) {
           {activeTab === 'requests' && (
             <ClientRequestsSection
               userId={currentUserId}
-              userRole={(userRole === 'cliente' || userRole === 'invitado') ? 'cliente' : 'inclusion'}
-              onBack={() => setActiveTab('chat')}
-            />
-          )}
-          {activeTab === 'requests-wheelchair' && (
-            <ClientRequestsSection
-              userId={currentUserId}
-              userRole="inclusion"
-              viewMode="wheelchair_only"
-              onBack={() => setActiveTab('chat')}
-            />
-          )}
-          {activeTab === 'requests-transport' && (
-            <ClientRequestsSection
-              userId={currentUserId}
-              userRole="inclusion"
-              viewMode="transport_only"
+              userRole="cliente"
               onBack={() => setActiveTab('chat')}
             />
           )}
@@ -1262,9 +1238,7 @@ function ChatInterface({}: ChatInterfaceProps = {}) {
                             const menuKey = result.menu;
                             let targetMenuKey = menuKey;
                             if (menuKey === 'root_back') {
-                               targetMenuKey = userRole === 'cliente' ? 'cliente_root' : 
-                                              userRole === 'inclusion' ? 'inclusion_root' : 
-                                              'invitado_root';
+                               targetMenuKey = userRole === 'cliente' ? 'cliente_root' : 'invitado_root';
                             }
                             
                             const menu = CHAT_TREES[targetMenuKey];
