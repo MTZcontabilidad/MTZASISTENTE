@@ -6,6 +6,11 @@ import { supabase } from "./supabase";
 /**
  * Detecta si el mensaje contiene información importante que debe guardarse en memoria usando IA (Gemini)
  */
+import { callLocalLLM } from "./localLLMClient";
+
+/**
+ * Detecta si el mensaje contiene información importante que debe guardarse en memoria usando IA
+ */
 export async function detectImportantInfo(userInput: string): Promise<{
   shouldSave: boolean;
   type: "important_info" | "preference" | "fact" | null;
@@ -13,47 +18,56 @@ export async function detectImportantInfo(userInput: string): Promise<{
   importance?: number;
 }> {
   try {
-    // 1. Filtrado rápido: Si el mensaje es muy corto o trivial, ignorar para ahorrar tokens
+    // 1. Filtrado rápido
     if (userInput.length < 5 || ["hola", "gracias", "chau", "ok"].includes(userInput.toLowerCase().trim())) {
         return { shouldSave: false, type: null };
     }
 
-    // 2. Prompt para extracción de información
-    const systemPrompt = `Eres un sistema experto en extracción de información (Memory Extraction).
-    Analiza el mensaje del usuario y extrae CUALQUIER dato nuevo relevante sobre él, su negocio o sus preferencias.
+    // 2. Determinar si usar Local LLM
+    const forceLocal = typeof localStorage !== 'undefined' && localStorage.getItem('MTZ_USE_LOCAL_LLM') === 'true';
+    const localUrl = typeof localStorage !== 'undefined' ? localStorage.getItem('MTZ_LOCAL_LLM_URL') : '';
     
-    Tipos de datos a extraer:
-    - 'important_info': Datos de contacto, nombre, empresa, rut, rol, deudas, problemas legales. (Importancia 8-10)
-    - 'preference': Gustos, formas de trato (tu, usted), canales preferidos. (Importancia 5-7)
-    - 'fact': Hechos generales mencionados ("tengo 2 hijos", "viajo en marzo"). (Importancia 3-5)
+    const systemPrompt = `Eres un experto en Memory Extraction. 
+    Analiza el mensaje y extrae datos relevantes.
+    NO saludes. SOLO responde con un JSON válido.
     
-    Si NO hay información relevante (solo saludos, preguntas al bot, quejas vacías), devuelve shouldSave: false.
-    
-    Salida JSON Requerida:
+    SCHEMA:
     {
       "shouldSave": boolean,
       "type": "important_info" | "preference" | "fact" | null,
-      "content": "resumen conciso del dato en tercera persona (ej: 'El usuario tiene una empresa de camiones')",
+      "content": "resumen en tercera persona",
       "importance": number (1-10)
     }`;
 
-    // 3. Llamada a Edge Function
-    const { data: responseData, error } = await supabase.functions.invoke('gemini-chat', {
-        body: {
-            contents: [{ parts: [{ text: `${systemPrompt}\n\nMensaje Usuario: "${userInput}"` }] }],
-            generationConfig: { 
-                temperature: 0.1, // Baja temperatura para ser preciso
-                responseMimeType: "application/json"
-            }
-        }
-    });
+    let responseText = "";
 
-    if (error || !responseData) {
-        console.warn('Error en extracción de memoria AI, usando fallback regex:', error);
-        return fallbackDetect(userInput);
+    if (forceLocal && localUrl) {
+       console.log('[detectImportantInfo] Usando Local LLM:', localUrl);
+       const response = await callLocalLLM([
+           { role: "system", content: systemPrompt },
+           { role: "user", content: userInput }
+       ], {
+           url: localUrl,
+           model: 'llama-3.2-3b-instruct', // O el que esté configurado
+           temperature: 0.1
+       });
+       responseText = response.choices?.[0]?.message?.content || "{}";
+    } else {
+       // 3. Fallback a Supabase (Gemini)
+       const { data: responseData, error } = await supabase.functions.invoke('gemini-chat', {
+            body: {
+                contents: [{ parts: [{ text: `${systemPrompt}\n\nUser Input: "${userInput}"` }] }],
+                generationConfig: { responseMimeType: "application/json" }
+            }
+       });
+       if (error || !responseData) throw new Error(error?.message || 'No response from Supabase');
+       responseText = responseData.candidates[0].content.parts[0].text;
     }
 
-    const aiRes = JSON.parse(responseData.candidates[0].content.parts[0].text);
+    // Limpieza de Markdown JSON si el LLM lo pone
+    const jsonStr = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+    const aiRes = JSON.parse(jsonStr);
+
     return {
         shouldSave: aiRes.shouldSave,
         type: aiRes.type as "important_info" | "preference" | "fact" | null,
@@ -62,7 +76,7 @@ export async function detectImportantInfo(userInput: string): Promise<{
     };
 
   } catch (e) {
-    console.warn('Fallo en Memory Extraction AI', e);
+    console.warn('Fallo en Memory Extraction AI (Local/Cloud)', e);
     return fallbackDetect(userInput);
   }
 }
