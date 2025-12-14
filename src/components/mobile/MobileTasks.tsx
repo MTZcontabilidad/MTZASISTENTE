@@ -146,16 +146,17 @@ const MobileTasks: React.FC = () => {
                 </div>
             )}
 
-            <header className="glass-header flex justify-between items-center px-4">
+            <header className="glass-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                  <div>
-                     <h1 className="text-lg font-bold text-white">{isAdmin ? 'ADMIN PANEL' : 'MIS PEDIDOS'}</h1>
-                     <p className="text-xs text-slate-400 uppercase tracking-widest">
+                     <h1>{isAdmin ? 'ADMIN PANEL' : 'MIS PEDIDOS'}</h1>
+                     <p>
                          {isAdmin ? 'Gestión de Solicitudes' : 'Tus Requerimientos'}
                      </p>
                  </div>
                  <button 
                     onClick={() => setShowModal(true)}
-                    className="w-10 h-10 flex items-center justify-center text-white bg-blue-600 rounded-lg shadow-lg hover:bg-blue-500 transition-colors"
+                    className="icon-btn-primary"
+                    style={{ width: '2.75rem', height: '2.75rem' }}
                 >
                     <span className="material-icons-round">add</span>
                 </button>
@@ -163,18 +164,18 @@ const MobileTasks: React.FC = () => {
 
             <div className="mobile-content-scroll">
                 {loading ? (
-                    <div className="flex justify-center py-10 text-white">
-                         <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+                    <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem 0' }}>
+                         <div className="loading-spinner"></div>
                     </div>
                 ) : (
-                    <div className="system-list-container space-y-3">
+                    <div className="system-list-container">
                          {tasks.length === 0 ? (
-                            <div className="flex flex-col items-center py-12 opacity-50">
-                                <div className="w-16 h-16 rounded-full bg-slate-800 flex items-center justify-center mb-4">
-                                     <span className="material-icons-round text-4xl text-slate-600">task_alt</span>
+                            <div className="empty-state-mobile">
+                                <div className="empty-icon">
+                                     <span className="material-icons-round">task_alt</span>
                                 </div>
-                                <p className="text-slate-400 font-medium">No tienes solicitudes pendientes</p>
-                                <button className="btn-ghost mt-4 text-xs" onClick={() => setShowModal(true)}>
+                                <p className="empty-title">No tienes solicitudes pendientes</p>
+                                <button className="btn-ghost" style={{ marginTop: '1rem', fontSize: '0.75rem' }} onClick={() => setShowModal(true)}>
                                     CREAR SOLICITUD
                                 </button>
                             </div>
@@ -182,15 +183,39 @@ const MobileTasks: React.FC = () => {
                             tasks.map((task) => {
                                 const status = getStatusInfo(task.status);
                                 return (
-                                    <div key={task.id} className="system-list-item flex-col !items-start !gap-3 !p-4 hover:border-slate-600 transition-colors">
-                                        <div className="flex items-center w-full justify-between">
-                                            <div className="flex items-center gap-3">
-                                                <div className={`flex items-center justify-center w-8 h-8 rounded-lg ${getPriorityColor(task.priority)}`}>
-                                                    <span className="material-icons-round text-lg">{getPriorityIcon(task.priority)}</span>
+                                    <div key={task.id} className="system-list-item" style={{ 
+                                        flexDirection: 'column', 
+                                        alignItems: 'flex-start', 
+                                        gap: '0.875rem',
+                                        padding: '1.25rem'
+                                    }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem', flex: 1, minWidth: 0 }}>
+                                                <div style={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    width: '2.5rem',
+                                                    height: '2.5rem',
+                                                    borderRadius: '0.625rem',
+                                                    background: task.priority === 'urgent' 
+                                                        ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(239, 68, 68, 0.1) 100%)'
+                                                        : task.priority === 'high'
+                                                        ? 'linear-gradient(135deg, rgba(234, 179, 8, 0.2) 0%, rgba(234, 179, 8, 0.1) 100%)'
+                                                        : 'linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(59, 130, 246, 0.1) 100%)',
+                                                    border: `1px solid ${task.priority === 'urgent' ? 'rgba(239, 68, 68, 0.3)' : task.priority === 'high' ? 'rgba(234, 179, 8, 0.3)' : 'rgba(59, 130, 246, 0.3)'}`,
+                                                    flexShrink: 0
+                                                }}>
+                                                    <span className="material-icons-round" style={{ 
+                                                        fontSize: '1.125rem',
+                                                        color: task.priority === 'urgent' ? '#f87171' : task.priority === 'high' ? '#facc15' : 'var(--mobile-primary)'
+                                                    }}>
+                                                        {getPriorityIcon(task.priority)}
+                                                    </span>
                                                 </div>
-                                                <div className="min-w-0">
-                                                    <div className="font-bold text-white text-base truncate pr-2">{task.title}</div>
-                                                    <div className="text-xs text-slate-400">
+                                                <div style={{ flex: 1, minWidth: 0 }}>
+                                                    <div className="item-title" style={{ fontSize: '1rem', marginBottom: '0.25rem' }}>{task.title}</div>
+                                                    <div className="item-subtitle" style={{ fontSize: '0.75rem' }}>
                                                         {new Date(task.created_at).toLocaleDateString()}
                                                     </div>
                                                 </div>
@@ -203,20 +228,50 @@ const MobileTasks: React.FC = () => {
                                         </div>
                                         
                                         {task.description && (
-                                            <p className="text-sm text-slate-300 w-full pl-11 leading-relaxed">
+                                            <p style={{
+                                                fontSize: '0.875rem',
+                                                color: 'var(--mobile-text)',
+                                                width: '100%',
+                                                paddingLeft: '3.375rem',
+                                                lineHeight: 1.6,
+                                                margin: 0
+                                            }}>
                                                 {task.description}
                                             </p>
                                         )}
 
-                                        <div className="w-full flex justify-between items-center pl-11 pt-1">
+                                        <div style={{ 
+                                            width: '100%', 
+                                            display: 'flex', 
+                                            justifyContent: 'space-between', 
+                                            alignItems: 'center',
+                                            paddingLeft: '3.375rem',
+                                            paddingTop: '0.5rem'
+                                        }}>
                                              <span className={`status-badge ${status.type}`}>
-                                                <span className="material-icons-round text-[10px]">{status.icon}</span>
+                                                <span className="material-icons-round">{status.icon}</span>
                                                 {status.label}
                                             </span>
 
                                             {isAdmin && (
-                                                <div className="flex gap-2">
-                                                    {task.status !== 'completed' && <button onClick={() => handleStatusChange(task.id, 'completed')} className="text-xs text-green-400 font-bold hover:underline">MARCAR LISTO</button>}
+                                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                                    {task.status !== 'completed' && (
+                                                        <button 
+                                                            onClick={() => handleStatusChange(task.id, 'completed')} 
+                                                            style={{
+                                                                fontSize: '0.75rem',
+                                                                color: '#4ade80',
+                                                                fontWeight: 700,
+                                                                background: 'transparent',
+                                                                border: 'none',
+                                                                cursor: 'pointer',
+                                                                textDecoration: 'underline',
+                                                                textUnderlineOffset: '2px'
+                                                            }}
+                                                        >
+                                                            MARCAR LISTO
+                                                        </button>
+                                                    )}
                                                 </div>
                                             )}
                                         </div>
@@ -231,15 +286,19 @@ const MobileTasks: React.FC = () => {
             {/* Create Task Modal */}
             {showModal && (
                 <div className="modal-overlay" onClick={() => setShowModal(false)}>
-                    <div className="modal-content animate-slide-in" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-xl font-bold text-white">Nueva Solicitud</h3>
-                            <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-white transition-colors">
+                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                            <h3>Nueva Solicitud</h3>
+                            <button 
+                                onClick={() => setShowModal(false)} 
+                                className="icon-btn-secondary"
+                                style={{ width: '2rem', height: '2rem' }}
+                            >
                                 <span className="material-icons-round">close</span>
                             </button>
                         </div>
                         
-                        <div className="flex flex-col gap-5">
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                             <div>
                                 <label className="section-label">Título</label>
                                 <input 
@@ -253,7 +312,8 @@ const MobileTasks: React.FC = () => {
                             <div>
                                 <label className="section-label">Detalles</label>
                                 <textarea 
-                                    className="system-input h-32 resize-none" 
+                                    className="system-input" 
+                                    style={{ minHeight: '6rem', resize: 'vertical' }}
                                     placeholder="Describe lo que necesitas con detalle..." 
                                     value={description}
                                     onChange={e => setDescription(e.target.value)}
@@ -261,14 +321,13 @@ const MobileTasks: React.FC = () => {
                             </div>
                             <div>
                                 <label className="section-label">Prioridad</label>
-                                <div className="grid grid-cols-3 gap-2">
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem' }}>
                                     {(['normal', 'high', 'urgent'] as const).map(p => (
                                         <button 
                                             key={p}
                                             onClick={() => setPriority(p)}
-                                            className={`py-2 px-1 rounded-lg text-xs font-bold uppercase transition-all border ${priority === p ? 
-                                                'bg-blue-600 border-blue-500 text-white shadow-lg' : 
-                                                'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-600'}`}
+                                            className={priority === p ? 'category-filter active' : 'category-filter'}
+                                            style={{ fontSize: '0.75rem', padding: '0.625rem 0.5rem' }}
                                         >
                                             {p === 'normal' ? 'Normal' : p === 'high' ? 'Alta' : 'Urgente'}
                                         </button>
@@ -277,7 +336,8 @@ const MobileTasks: React.FC = () => {
                             </div>
                             
                             <button 
-                                className="btn-primary w-full mt-2 !py-4"
+                                className="btn-primary"
+                                style={{ width: '100%', marginTop: '0.5rem', padding: '1rem' }}
                                 onClick={handleCreateTask}
                             >
                                 <span className="material-icons-round">send</span>

@@ -86,9 +86,35 @@ const MobileChat: React.FC = () => {
 
     return (
             <div className="mobile-view-container system-bg-void">
-                <header className="glass-header !justify-center !flex-col !h-auto !py-4 !border-none">
-                    <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-blue-500 tracking-wider">MTZ Ouroborus AI</h1>
-                    <p className="text-xs text-slate-400 mt-1">Assistant Online</p>
+                <header className="glass-header" style={{ 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    alignItems: 'center', 
+                    justifyContent: 'center',
+                    padding: '1.5rem 1rem',
+                    borderBottom: 'none',
+                    gap: '0.5rem'
+                }}>
+                    <h1 style={{
+                        fontSize: '1.25rem',
+                        fontWeight: 700,
+                        background: 'linear-gradient(to right, #22d3ee, #3b82f6)',
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent',
+                        backgroundClip: 'text',
+                        letterSpacing: '0.05em',
+                        margin: 0
+                    }}>
+                        MTZ Ouroborus AI
+                    </h1>
+                    <p style={{
+                        fontSize: '0.75rem',
+                        color: 'var(--mobile-text-muted)',
+                        margin: 0,
+                        fontWeight: 500
+                    }}>
+                        Assistant Online
+                    </p>
                 </header>
 
                 <div className="mobile-content-scroll chat-content">
@@ -121,15 +147,20 @@ const MobileChat: React.FC = () => {
 
                                         {/* System Style Menu Options */}
                                         {msg.menu && msg.menu.options && (
-                                            <div className="chat-menu-options flex flex-col gap-2 mt-3">
+                                            <div className="chat-menu-options">
                                                 {msg.menu.options.map((option: any, idx: number) => (
                                                     <button 
                                                         key={idx} 
-                                                        className="system-btn-primary p-3 flex items-center gap-3 rounded hover:bg-[#00d4ff] hover:text-black transition-all w-full"
+                                                        className="system-btn-primary"
                                                         onClick={() => handleSend(option.label || option.text)}
+                                                        style={{ marginBottom: idx < msg.menu.options.length - 1 ? '0.5rem' : '0' }}
                                                     >
-                                                        <span className="material-icons-round text-sm">{option.icon || 'chevron_right'}</span>
-                                                        <span className="font-semibold">{option.label || option.text}</span>
+                                                        {option.icon && (
+                                                            <span className="material-icons-round" style={{ fontSize: '1.125rem' }}>
+                                                                {option.icon}
+                                                            </span>
+                                                        )}
+                                                        <span>{option.label || option.text}</span>
                                                     </button>
                                                 ))}
                                             </div>
@@ -152,11 +183,13 @@ const MobileChat: React.FC = () => {
                             
                             {loading && (
                                 <div className="chat-row bot fade-in">
-                                    <div className="chat-avatar bot">
-                                         <span className="material-icons-round spin-animation text-[#00d4ff]">sync</span>
-                                    </div>
-                                    <div className="chat-bubble bot" style={{ background: 'transparent', border: 'none', padding: 0 }}>
-                                        <div className="text-[#00d4ff] text-xs uppercase tracking-widest animate-pulse">Running System Analysis...</div>
+                                    <div className="system-chat-bubble bot">
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                            <span className="material-icons-round spin-animation" style={{ color: 'var(--mobile-primary)', fontSize: '1.25rem' }}>sync</span>
+                                            <span style={{ color: 'var(--mobile-primary)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 600 }}>
+                                                Analizando...
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
                             )}
@@ -168,16 +201,17 @@ const MobileChat: React.FC = () => {
                 <div className="mobile-chat-footer">
                     <div className="chat-input-bar">
                         <button 
-                            className="icon-btn-secondary text-[#00d4ff] hover:bg-[#00d4ff]/10"
+                            className="icon-btn-secondary"
                             onClick={confirmClearChat}
                             title="Limpiar chat"
+                            disabled={loading || loadingHistory}
                         >
                             <span className="material-icons-round">delete_outline</span>
                         </button>
                         
-                        <div className="chat-input-wrapper flex-1">
+                        <div className="chat-input-wrapper">
                             <input 
-                                className="system-input w-full p-3 h-10" 
+                                className="system-input" 
                                 placeholder="Escribe un comando..."
                                 value={input}
                                 onChange={(e) => setInput(e.target.value)}
@@ -186,17 +220,24 @@ const MobileChat: React.FC = () => {
                             />
                         </div>
                         
-                        <button 
-                            className={`icon-btn-secondary ${isListening ? 'active' : ''}`}
-                            onClick={() => isListening ? stopListening() : startListening()}
-                        >
-                            <span className={`material-icons-round ${isListening ? 'text-red-500 animate-pulse' : ''}`}>{isListening ? 'mic_off' : 'mic'}</span>
-                        </button>
+                        {isSpeechSupported && (
+                            <button 
+                                className={`icon-btn-secondary ${isListening ? 'active' : ''}`}
+                                onClick={() => isListening ? stopListening() : startListening()}
+                                disabled={loading || loadingHistory}
+                                title={isListening ? 'Detener grabación' : 'Grabar voz'}
+                            >
+                                <span className={`material-icons-round ${isListening ? 'animate-pulse' : ''}`} style={{ color: isListening ? '#ef4444' : 'inherit' }}>
+                                    {isListening ? 'mic' : 'mic'}
+                                </span>
+                            </button>
+                        )}
 
                         <button 
                             className="icon-btn-primary"
                             onClick={() => handleSend()}
-                            disabled={loading || !input.trim()}
+                            disabled={loading || loadingHistory || !input.trim()}
+                            title="Enviar mensaje"
                         >
                             <span className="material-icons-round">send</span>
                         </button>

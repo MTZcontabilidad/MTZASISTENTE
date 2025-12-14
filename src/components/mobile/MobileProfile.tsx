@@ -137,7 +137,13 @@ const MobileProfile: React.FC = () => {
     };
 
     if (loading) {
-        return <div className="flex justify-center items-center h-full text-white">Cargando perfil...</div>;
+        return (
+            <div className="mobile-view-container system-bg-void">
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                    <div className="loading-spinner"></div>
+                </div>
+            </div>
+        );
     }
 
     return (
@@ -149,21 +155,21 @@ const MobileProfile: React.FC = () => {
                 )}
 
                 <header className="glass-header">
-                     <h1 className="text-lg font-bold text-white">Perfil</h1>
-                     <p className="text-xs text-slate-400">Datos de Usuario</p>
+                     <h1>Perfil</h1>
+                     <p>Datos de Usuario</p>
                 </header>
 
-                <div className="mobile-content-scroll">
+                <div className="mobile-content-scroll" style={{ padding: '1.5rem 1rem 6rem 1rem' }}>
                     
                     {/* AVATAR SECTION */}
                     <div className="profile-avatar-section">
                         <div className="avatar-wrapper">
-                             <span className="material-icons-round text-5xl text-slate-400">person</span>
+                             <span className="material-icons-round" style={{ fontSize: '3rem', color: 'var(--mobile-text-muted)' }}>person</span>
                              <button 
                                 className="avatar-edit-btn"
                                 onClick={handleEditToggle}
                             >
-                                <span className="material-icons-round text-sm">{isEditing ? 'check' : 'edit'}</span>
+                                <span className="material-icons-round" style={{ fontSize: '0.875rem' }}>{isEditing ? 'check' : 'edit'}</span>
                             </button>
                         </div>
                         <div>
@@ -180,8 +186,8 @@ const MobileProfile: React.FC = () => {
                             
                             <div className="system-list-container">
                                  {/* Name */}
-                                <div className="system-list-item flex-col items-start !gap-2">
-                                    <label className="text-xs text-slate-400 uppercase font-semibold">Nombre Completo</label>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                    <label className="section-label">Nombre Completo</label>
                                     <input 
                                         className="system-input"
                                         value={formName} 
@@ -192,8 +198,8 @@ const MobileProfile: React.FC = () => {
                                 </div>
                                 
                                 {/* Phone */}
-                                <div className="system-list-item flex-col items-start !gap-2">
-                                    <label className="text-xs text-slate-400 uppercase font-semibold">Teléfono</label>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                    <label className="section-label">Teléfono</label>
                                     <input 
                                         className="system-input"
                                         type="tel"
@@ -205,8 +211,8 @@ const MobileProfile: React.FC = () => {
                                 </div>
 
                                 {/* Company */}
-                                <div className="system-list-item flex-col items-start !gap-2">
-                                    <label className="text-xs text-slate-400 uppercase font-semibold">Empresa</label>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                    <label className="section-label">Empresa</label>
                                     <input 
                                         className="system-input"
                                         value={formCompany} 
@@ -217,8 +223,8 @@ const MobileProfile: React.FC = () => {
                                 </div>
 
                                  {/* Giro */}
-                                 <div className="system-list-item flex-col items-start !gap-2">
-                                    <label className="text-xs text-slate-400 uppercase font-semibold">Giro / Actividad</label>
+                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                    <label className="section-label">Giro / Actividad</label>
                                     <input 
                                         className="system-input"
                                         value={formGiro} 
@@ -234,34 +240,40 @@ const MobileProfile: React.FC = () => {
                         <div className="mb-2">
                             <h3 className="section-label">Configuración</h3>
                             <div className="system-list-container">
-                                 <button 
-                                    onClick={toggleNotifications}
-                                    className="system-list-item w-full justify-between"
+                                 <div 
+                                    className="system-list-item"
+                                    style={{ width: '100%', justifyContent: 'space-between' }}
                                 >
-                                    <div className="flex items-center gap-4">
-                                        <span className="material-icons-round text-slate-400">notifications</span>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                        <span className="material-icons-round" style={{ color: 'var(--mobile-text-muted)', fontSize: '1.25rem' }}>notifications</span>
                                         <span className="item-title">Notificaciones</span>
                                     </div>
-                                    <div className={`toggle-switch ${notificationsEnabled ? 'active' : ''}`}>
+                                    <div 
+                                        className={`toggle-switch ${notificationsEnabled ? 'active' : ''}`}
+                                        onClick={toggleNotifications}
+                                    >
                                         <div className="toggle-knob"></div>
                                     </div>
-                                </button>
+                                </div>
 
-                                <button 
-                                    onClick={() => setSecurityEnabled(!securityEnabled)}
-                                    className="system-list-item w-full justify-between"
+                                <div 
+                                    className="system-list-item"
+                                    style={{ width: '100%', justifyContent: 'space-between' }}
                                 >
-                                    <div className="flex items-center gap-4">
-                                        <span className="material-icons-round text-slate-400">lock</span>
-                                        <div className="text-left">
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                        <span className="material-icons-round" style={{ color: 'var(--mobile-text-muted)', fontSize: '1.25rem' }}>lock</span>
+                                        <div style={{ textAlign: 'left' }}>
                                             <div className="item-title">Biometría</div>
                                             <div className="item-subtitle">FaceID / TouchID</div>
                                         </div>
                                     </div>
-                                    <div className={`toggle-switch ${securityEnabled ? 'active' : ''}`}>
+                                    <div 
+                                        className={`toggle-switch ${securityEnabled ? 'active' : ''}`}
+                                        onClick={() => setSecurityEnabled(!securityEnabled)}
+                                    >
                                         <div className="toggle-knob"></div>
                                     </div>
-                                </button>
+                                </div>
                             </div>
                         </div>
 
@@ -274,7 +286,16 @@ const MobileProfile: React.FC = () => {
                                 <span className="material-icons-round">logout</span>
                                 Cerrar Sesión
                             </button>
-                            <p className="text-center text-[10px] text-gray-600 mt-6 font-mono">MTZ Ouroborus AI v2.0.4</p>
+                            <p style={{ 
+                                textAlign: 'center', 
+                                fontSize: '0.65rem', 
+                                color: 'var(--mobile-text-muted)', 
+                                marginTop: '1.5rem',
+                                fontFamily: 'monospace',
+                                opacity: 0.6
+                            }}>
+                                MTZ Ouroborus AI v2.0.4
+                            </p>
                         </div>
                     </div>
                 </div>

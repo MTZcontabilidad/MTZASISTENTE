@@ -81,16 +81,16 @@ const UsersView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                 </div>
             )}
 
-            <div className="glass-header flex items-center justify-between">
-                <button onClick={onBack} className="p-2">
-                    <span className="material-icons-round text-white">arrow_back</span>
+            <div className="glass-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <button onClick={onBack} className="icon-btn-secondary" style={{ width: '2.5rem', height: '2.5rem' }}>
+                    <span className="material-icons-round">arrow_back</span>
                 </button>
-                <h2 className="text-lg font-bold text-white">Gestión de Usuarios</h2>
-                <div className="w-8" />
+                <h2 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--mobile-text)' }}>Gestión de Usuarios</h2>
+                <div style={{ width: '2.5rem' }} />
             </div>
 
-            <div className="p-4 flex-1 overflow-y-auto">
-                <div className="input-icon-wrapper">
+            <div style={{ padding: '1rem', flex: 1, overflowY: 'auto' }}>
+                <div className="input-icon-wrapper" style={{ marginBottom: '1rem' }}>
                     <span className="material-icons-round">search</span>
                     <input 
                         className="system-input" 
@@ -101,25 +101,32 @@ const UsersView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                 </div>
 
                 {loading ? (
-                    <div className="flex justify-center py-10 text-white">Cargando...</div>
+                    <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem 0' }}>
+                        <div className="loading-spinner"></div>
+                    </div>
                 ) : (
                     <div className="system-list-container">
                         {filteredUsers.map(user => (
                             <button 
                                 key={user.id} 
-                                className="system-list-item w-full"
+                                className="system-list-item"
+                                style={{ width: '100%' }}
                                 onClick={() => handleUserClick(user)}
                             >
-                                <div className="avatar-wrapper !w-10 !h-10 !border-2 border-slate-600">
-                                    <span className="material-icons-round text-base">person</span>
+                                <div className="avatar-wrapper" style={{ 
+                                    width: '2.5rem', 
+                                    height: '2.5rem',
+                                    border: '2px solid rgba(255, 255, 255, 0.1)'
+                                }}>
+                                    <span className="material-icons-round" style={{ fontSize: '1rem' }}>person</span>
                                 </div>
-                                <div className="item-info text-left">
+                                <div className="item-info" style={{ textAlign: 'left' }}>
                                     <div className="item-title">{user.full_name || 'Sin Nombre'}</div>
-                                    <div className="item-subtitle uppercase text-xs">
+                                    <div className="item-subtitle" style={{ textTransform: 'uppercase', fontSize: '0.75rem' }}>
                                         {user.role} • {user.is_active ? 'Activo' : 'Inactivo'}
                                     </div>
                                 </div>
-                                <span className="material-icons-round text-slate-500">chevron_right</span>
+                                <span className="material-icons-round" style={{ color: 'var(--mobile-text-muted)', fontSize: '1.25rem' }}>chevron_right</span>
                             </button>
                         ))}
                     </div>
@@ -130,8 +137,8 @@ const UsersView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
             {selectedUser && (
                 <div className="modal-overlay bottom-sheet" onClick={() => setSelectedUser(null)}>
                     <div className="modal-content" onClick={e => e.stopPropagation()}>
-                        <h3 className="text-lg font-bold text-white mb-4">Editar Usuario</h3>
-                        <div className="space-y-4">
+                        <h3 style={{ marginBottom: '1.5rem' }}>Editar Usuario</h3>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                             <div>
                                 <label className="section-label">Nombre Completo</label>
                                 <input 
@@ -152,16 +159,30 @@ const UsersView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                                     <option value="staff">Staff</option>
                                 </select>
                             </div>
-                            <div className="flex items-center justify-between p-3 border border-slate-700 rounded-lg">
-                                <span className="text-white">Estado Activo</span>
-                                <input 
-                                    type="checkbox"
-                                    className="toggle-switch"
-                                    checked={editForm.isActive}
-                                    onChange={e => setEditForm({...editForm, isActive: e.target.checked})}
-                                />
+                            <div style={{ 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                justifyContent: 'space-between', 
+                                padding: '1rem',
+                                background: 'rgba(var(--mobile-card-rgb), 0.3)',
+                                border: '1px solid rgba(255, 255, 255, 0.1)',
+                                borderRadius: '0.75rem'
+                            }}>
+                                <span style={{ color: 'var(--mobile-text)', fontWeight: 600 }}>Estado Activo</span>
+                                <div 
+                                    className={`toggle-switch ${editForm.isActive ? 'active' : ''}`}
+                                    onClick={() => setEditForm({...editForm, isActive: !editForm.isActive})}
+                                >
+                                    <div className="toggle-knob"></div>
+                                </div>
                             </div>
-                            <button onClick={handleSaveUser} className="btn-primary w-full mt-2">Guardar Cambios</button>
+                            <button 
+                                onClick={handleSaveUser} 
+                                className="btn-primary"
+                                style={{ width: '100%', marginTop: '0.5rem' }}
+                            >
+                                Guardar Cambios
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -224,44 +245,89 @@ const RequestsView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
         <div className="flex flex-col h-full animate-slide-in">
              {toastMessage && <div className="toast-notification success">{toastMessage}</div>}
 
-            <div className="glass-header flex items-center justify-between">
-                <button onClick={onBack} className="p-2"><span className="material-icons-round text-white">arrow_back</span></button>
-                <h2 className="text-lg font-bold text-white">Solicitudes</h2>
-                <div className="w-8" />
+            <div className="glass-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <button onClick={onBack} className="icon-btn-secondary" style={{ width: '2.5rem', height: '2.5rem' }}>
+                    <span className="material-icons-round">arrow_back</span>
+                </button>
+                <h2 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--mobile-text)' }}>Solicitudes</h2>
+                <div style={{ width: '2.5rem' }} />
             </div>
 
-            <div className="flex gap-2 p-4 border-b border-slate-700">
-                 <button className={`px-3 py-1 rounded text-sm font-bold ${filter === 'pending' ? 'bg-blue-600 text-white' : 'text-slate-400'}`} onClick={() => setFilter('pending')}>Pendientes</button>
-                 <button className={`px-3 py-1 rounded text-sm font-bold ${filter === 'all' ? 'bg-blue-600 text-white' : 'text-slate-400'}`} onClick={() => setFilter('all')}>Historial</button>
+            <div style={{ display: 'flex', gap: '0.5rem', padding: '1rem', borderBottom: '1px solid rgba(255, 255, 255, 0.1)' }}>
+                 <button 
+                    className={filter === 'pending' ? 'category-filter active' : 'category-filter'}
+                    onClick={() => setFilter('pending')}
+                    style={{ fontSize: '0.875rem' }}
+                >
+                    Pendientes
+                </button>
+                 <button 
+                    className={filter === 'all' ? 'category-filter active' : 'category-filter'}
+                    onClick={() => setFilter('all')}
+                    style={{ fontSize: '0.875rem' }}
+                >
+                    Historial
+                </button>
             </div>
 
-            <div className="p-4 flex-1 overflow-y-auto space-y-3">
-                {loading ? <div className="text-center text-white">Cargando...</div> : (
+            <div style={{ padding: '1rem', flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+                {loading ? (
+                    <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem 0' }}>
+                        <div className="loading-spinner"></div>
+                    </div>
+                ) : (
                     <>
                     {filteredRequests.map(req => (
-                        <div key={req.id} className="highlight-card !min-h-0">
-                            <div className="flex justify-between items-start mb-2">
-                                <div className="flex items-center gap-3">
-                                    <span className="material-icons-round text-blue-400">{req.icon}</span>
+                        <div key={req.id} className="highlight-card" style={{ minHeight: 'auto' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem' }}>
+                                    <span className="material-icons-round" style={{ color: 'var(--mobile-primary)', fontSize: '1.5rem' }}>{req.icon}</span>
                                     <div>
-                                        <div className="font-bold text-white">{req.type}</div>
-                                        <div className="text-xs text-slate-400">{new Date(req.created_at).toLocaleDateString()}</div>
+                                        <div style={{ fontWeight: 700, color: 'var(--mobile-text)', fontSize: '0.95rem' }}>{req.type}</div>
+                                        <div style={{ fontSize: '0.75rem', color: 'var(--mobile-text-muted)', marginTop: '0.25rem' }}>
+                                            {new Date(req.created_at).toLocaleDateString()}
+                                        </div>
                                     </div>
                                 </div>
                                 <span className={`status-badge ${req.status === 'approved' ? 'success' : req.status === 'rejected' ? 'error' : 'warning'}`}>
                                     {req.status === 'pending' ? 'Pendiente' : req.status === 'approved' ? 'Aprobado' : 'Rechazado'}
                                 </span>
                             </div>
-                            <div className="text-sm text-slate-300 mb-3">Solicitado por: <b>{req.name}</b></div>
+                            <div style={{ fontSize: '0.875rem', color: 'var(--mobile-text)', marginBottom: '0.75rem' }}>
+                                Solicitado por: <b>{req.name}</b>
+                            </div>
                             {req.status === 'pending' && (
-                                <div className="flex gap-2">
-                                    <button onClick={() => handleAction(req.id, req.sourceTable, 'rejected')} className="btn-ghost flex-1 text-red-400 !border-red-900/50">Rechazar</button>
-                                    <button onClick={() => handleAction(req.id, req.sourceTable, 'approved')} className="btn-primary flex-1">Aprobar</button>
+                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                    <button 
+                                        onClick={() => handleAction(req.id, req.sourceTable, 'rejected')} 
+                                        className="btn-ghost"
+                                        style={{ 
+                                            flex: 1,
+                                            color: '#f87171',
+                                            borderColor: 'rgba(239, 68, 68, 0.3)'
+                                        }}
+                                    >
+                                        Rechazar
+                                    </button>
+                                    <button 
+                                        onClick={() => handleAction(req.id, req.sourceTable, 'approved')} 
+                                        className="btn-primary"
+                                        style={{ flex: 1 }}
+                                    >
+                                        Aprobar
+                                    </button>
                                 </div>
                             )}
                         </div>
                     ))}
-                    {filteredRequests.length === 0 && <div className="text-center text-slate-500 mt-10">No hay solicitudes</div>}
+                    {filteredRequests.length === 0 && (
+                        <div className="empty-state-mobile">
+                            <div className="empty-icon">
+                                <span className="material-icons-round">inbox</span>
+                            </div>
+                            <p className="empty-subtitle">No hay solicitudes</p>
+                        </div>
+                    )}
                     </>
                 )}
             </div>
@@ -300,40 +366,84 @@ const MobileAdmin: React.FC = () => {
         <div className="mobile-view-container system-bg-void">
             <div className="mobile-content-scroll">
                 {currentView === 'dashboard' ? (
-                    <div className="p-4">
-                        <div className="flex items-center justify-between mb-6">
+                    <div style={{ padding: '1.5rem 1rem 6rem 1rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2rem' }}>
                             <div>
-                                <h1 className="text-xl font-bold text-white">HOLA, ADMIN</h1>
-                                <p className="text-xs text-blue-400 uppercase tracking-widest">
+                                <h1 style={{ 
+                                    fontSize: '1.5rem', 
+                                    fontWeight: 700, 
+                                    color: 'var(--mobile-text)',
+                                    marginBottom: '0.25rem'
+                                }}>
+                                    HOLA, ADMIN
+                                </h1>
+                                <p style={{ 
+                                    fontSize: '0.75rem', 
+                                    color: 'var(--mobile-primary)', 
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.1em',
+                                    fontWeight: 600
+                                }}>
                                     {new Date().toLocaleDateString('es-CL', { weekday: 'long', day: '2-digit', month: 'long' }).toUpperCase()}
                                 </p>
                             </div>
-                            <span className="material-icons-round text-blue-500 text-3xl">admin_panel_settings</span>
+                            <span className="material-icons-round" style={{ 
+                                color: 'var(--mobile-primary)', 
+                                fontSize: '2.5rem',
+                                filter: 'drop-shadow(0 0 12px rgba(59, 130, 246, 0.4))'
+                            }}>
+                                admin_panel_settings
+                            </span>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3 mb-8">
-                            <div className="highlight-card !min-h-0">
-                                <div className="text-blue-400 text-2xl font-bold">{stats.users}</div>
-                                <div className="text-xs text-slate-400 uppercase">Usuarios</div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.875rem', marginBottom: '2rem' }}>
+                            <div className="highlight-card" style={{ minHeight: 'auto' }}>
+                                <div style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--mobile-primary)', marginBottom: '0.5rem' }}>
+                                    {stats.users}
+                                </div>
+                                <div style={{ fontSize: '0.75rem', color: 'var(--mobile-text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
+                                    Usuarios
+                                </div>
                             </div>
-                            <div className="highlight-card !min-h-0">
-                                <div className={`${stats.requests > 0 ? 'text-red-400' : 'text-blue-400'} text-2xl font-bold`}>{stats.requests}</div>
-                                <div className="text-xs text-slate-400 uppercase">Pendientes</div>
+                            <div className="highlight-card" style={{ minHeight: 'auto' }}>
+                                <div style={{ 
+                                    fontSize: '2rem', 
+                                    fontWeight: 700, 
+                                    color: stats.requests > 0 ? '#f87171' : 'var(--mobile-primary)',
+                                    marginBottom: '0.5rem'
+                                }}>
+                                    {stats.requests}
+                                </div>
+                                <div style={{ fontSize: '0.75rem', color: 'var(--mobile-text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
+                                    Pendientes
+                                </div>
                             </div>
                         </div>
                         
-                        <h3 className="section-label">Sistema</h3>
-                        <div className="grid grid-cols-2 gap-3 pb-20">
+                        <h3 className="section-label" style={{ marginBottom: '1rem' }}>Sistema</h3>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.875rem' }}>
                             {adminModules.map((module) => (
                                 <button 
                                     key={module.id}
-                                    className="highlight-card !min-h-32"
+                                    className="highlight-card"
+                                    style={{ minHeight: '8rem' }}
                                     onClick={() => module.view && setCurrentView(module.view as any)}
                                 >
-                                    <span className="material-icons-round text-3xl text-blue-500 mb-2">{module.icon}</span>
+                                    <span className="material-icons-round" style={{ 
+                                        fontSize: '2.5rem', 
+                                        color: 'var(--mobile-primary)',
+                                        marginBottom: '0.75rem',
+                                        filter: 'drop-shadow(0 0 12px rgba(59, 130, 246, 0.4))'
+                                    }}>
+                                        {module.icon}
+                                    </span>
                                     <div>
-                                        <div className="font-bold text-white">{module.label}</div>
-                                        <div className="text-xs text-slate-400">{module.desc}</div>
+                                        <div style={{ fontWeight: 700, color: 'var(--mobile-text)', fontSize: '0.95rem', marginBottom: '0.25rem' }}>
+                                            {module.label}
+                                        </div>
+                                        <div style={{ fontSize: '0.75rem', color: 'var(--mobile-text-muted)', fontWeight: 500 }}>
+                                            {module.desc}
+                                        </div>
                                     </div>
                                 </button>
                             ))}

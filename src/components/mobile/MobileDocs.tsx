@@ -89,13 +89,13 @@ const MobileDocs: React.FC = () => {
                 )}
 
                 <header className="glass-header">
-                    <h1 className="text-lg font-bold text-white">Documentos</h1>
-                    <p className="text-xs text-slate-400">Archivos y Carpetas</p>
+                    <h1>Documentos</h1>
+                    <p>Archivos y Carpetas</p>
                 </header>
 
-                <div className="mobile-content-scroll">
-                    <div className="search-section mb-6">
-                        <div className="input-icon-wrapper mb-3">
+                <div className="mobile-content-scroll" style={{ padding: '1.5rem 1rem 6rem 1rem' }}>
+                    <div style={{ marginBottom: '1.5rem' }}>
+                        <div className="input-icon-wrapper" style={{ marginBottom: '1rem' }}>
                             <span className="material-icons-round">search</span>
                             <input 
                                 className="system-input" 
@@ -105,11 +105,11 @@ const MobileDocs: React.FC = () => {
                             />
                         </div>
                         
-                        <div className="flex flex-wrap gap-2">
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                             {CATEGORIES.map(cat => (
                                 <button 
                                     key={cat}
-                                    className={`px-3 py-1 rounded text-xs font-bold transition-all border ${activeCategory === cat ? 'bg-blue-600 text-white border-blue-600' : 'text-slate-400 border-slate-700'}`}
+                                    className={activeCategory === cat ? 'category-filter active' : 'category-filter'}
                                     onClick={() => setActiveCategory(cat)}
                                 >
                                     {cat}
@@ -119,37 +119,43 @@ const MobileDocs: React.FC = () => {
                     </div>
 
                     {loading ? (
-                         <div className="flex justify-center py-10 text-white">Cargando...</div>
+                         <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem 0' }}>
+                             <div className="loading-spinner"></div>
+                         </div>
                     ) : (
                         <div className="system-list-container">
                             {filteredDocs.length > 0 ? filteredDocs.map((doc) => (
                                 <div 
                                     key={doc.id} 
-                                    className="system-list-item w-full justify-between"
+                                    className="system-list-item"
+                                    style={{ justifyContent: 'space-between' }}
                                 >
-                                    <div className="flex items-center gap-3 min-w-0">
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem', flex: 1, minWidth: 0 }}>
                                         <div className="icon-box-tool">
                                             <span className="material-icons-round">{doc.icon}</span>
                                         </div>
-                                        <div className="min-w-0">
-                                            <h3 className="item-title truncate">{doc.title}</h3>
-                                            <div className="item-subtitle flex items-center gap-2">
+                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                            <h3 className="item-title" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.title}</h3>
+                                            <div className="item-subtitle" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.25rem' }}>
                                                 <span>{doc.date}</span>
-                                                <span className="status-badge neutral py-0 text-[0.6rem]">{doc.type}</span>
+                                                <span className="status-badge neutral" style={{ padding: '0.125rem 0.375rem', fontSize: '0.65rem' }}>{doc.type}</span>
                                             </div>
                                         </div>
                                     </div>
                                     <button 
                                         onClick={() => handleDownload(doc)}
-                                        className="p-2 text-blue-500 hover:bg-blue-500/10 rounded-full"
+                                        className="icon-btn-secondary"
+                                        style={{ flexShrink: 0 }}
                                     >
                                         <span className="material-icons-round">download</span>
                                     </button>
                                 </div>
                             )) : (
-                                <div className="text-center py-10 text-slate-500">
-                                    <span className="material-icons-round text-4xl mb-2">folder_off</span>
-                                    <p className="text-xs uppercase">No se encontraron archivos</p>
+                                <div className="empty-state-mobile">
+                                    <div className="empty-icon">
+                                        <span className="material-icons-round">folder_off</span>
+                                    </div>
+                                    <p className="empty-subtitle" style={{ textTransform: 'uppercase', fontSize: '0.75rem' }}>No se encontraron archivos</p>
                                 </div>
                             )}
                         </div>
