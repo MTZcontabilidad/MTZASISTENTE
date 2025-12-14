@@ -74,9 +74,7 @@ const MobileProfile: React.FC = () => {
                 await supabase.from('user_profiles').update({ full_name: formName }).eq('id', user.id);
             }
 
-            // Update companies (Phone, Company Name, Giro)
-            // Check if company exists, if not maybe create? For now assume update or upsert
-            // Actually, we should upsert companies if it doesn't exist, but let's try update first or use upsert.
+            // Update companies
             const companyData = {
                 user_id: user.id,
                 contacto_fono: formPhone,
@@ -87,7 +85,7 @@ const MobileProfile: React.FC = () => {
             const { error: companyError } = await supabase.from('companies').upsert(companyData, { onConflict: 'user_id' });
             if (companyError) throw companyError;
 
-             // Update client_extended_info (Business Activity/Giro backup)
+             // Update client_extended_info
             await supabase.from('client_extended_info').upsert({
                 id: user.id,
                 business_activity: formGiro,
@@ -112,9 +110,25 @@ const MobileProfile: React.FC = () => {
     };
 
     const handleLogout = async () => {
-        showToast("Cerrando sesión...");
-        await supabase.auth.signOut();
-        window.location.reload(); 
+        try {
+            showToast("Cerrando sesión...");
+            
+            // 1. Sign out from Supabase
+            const { error } = await supabase.auth.signOut();
+            if (error) throw error;
+
+            // 2. Clear local storage completely to remove any persisted state
+            localStorage.clear();
+            sessionStorage.clear();
+
+            // 3. Force redirect to root/login
+            window.location.href = '/'; 
+        } catch (error) {
+            console.error("Logout error:", error);
+            // Even if error, try to clear local and reload
+            localStorage.clear();
+            window.location.reload();
+        }
     };
 
     const toggleNotifications = () => {
@@ -127,22 +141,16 @@ const MobileProfile: React.FC = () => {
     }
 
     return (
-        <div id="mobile-app-root">
-            <div className="mobile-view-container">
+            <div className="mobile-view-container system-bg-void">
                  {toastMessage && (
-                    <div style={{ position: 'fixed', top: '1rem', left: '50%', transform: 'translateX(-50%)', zIndex: 200 }} className="status-badge success animate-fade-in shadow-lg">
+                    <div className="toast-notification info">
                         {toastMessage}
                     </div>
                 )}
 
                 <header className="glass-header">
-                    <div>
-                         <h1 className="header-title">Mi Perfil</h1>
-                         <p className="header-subtitle">Gestiona tu cuenta</p>
-                    </div>
-                    <div className="header-icon">
-                         <span className="material-icons-round">person</span>
-                    </div>
+                     <h1 className="text-lg font-bold text-white">Perfil</h1>
+                     <p className="text-xs text-slate-400">Datos de Usuario</p>
                 </header>
 
                 <div className="mobile-content-scroll">
@@ -150,97 +158,74 @@ const MobileProfile: React.FC = () => {
                     {/* AVATAR SECTION */}
                     <div className="profile-avatar-section">
                         <div className="avatar-wrapper">
-                            <div className="avatar-spinner"></div>
-                            <div className="avatar-circle">
-                                 <span className="material-icons-round text-6xl text-gray-400">person</span>
-                            </div>
-                            <button 
-                                className={`avatar-edit-btn ${isEditing ? 'editing' : ''}`}
+                             <span className="material-icons-round text-5xl text-slate-400">person</span>
+                             <button 
+                                className="avatar-edit-btn"
                                 onClick={handleEditToggle}
                             >
                                 <span className="material-icons-round text-sm">{isEditing ? 'check' : 'edit'}</span>
                             </button>
                         </div>
-                        <div className="flex-col-center">
+                        <div>
                             <h2 className="profile-name">{formName || "Usuario"}</h2>
                             <p className="profile-email">{userEmail}</p>
                         </div>
                     </div>
 
-                    <div className="premium-card-list" style={{ animationDelay: '0.1s' }}>
+                    <div className="system-list-container">
                         
                         {/* PERSONAL INFO */}
                         <div className="mb-6">
-                            <div className="section-label">
-                                <span>Información Personal</span>
-                                {isEditing && <span className="text-xs text-green-400 font-medium animate-pulse">Editando...</span>}
-                            </div>
+                            <span className="section-label">Información Personal</span>
                             
-                            <div className="premium-card-list">
+                            <div className="system-list-container">
                                  {/* Name */}
-                                <div className="premium-item">
-                                    <div className={`item-icon-box ${isEditing ? 'green' : ''}`}>
-                                        <span className="material-icons-round">badge</span>
-                                    </div>
-                                    <div className="item-content">
-                                        <label className="item-label">Nombre Completo</label>
-                                        <input 
-                                            className={`mobile-input ${isEditing ? 'input-underline' : ''}`}
-                                            value={formName} 
-                                            onChange={(e) => setFormName(e.target.value)}
-                                            readOnly={!isEditing} 
-                                            placeholder="Tu nombre"
-                                        />
-                                    </div>
+                                <div className="system-list-item flex-col items-start !gap-2">
+                                    <label className="text-xs text-slate-400 uppercase font-semibold">Nombre Completo</label>
+                                    <input 
+                                        className="system-input"
+                                        value={formName} 
+                                        onChange={(e) => setFormName(e.target.value)}
+                                        readOnly={!isEditing} 
+                                        placeholder="Tu nombre"
+                                    />
                                 </div>
                                 
                                 {/* Phone */}
-                                <div className="premium-item">
-                                    <div className={`item-icon-box ${isEditing ? 'green' : ''}`}>
-                                        <span className="material-icons-round">phone</span>
-                                    </div>
-                                    <div className="item-content">
-                                        <label className="item-label">Teléfono</label>
-                                        <input 
-                                            className={`mobile-input ${isEditing ? 'input-underline' : ''}`}
-                                            type="tel"
-                                            value={formPhone} 
-                                            onChange={(e) => setFormPhone(e.target.value)}
-                                            readOnly={!isEditing} 
-                                        />
-                                    </div>
+                                <div className="system-list-item flex-col items-start !gap-2">
+                                    <label className="text-xs text-slate-400 uppercase font-semibold">Teléfono</label>
+                                    <input 
+                                        className="system-input"
+                                        type="tel"
+                                        value={formPhone} 
+                                        onChange={(e) => setFormPhone(e.target.value)}
+                                        readOnly={!isEditing} 
+                                        placeholder="+56 9..."
+                                    />
                                 </div>
 
                                 {/* Company */}
-                                <div className="premium-item">
-                                    <div className={`item-icon-box ${isEditing ? 'green' : ''}`}>
-                                        <span className="material-icons-round">business</span>
-                                    </div>
-                                    <div className="item-content">
-                                        <label className="item-label">Empresa</label>
-                                        <input 
-                                            className={`mobile-input ${isEditing ? 'input-underline' : ''}`}
-                                            value={formCompany} 
-                                            onChange={(e) => setFormCompany(e.target.value)}
-                                            readOnly={!isEditing} 
-                                        />
-                                    </div>
+                                <div className="system-list-item flex-col items-start !gap-2">
+                                    <label className="text-xs text-slate-400 uppercase font-semibold">Empresa</label>
+                                    <input 
+                                        className="system-input"
+                                        value={formCompany} 
+                                        onChange={(e) => setFormCompany(e.target.value)}
+                                        readOnly={!isEditing} 
+                                        placeholder="Nombre Empresa"
+                                    />
                                 </div>
 
                                  {/* Giro */}
-                                 <div className="premium-item">
-                                    <div className={`item-icon-box ${isEditing ? 'green' : ''}`}>
-                                        <span className="material-icons-round">work</span>
-                                    </div>
-                                    <div className="item-content">
-                                        <label className="item-label">Giro / Actividad</label>
-                                        <input 
-                                            className={`mobile-input ${isEditing ? 'input-underline' : ''}`}
-                                            value={formGiro} 
-                                            onChange={(e) => setFormGiro(e.target.value)}
-                                            readOnly={!isEditing} 
-                                        />
-                                    </div>
+                                 <div className="system-list-item flex-col items-start !gap-2">
+                                    <label className="text-xs text-slate-400 uppercase font-semibold">Giro / Actividad</label>
+                                    <input 
+                                        className="system-input"
+                                        value={formGiro} 
+                                        onChange={(e) => setFormGiro(e.target.value)}
+                                        readOnly={!isEditing} 
+                                        placeholder="Giro comercial"
+                                    />
                                 </div>
                             </div>
                         </div>
@@ -248,17 +233,14 @@ const MobileProfile: React.FC = () => {
                         {/* SETTINGS */}
                         <div className="mb-2">
                             <h3 className="section-label">Configuración</h3>
-                            <div className="premium-card-list">
+                            <div className="system-list-container">
                                  <button 
                                     onClick={toggleNotifications}
-                                    className="premium-item w-full flex-row-between"
-                                    style={{ background: 'rgba(30, 41, 59, 0.4)' }}
+                                    className="system-list-item w-full justify-between"
                                 >
                                     <div className="flex items-center gap-4">
-                                        <div className="item-icon-box" style={{ background: 'rgba(15, 23, 42, 0.5)', color: '#94a3b8' }}>
-                                            <span className="material-icons-round">notifications</span>
-                                        </div>
-                                        <span className="text-sm font-medium text-gray-200">Notificaciones</span>
+                                        <span className="material-icons-round text-slate-400">notifications</span>
+                                        <span className="item-title">Notificaciones</span>
                                     </div>
                                     <div className={`toggle-switch ${notificationsEnabled ? 'active' : ''}`}>
                                         <div className="toggle-knob"></div>
@@ -267,16 +249,13 @@ const MobileProfile: React.FC = () => {
 
                                 <button 
                                     onClick={() => setSecurityEnabled(!securityEnabled)}
-                                    className="premium-item w-full flex-row-between"
-                                    style={{ background: 'rgba(30, 41, 59, 0.4)' }}
+                                    className="system-list-item w-full justify-between"
                                 >
                                     <div className="flex items-center gap-4">
-                                        <div className="item-icon-box" style={{ background: 'rgba(15, 23, 42, 0.5)', color: '#94a3b8' }}>
-                                            <span className="material-icons-round">lock</span>
-                                        </div>
+                                        <span className="material-icons-round text-slate-400">lock</span>
                                         <div className="text-left">
-                                            <div className="text-sm font-medium text-gray-200">Biometría</div>
-                                            <div className="text-[10px] text-gray-500">FaceID / TouchID</div>
+                                            <div className="item-title">Biometría</div>
+                                            <div className="item-subtitle">FaceID / TouchID</div>
                                         </div>
                                     </div>
                                     <div className={`toggle-switch ${securityEnabled ? 'active' : ''}`}>
@@ -295,12 +274,11 @@ const MobileProfile: React.FC = () => {
                                 <span className="material-icons-round">logout</span>
                                 Cerrar Sesión
                             </button>
-                            <p className="text-center text-[10px] text-gray-600 mt-6 font-mono">MTZ Ouroborus AI v2.0.4 • MTZ Corp</p>
+                            <p className="text-center text-[10px] text-gray-600 mt-6 font-mono">MTZ Ouroborus AI v2.0.4</p>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
     );
 };
 

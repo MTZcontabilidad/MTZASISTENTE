@@ -375,12 +375,37 @@ export function useChat() {
             setMessages(prev => [...prev, { ...userMsg, timestamp: new Date(userMsg.created_at) }]);
         }
 
-        const importantInfo = detectImportantInfo(messageToSend);
+        const importantInfo = await detectImportantInfo(messageToSend);
         if (importantInfo.shouldSave && importantInfo.type) {
-            const newMemory = await createMemory(user.id, activeConvId, importantInfo.type, messageToSend, importantInfo.type === "important_info" ? 7 : 5);
-            if (newMemory) {
-               setMemories(prev => [newMemory, ...prev]);
-            }
+          const { isGuestUser } = await import('../lib/chatUtils');
+          if (isGuestUser(user.id)) {
+             // Si es invitado, capturar como Lead
+             const { captureGuestLead } = await import('../lib/chatUtils');
+             await captureGuestLead(user.id, messageToSend, importantInfo);
+             // Notificar visiblemente al usuario que "tomamos nota"
+             const botMsgId = Date.now().toString();
+             const leadMsg = {
+               id: botMsgId,
+               conversation_id: activeConvId,
+               text: "📝 He anotado tus datos de contacto. Un ejecutivo te contactará pronto.",
+               sender: 'assistant' as const,
+               user_id: user.id,
+               created_at: new Date().toISOString(),
+               timestamp: new Date(),
+               menu: undefined,
+               document: undefined,
+             };
+             setMessages(prev => [...prev, leadMsg]);
+          } else {
+             // Si es cliente, guardar en memoria normal
+             const memoryContent = importantInfo.content || messageToSend;
+             const importance = importantInfo.importance || (importantInfo.type === "important_info" ? 7 : 5);
+             
+             const newMemory = await createMemory(user.id, activeConvId, importantInfo.type, memoryContent, importance);
+             if (newMemory) {
+                setMemories(prev => [newMemory, ...prev]);
+             }
+          }
         }
         
         const { detectAndSaveClientInfo } = await import("../lib/chatUtils");
@@ -406,7 +431,12 @@ export function useChat() {
 
         const assistantMsg = await createMessage(activeConvId, user.id, assistantResponse.text, "assistant");
         if (assistantMsg) {
-             const newMessage = { ...assistantMsg, timestamp: new Date(assistantMsg.created_at), menu: responseMenu };
+             const newMessage = { 
+               ...assistantMsg, 
+               timestamp: new Date(assistantMsg.created_at), 
+               menu: responseMenu,
+               leadForm: assistantResponse.show_lead_form 
+             };
              setMessages(prev => [...prev, newMessage]);
              setLastAssistantMessage(assistantResponse.text);
         }

@@ -37,6 +37,7 @@ export interface Message {
   metadata?: Record<string, any>
   // Para uso en el frontend
   timestamp?: Date
+  leadForm?: boolean // Trigger para mostrar LeadCaptureForm
 }
 
 export interface UserMemory {

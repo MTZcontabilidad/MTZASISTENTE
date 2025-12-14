@@ -24,6 +24,7 @@ export interface ChatResponse {
   options?: MenuOption[];
   nextState: ChatState; // Persistence for the UI
   action_to_execute?: { type: string, payload: any }; // e.g., 'navigate'
+  show_lead_form?: boolean; // Trigger for LeadCaptureForm
 }
 
 // Initial State Factory
@@ -132,9 +133,13 @@ async function generateAIResponse(
   memories: UserMemory[] = []
 ): Promise<ChatResponse> {
   try {
-    const [basicInfo, extendedInfo] = await Promise.all([
+    // Obtener información de la empresa para contexto
+    const { getCompanyInfo, getActiveFAQs } = await import('../companyConfig');
+    const [basicInfo, extendedInfo, companyInfo, faqs] = await Promise.all([
        getOrCreateClientInfo(userId),
-       getClientExtendedInfo(userId)
+       getClientExtendedInfo(userId),
+       getCompanyInfo(),
+       getActiveFAQs()
     ]);
     const aiProfile = extendedInfo?.ai_profile || { tone: 'neutral' };
 
@@ -145,8 +150,28 @@ async function generateAIResponse(
       .map(m => `- [${m.importance >= 7 ? 'IMPORTANTE' : 'Info'}] ${m.content} (${new Date(m.created_at).toLocaleDateString()})`)
       .join('\n');
 
+    // Construir contexto de empresa
+    const companyContext = companyInfo ? `
+    INFORMACIÓN DE LA EMPRESA (MTZ):
+    - Nombre: ${companyInfo.company_name}
+    - Horario: ${companyInfo.business_hours || 'Lunes a Viernes 9:00 - 18:00'}
+    - Contacto: ${companyInfo.phone || ''} / ${companyInfo.email || ''}
+    - Dirección: ${companyInfo.address || ''}
+    - Ubicación (Mapa): https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(companyInfo.address || 'MTZ Contabilidad Iquique')}
+    - Web: ${companyInfo.website || ''}
+    ` : '';
+    
+    // Construir contexto de FAQs relevantes (top 5)
+    const faqContext = faqs.length > 0 ? `
+    PREGUNTAS FRECUENTES (Reference):
+    ${faqs.slice(0, 5).map(f => `Q: ${f.question} | A: ${f.answer}`).join('\n')}
+    ` : '';
+
     const systemPrompt = `
     Eres Arise, asistente de MTZ.
+    
+    ${companyContext}
+    ${faqContext}
     
     USUARIO: ${safeName} | ROL: ${userRole}
     ESTADO ACTUAL: ${JSON.stringify(currentState)}
@@ -159,14 +184,19 @@ async function generateAIResponse(
     2. USA LAS MEMORIAS para personalizar la respuesta si es relevante (ej. si sabes su nombre o preferencias, úsalo).
     3. SIEMPRE SUGERIR UN MENÚ VISUAL ("menu_suggestion") que tenga sentido con la respuesta.
        - IDs Disponibles para ${userRole}: ${userRole === 'cliente' ? 'cliente_root, cliente_docs, cliente_taxes, cliente_tutorials' : 'invitado_root, invitado_cotizar, invitado_tutorials'}.
-    4. Si el usuario intenta hacer algo que requiere un Agente (como "Agendar Traslado"), indícalo.
+    4. ROLES:
+       - Si ROL es 'cliente': Tu foco es servicio, soporte técnico y retención.
+       - Si ROL es 'invitado': Tu foco es VENTAS y CAPTURA DE LEADS (SDR).
+         * Intenta sutilmente obtener: Qué servicio busca, Giro de empresa, Nombre y Correo/Teléfono.
+         * No seas invasivo, pero si muestra interés, invita a dejar sus datos para que un experto lo contacte.
     
     IMPORTANTE: Nunca te dirijas al usuario como "undefined". Si no tienes nombre, usa un saludo genérico o "Usuario".
 
     FORMATO JSON:
     {
       "text": "Respuesta...",
-
+      "suggested_menu_id": "optional_menu_id", // ID del menú a mostrar
+      "show_lead_form": boolean // true si ves alta intención y quieres mostrar formulario
     }
     `;
 
@@ -201,7 +231,8 @@ async function generateAIResponse(
     
     let responseObj: ChatResponse = {
       text: aiRes.text || "Entendido.",
-      nextState: currentState
+      nextState: currentState,
+      show_lead_form: aiRes.show_lead_form
     };
 
     // If AI suggests a menu, attach it

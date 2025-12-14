@@ -4,234 +4,241 @@
   height: 100vh;
   width: 100%;
   overflow-y: auto;
-  background: var(--premium-bg-gradient); /* Use global premium gradient */
-  padding: 20px 40px;
+  background: #0a0a0f; /* Void BG */
+  padding: 20px 16px; /* Adjusted padding */
   position: relative;
-  color: var(--text-primary);
+  color: #ffffff;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
 .welcome-container {
-  max-width: 1400px;
+  max-width: 600px;
   margin: 0 auto;
   width: 100%;
+  padding-bottom: 2rem;
 }
 
 .welcome-header {
   text-align: center;
-  margin-bottom: 20px;
-  padding: 10px 0;
+  margin-bottom: 2rem;
+  padding: 1rem 0;
+  position: relative;
 }
 
-.welcome-icon {
-  width: 60px;
-  height: 60px;
-  margin: 0 auto 10px;
-  color: var(--accent-cyan);
-  animation: float 3s ease-in-out infinite;
-  background: rgba(0, 212, 255, 0.1);
-  border-radius: 50%;
-  padding: 12px;
-  border: 1px solid rgba(0, 212, 255, 0.3);
-  box-shadow: var(--neon-glow);
-}
-
-.welcome-icon svg {
-  width: 100%;
-  height: 100%;
-  filter: drop-shadow(0 0 5px rgba(0, 212, 255, 0.5));
-}
-
-@keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-10px); }
-}
-
+/* System Header Style */
 .welcome-title {
-  font-size: 28px;
+  font-size: 1.5rem;
   font-weight: 800;
-  background: linear-gradient(to right, #60a5fa, #00d4ff);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: linear-gradient(to right, #00d4ff, #33ddff);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
-  margin-bottom: 8px;
-  text-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
-  letter-spacing: -0.5px;
+  margin-bottom: 0.5rem;
+  filter: drop-shadow(0 0 10px rgba(0, 212, 255, 0.3));
 }
 
 .welcome-subtitle {
-  font-size: 14px;
-  color: var(--text-secondary);
-  max-width: 600px;
-  margin: 0 auto;
+  font-size: 0.85rem;
+  color: #94a3b8;
   line-height: 1.5;
 }
 
-/* Form Card - Glassmorphism */
+/* Form Card - System Window */
 .welcome-form {
-  background: var(--premium-card-gradient);
-  border: var(--premium-border);
-  border-radius: 24px;
-  padding: 24px 30px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  background: rgba(15, 20, 30, 0.9);
+  border: 1px solid rgba(0, 212, 255, 0.2);
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(12px);
+  position: relative;
+  overflow: hidden;
+}
+
+.welcome-form::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #00d4ff, transparent);
+  box-shadow: 0 0 10px #00d4ff;
+  opacity: 0.7;
 }
 
 .form-section {
-  margin-bottom: 20px;
+  margin-bottom: 1.5rem;
 }
 
 .section-title {
-  font-size: 18px;
+  font-size: 0.9rem;
   font-weight: 700;
-  color: var(--accent-cyan);
-  margin-bottom: 16px;
-  text-shadow: none;
+  color: #00d4ff;
+  margin-bottom: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   display: flex;
   align-items: center;
-  gap: 8px;
-}
-
-.section-title::before {
-  content: '';
-  width: 4px;
-  height: 24px;
-  background: var(--accent-cyan);
-  border-radius: 2px;
-  box-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
-}
-
-.form-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 24px;
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
+  gap: 0.5rem;
+  border-bottom: 1px solid rgba(0, 212, 255, 0.1);
+  padding-bottom: 0.5rem;
 }
 
 .form-group label {
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 600;
-  color: var(--text-secondary);
-  margin-bottom: 8px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  color: #94a3b8;
+  margin-bottom: 0.5rem;
+  display: block;
 }
 
+/* System Input */
 .form-input {
   width: 100%;
-  padding: 12px 16px;
-  background: rgba(15, 23, 42, 0.6);
+  padding: 0.75rem 1rem;
+  background: rgba(30, 41, 59, 0.4);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  color: var(--text-primary);
-  font-size: 15px;
+  border-radius: 0.5rem;
+  color: white;
+  font-size: 0.9rem;
   font-family: inherit;
   transition: all 0.3s ease;
 }
 
 .form-input::placeholder {
-  color: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.3);
 }
 
 .form-input:focus {
   outline: none;
-  border-color: var(--accent-cyan);
-  box-shadow: 0 0 15px rgba(0, 212, 255, 0.1);
-  background: rgba(0, 212, 255, 0.05);
-}
-
-/* Feature Cards */
-.feature-card {
-  background: rgba(30, 41, 59, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 16px;
-  padding: 20px;
-  text-align: center;
-  transition: all 0.3s ease;
-  position: relative;
-  overflow: hidden;
-}
-
-.feature-card:hover {
-  border-color: rgba(0, 212, 255, 0.3);
   background: rgba(30, 41, 59, 0.6);
-  transform: translateY(-5px);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  border-color: #00d4ff;
+  box-shadow: 0 0 15px rgba(0, 212, 255, 0.15);
 }
 
-.feature-icon {
-  font-size: 32px;
-  margin-bottom: 10px;
-  background: -webkit-linear-gradient(#60a5fa, #00d4ff);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+.form-help-text {
+  font-size: 0.7rem;
+  color: #64748b;
+  margin-top: 0.5rem;
 }
 
-.feature-card h4 {
-  font-size: 15px;
-  font-weight: 700;
-  color: white;
-  margin-bottom: 8px;
-}
-
-.feature-card p {
-  font-size: 12px;
-  color: var(--text-secondary);
-  line-height: 1.4;
-  margin: 0;
-}
-
-/* Start Chat Button */
 .start-chat-button {
-  display: inline-flex;
+  width: 100%;
+  padding: 1rem;
+  background: rgba(0, 212, 255, 0.1);
+  border: 1px solid #00d4ff;
+  color: #00d4ff;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  padding: 16px 32px;
-  background: var(--accent-cyan);
-  border: none;
-  border-radius: 16px;
-  color: #0f172a;
-  font-size: 16px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  width: 100%;
-  max-width: 400px;
+  gap: 0.5rem;
+  transition: all 0.3s;
+  box-shadow: 0 0 15px rgba(0, 212, 255, 0.1);
 }
 
 .start-chat-button:hover:not(:disabled) {
-  box-shadow: 0 0 30px rgba(0, 212, 255, 0.5);
+  background: #00d4ff;
+  color: #000;
+  box-shadow: 0 0 25px rgba(0, 212, 255, 0.4);
   transform: translateY(-2px);
-  background: #33ddff;
 }
 
 .start-chat-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-  box-shadow: none;
+  border-color: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.3);
 }
 
-/* Responsive adjustments matching Mobile.css logic */
-@media (max-width: 768px) {
-  .invitado-welcome {
-    padding: 20px 16px;
-  }
-  
-  .welcome-form {
-    padding: 24px 20px;
-    border-radius: 20px;
-  }
-  
-  .welcome-icon {
-    width: 60px;
-    height: 60px;
-  }
+/* Services Grid System */
+.features-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+.feature-card {
+  background: rgba(30, 41, 59, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  text-align: left;
+  transition: all 0.3s;
+  position: relative;
+  overflow: hidden;
+}
+
+.feature-card:hover {
+  background: rgba(30, 41, 59, 0.5);
+  border-color: rgba(0, 212, 255, 0.3);
+}
+
+.feature-icon {
+  color: #00d4ff;
+  margin-bottom: 0.5rem;
+  font-size: 1.5rem;
+}
+
+.feature-card h4 {
+  color: white;
+  font-weight: bold;
+  font-size: 0.95rem;
+  margin-bottom: 0.25rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.feature-card p {
+  color: #94a3b8;
+  font-size: 0.8rem;
+  margin-bottom: 0.75rem;
+}
+
+.service-features ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.service-features li {
+  font-size: 0.75rem;
+  color: #cbd5e1;
+  padding-left: 1rem;
+  position: relative;
+  margin-bottom: 0.25rem;
+}
+
+.service-features li::before {
+  content: '>';
+  position: absolute;
+  left: 0;
+  color: #00d4ff;
+  font-weight: bold;
+}
+
+.service-contact-button {
+  margin-top: 1rem;
+  width: 100%;
+  padding: 0.5rem;
+  font-size: 0.8rem;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.service-contact-button:hover {
+  border-color: #00d4ff;
+  color: #00d4ff;
+  background: rgba(0, 212, 255, 0.05);
 }

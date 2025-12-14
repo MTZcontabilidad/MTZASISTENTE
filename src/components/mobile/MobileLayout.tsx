@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import './Mobile.css';
 import MobileChat from './MobileChat';
 import MobileAccess from './MobileAccess';
-import MobileMeetings from './MobileMeetings';
+import MobileTasks from './MobileTasks';
 import MobileDocs from './MobileDocs';
 import MobileProfile from './MobileProfile';
 import MobileAdmin from './MobileAdmin';
@@ -32,7 +32,7 @@ const MobileLayout: React.FC<MobileLayoutProps> = ({ user }) => {
             case 'accesses':
                 return <MobileAccess />;
             case 'meetings':
-                return <MobileMeetings />;
+                return <MobileTasks />;
             case 'docs':
                 return <MobileDocs />;
             case 'profile':
@@ -63,8 +63,8 @@ const MobileLayout: React.FC<MobileLayoutProps> = ({ user }) => {
                         className={`nav-item ${activeTab === 'meetings' ? 'active' : ''}`}
                         onClick={() => setActiveTab('meetings')}
                     >
-                        <span className="material-icons-round">event</span>
-                        <span className="nav-label">Reuniones</span>
+                        <span className="material-icons-round">assignment</span>
+                        <span className="nav-label">Pedidos</span>
                     </button>
                 )}
                 

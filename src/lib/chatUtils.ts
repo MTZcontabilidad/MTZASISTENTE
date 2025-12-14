@@ -1,77 +1,89 @@
 import { updateClientInfo } from "./clientInfo";
 import { upsertClientExtendedInfo } from "./clientExtendedInfo";
 
+import { supabase } from "./supabase";
+
 /**
- * Detecta si el mensaje contiene información importante que debe guardarse en memoria
+ * Detecta si el mensaje contiene información importante que debe guardarse en memoria usando IA (Gemini)
  */
-export function detectImportantInfo(userInput: string): {
+export async function detectImportantInfo(userInput: string): Promise<{
   shouldSave: boolean;
   type: "important_info" | "preference" | "fact" | null;
-  keywords: string[];
+  content?: string;
+  importance?: number;
+}> {
+  try {
+    // 1. Filtrado rápido: Si el mensaje es muy corto o trivial, ignorar para ahorrar tokens
+    if (userInput.length < 5 || ["hola", "gracias", "chau", "ok"].includes(userInput.toLowerCase().trim())) {
+        return { shouldSave: false, type: null };
+    }
+
+    // 2. Prompt para extracción de información
+    const systemPrompt = `Eres un sistema experto en extracción de información (Memory Extraction).
+    Analiza el mensaje del usuario y extrae CUALQUIER dato nuevo relevante sobre él, su negocio o sus preferencias.
+    
+    Tipos de datos a extraer:
+    - 'important_info': Datos de contacto, nombre, empresa, rut, rol, deudas, problemas legales. (Importancia 8-10)
+    - 'preference': Gustos, formas de trato (tu, usted), canales preferidos. (Importancia 5-7)
+    - 'fact': Hechos generales mencionados ("tengo 2 hijos", "viajo en marzo"). (Importancia 3-5)
+    
+    Si NO hay información relevante (solo saludos, preguntas al bot, quejas vacías), devuelve shouldSave: false.
+    
+    Salida JSON Requerida:
+    {
+      "shouldSave": boolean,
+      "type": "important_info" | "preference" | "fact" | null,
+      "content": "resumen conciso del dato en tercera persona (ej: 'El usuario tiene una empresa de camiones')",
+      "importance": number (1-10)
+    }`;
+
+    // 3. Llamada a Edge Function
+    const { data: responseData, error } = await supabase.functions.invoke('gemini-chat', {
+        body: {
+            contents: [{ parts: [{ text: `${systemPrompt}\n\nMensaje Usuario: "${userInput}"` }] }],
+            generationConfig: { 
+                temperature: 0.1, // Baja temperatura para ser preciso
+                responseMimeType: "application/json"
+            }
+        }
+    });
+
+    if (error || !responseData) {
+        console.warn('Error en extracción de memoria AI, usando fallback regex:', error);
+        return fallbackDetect(userInput);
+    }
+
+    const aiRes = JSON.parse(responseData.candidates[0].content.parts[0].text);
+    return {
+        shouldSave: aiRes.shouldSave,
+        type: aiRes.type as "important_info" | "preference" | "fact" | null,
+        content: aiRes.content,
+        importance: aiRes.importance
+    };
+
+  } catch (e) {
+    console.warn('Fallo en Memory Extraction AI', e);
+    return fallbackDetect(userInput);
+  }
+}
+
+function fallbackDetect(userInput: string): {
+  shouldSave: boolean;
+  type: "important_info" | "preference" | "fact" | null;
+  content?: string;
+  importance?: number;
 } {
+  // Lógica original (simplificada) para fallback
   const inputLower = userInput.toLowerCase();
-
-  // Palabras clave para información importante
-  const importantKeywords = [
-    "nombre",
-    "me llamo",
-    "soy",
-    "mi nombre es",
-    "empresa",
-    "trabajo en",
-    "mi empresa es",
-    "teléfono",
-    "celular",
-    "número",
-    "email",
-    "correo",
-    "e-mail",
-    "dirección",
-    "vivo en",
-    "ubicado en",
-    "prefiero",
-    "me gusta",
-    "no me gusta",
-    "disfruto",
-    "necesito",
-    "requiero",
-    "busco",
-  ];
-
-  const foundKeywords = importantKeywords.filter((keyword) =>
-    inputLower.includes(keyword)
-  );
-
-  if (foundKeywords.length === 0) {
-    return { shouldSave: false, type: null, keywords: [] };
-  }
-
-  // Determinar el tipo de información
-  let type: "important_info" | "preference" | "fact" | null = "important_info";
-
-  if (
-    inputLower.includes("prefiero") ||
-    inputLower.includes("me gusta") ||
-    inputLower.includes("no me gusta") ||
-    inputLower.includes("disfruto")
-  ) {
-    type = "preference";
-  } else if (
-    inputLower.includes("nombre") ||
-    inputLower.includes("empresa") ||
-    inputLower.includes("teléfono") ||
-    inputLower.includes("email") ||
-    inputLower.includes("dirección")
-  ) {
-    type = "important_info";
-  } else {
-    type = "fact";
-  }
-
-  return {
-    shouldSave: true,
-    type,
-    keywords: foundKeywords,
+  const importantKeywords = ["nombre", "soy", "empresa", "celular", "correo", "prefiero"];
+  const hasKeyword = importantKeywords.some(k => inputLower.includes(k));
+  
+  if (!hasKeyword) return { shouldSave: false, type: null };
+  return { 
+      shouldSave: true, 
+      type: "fact", 
+      content: userInput, 
+      importance: 3 
   };
 }
 
@@ -123,4 +135,45 @@ export async function detectAndSaveClientInfo(userId: string, userInput: string)
   } catch (error) {
     console.warn('Error al detectar información del cliente:', error);
   }
+}
+
+/**
+ * Captura datos de prospectos (invitados) en una tabla separada
+ */
+export async function captureGuestLead(
+    sessionId: string, 
+    userInput: string, 
+    aiExtraction: { type: string | null, content?: string, importance?: number }
+): Promise<void> {
+    // Solo nos interesa si es 'important_info' o hay datos de contacto explícitos
+    if (aiExtraction.type !== 'important_info' && aiExtraction.importance! < 7) return;
+    
+    try {
+        // Detectar emails o telefonos con regex simple para indexar
+        const emailMatch = userInput.match(/[\w.-]+@[\w.-]+\.\w+/);
+        const phoneMatch = userInput.match(/(\+?56)?(\s?9)(\s?\d{4})(\s?\d{4})/);
+        
+        const contactInfo: any = {};
+        if (emailMatch) contactInfo.email = emailMatch[0];
+        if (phoneMatch) contactInfo.phone = phoneMatch[0];
+        
+        // Si no capturamos datos duros, pero la IA dice que es importante, guardamos el resumen
+        if (Object.keys(contactInfo).length === 0 && !aiExtraction.content) return;
+
+        // Upsert en tabla de leads
+        const { error } = await supabase
+            .from('guest_leads')
+            .upsert({
+                session_id: sessionId,
+                contact_info: contactInfo,
+                chat_summary: aiExtraction.content || userInput,
+                intent: 'potential_client',
+                updated_at: new Date().toISOString()
+            }, { onConflict: 'session_id' }); // Usar session_id como clave única por simplicidad
+            
+        if (error) console.error('Error insertando lead:', error);
+        
+    } catch (e) {
+        console.warn('Error capturando guest lead:', e);
+    }
 }
