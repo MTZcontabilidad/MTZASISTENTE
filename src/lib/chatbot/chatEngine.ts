@@ -186,16 +186,19 @@ async function generateAIResponse(
         ${companyContext}
         ${faqContext}
         USUARIO: ${safeName} | ROL: ${userRole}
-        MEMORIAS: ${memoryContext || "Ninguna"}
+        MEMORIAS PREVIAS: ${memoryContext || "Ninguna"}
         
         OBJETIVO:
-        1. Responder útil y conciso.
-        2. SU PROVEEDOR ES LOCAL LLM.
-        3. FORMATO DE RESPUESTA: Texto plano conversacional.
-        4. METADATA: 
-           - Si sugieres un menú, pon al final: [MENU:id_menu]
-           - Si detectas intención de venta alta, pon al final: [LEAD]
-           - IDs Menú: ${userRole === 'cliente' ? 'cliente_root, cliente_docs, cliente_taxes' : 'invitado_root, invitado_cotizar'}
+        1. Tu misión es ANALIZAR la situación del usuario y GUIARLO.
+        2. Tus respuestas deben ser CORTAS y directas al grano. Evita paja.
+        3. Usa las MEMORIAS para dar continuidad (ej: "Como mencionaste antes...").
+        4. Si es INVITADO, tu objetivo es vender/captar lead. Si es CLIENTE, resolver dudas.
+        
+        FORMATO: Texto plano.
+        METADATA (Al final de tu respuesta):
+        - [MENU:id_menu] (Si sugieres opciones visuales)
+        - [LEAD] (Si detectas alta intención de compra)
+        Ids Menú: ${userRole === 'cliente' ? 'cliente_root, cliente_docs, cliente_taxes' : 'invitado_root, invitado_cotizar'}
         `;
 
         const { callLocalLLM } = await import('../localLLMClient');
