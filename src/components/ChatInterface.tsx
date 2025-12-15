@@ -74,7 +74,7 @@ function ChatInterface({}: ChatInterfaceProps = {}) {
   
   // Supervisor Engine State
   const [chatUtilsState, setChatUtilsState] = useState<ChatState>(getInitialChatState());
-  const [autoReadEnabled, setAutoReadEnabled] = useState(true); 
+  const [autoReadEnabled, setAutoReadEnabled] = useState(false); // Disabled by default per user request 
   const [isMuted, setIsMuted] = useState(false);
   const [lastAssistantMessage, setLastAssistantMessage] = useState<string>("");
   const [activeTab, setActiveTab] = useState<ClientTab>("chat");
@@ -87,7 +87,7 @@ function ChatInterface({}: ChatInterfaceProps = {}) {
     const handleToggleMute = () => {
       setIsMuted(prev => {
         const newMuted = !prev;
-        setAutoReadEnabled(!newMuted); 
+        // setAutoReadEnabled(!newMuted); // Disabled: Don't auto-enable TTS
         return newMuted;
       });
     };
@@ -818,52 +818,8 @@ function ChatInterface({}: ChatInterfaceProps = {}) {
 
   // Función para reproducir mensaje de bienvenida en audio usando Gemini TTS
   const playWelcomeAudio = async (greeting: string, welcomeMsg: string, displayName: string) => {
-    // Verificar si ya se reprodujo el mensaje de bienvenida
-    if (welcomePlayed) {
-      return;
-    }
-
-    // Crear mensaje de audio corto y natural
-    // Mensaje más simple y directo como pidió el usuario
-    const audioText = userName 
-      ? `¡Hola ${displayName}! Soy Arise, tu asistente de MTZ. ¿En qué te ayudo?`
-      : `¡Hola! Soy Arise, tu asistente de MTZ. ¿En qué te ayudo?`;
-
-    try {
-      // Cargar configuración desde localStorage si existe
-      let voiceRate = 1.1;
-      let voicePitch = 1.1;
-      let voiceVolume = 1.0;
-      let useGemini = false; // Por defecto usar TTS del navegador (gratis)
-      let geminiVoiceName = 'es-CL-Neural2-A';
-      
-      try {
-        const saved = localStorage.getItem('voiceSettings');
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          voiceRate = parsed.speakingRate || voiceRate;
-          voicePitch = parsed.pitch || voicePitch;
-          voiceVolume = parsed.volume || voiceVolume;
-          useGemini = parsed.useGeminiTTS !== undefined ? parsed.useGeminiTTS : useGemini;
-          geminiVoiceName = parsed.geminiVoice || geminiVoiceName;
-        }
-      } catch (error) {
-        console.log('Error cargando configuración de voz:', error);
-      }
-      
-      // Intentar usar Gemini TTS primero para voz más natural y latina
-      await speak(audioText, {
-        rate: voiceRate,
-        pitch: voicePitch,
-        volume: voiceVolume,
-        useGemini: useGemini,
-        geminiVoice: useGemini ? geminiVoiceName : undefined,
-      });
-      setWelcomePlayed(true);
-    } catch (error) {
-      console.warn('Error al reproducir audio de bienvenida:', error);
-      // Si falla, no marcar como reproducido para permitir reintento
-    }
+    // Explicitly disabled per user request
+    return;
   };
 
   // Cargar voces disponibles cuando estén listas
@@ -1524,7 +1480,8 @@ function ChatInterface({}: ChatInterfaceProps = {}) {
             }, 300);
           }
         }}
-        autoRead={autoReadEnabled}
+        autoRead={false} // Force disabled
+        // autoRead={autoReadEnabled}
         onAutoReadChange={setAutoReadEnabled}
         textToRead={lastAssistantMessage}
       />
