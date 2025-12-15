@@ -31,13 +31,14 @@ import { UserProfile, ClientInfo, UserType, UserRole } from "../types";
 import WheelchairWorkshopPanel from "./WheelchairWorkshopPanel";
 import TransportPanel from "./TransportPanel";
 // import VoiceSettingsPanel from "./VoiceSettingsPanel"; // Removed
+import ChatInterface from "./ChatInterface";
 import "./AdminPanel.css";
 
 interface UserWithClientInfo extends UserProfile {
   client_info?: ClientInfo | null;
 }
 
-type AdminTab = "users" | "faqs" | "company" | "documents" | "meetings" | "requests" | "wheelchair" | "transport";
+type AdminTab = "users" | "faqs" | "company" | "documents" | "meetings" | "requests" | "wheelchair" | "transport" | "chat";
 
 interface AdminPanelProps {
   onLogout?: () => void;
@@ -251,8 +252,8 @@ function AdminPanel({ onLogout }: AdminPanelProps) {
       // Las requests se cargan automáticamente desde users y meetings
       fetchUsers();
       fetchMeetings();
-    } else if (activeTab === "wheelchair" || activeTab === "transport" || activeTab === "voice") {
-      // Los paneles de Taller, Transporte y Voz cargan sus propios datos
+    } else if (activeTab === "wheelchair" || activeTab === "transport") {
+      // Los paneles de Taller y Transporte cargan sus propios datos
     }
   }, [activeTab, fetchUsers, fetchFAQs, fetchCompanyInfo, fetchAllDocuments, fetchMeetings]);
 
@@ -532,6 +533,7 @@ function AdminPanel({ onLogout }: AdminPanelProps) {
     { id: "requests", label: "🔔 Requerimientos", icon: "🔔" },
     { id: "wheelchair", label: "🪑 Taller de Sillas", icon: "🪑" },
     { id: "transport", label: "🚐 Transporte Inclusivo", icon: "🚐" },
+    { id: "chat", label: "🤖 Asistente AI", icon: "🤖" },
     // { id: "voice", label: "🎤 Asistente de Voz", icon: "🎤" }, // Removed
   ];
 
@@ -589,6 +591,7 @@ function AdminPanel({ onLogout }: AdminPanelProps) {
               {activeTab === "requests" && "Revisa requerimientos y solicitudes"}
               {activeTab === "wheelchair" && "Gestiona solicitudes del Taller de Sillas de Ruedas"}
               {activeTab === "transport" && "Gestiona solicitudes de Transporte Inclusivo"}
+              {activeTab === "chat" && "Interactúa con el asistente inteligente"}
               {/* {activeTab === "voice" && "Configura el asistente de voz: velocidad, tono, pausas y más"} Removed */}
             </p>
           </div>
@@ -842,7 +845,7 @@ function AdminPanel({ onLogout }: AdminPanelProps) {
                                 onClick={() => handleDeleteDocument(doc.id)}
                                 className="delete-button"
                               >
-                                🗑️ Eliminar
+                                🗑️
                               </button>
                             </td>
                           </tr>
@@ -856,6 +859,14 @@ function AdminPanel({ onLogout }: AdminPanelProps) {
           )}
         </div>
       )}
+
+      {activeTab === "chat" && (
+        <div className="admin-chat-container" style={{ height: 'calc(100vh - 100px)', display: 'flex' }}>
+          <ChatInterface />
+        </div>
+      )}
+
+
 
       {activeTab === "company" && (
         <CompanyInfoSection

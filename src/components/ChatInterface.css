@@ -201,17 +201,18 @@
 
 .message {
   display: flex;
+  flex-direction: column;
   width: 100%;
   max-width: 100%;
   animation: messageSlideIn 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
 }
 
 .message.user {
-  justify-content: flex-end;
+  align-items: flex-end;
 }
 
 .message.assistant {
-  justify-content: flex-start;
+  align-items: flex-start;
 }
 
 .message-content {
@@ -484,9 +485,7 @@
   background: rgba(0, 212, 255, 0.15);
 }
 
-.support-button {
-  /* Hereda estilos de action-button */
-}
+/* .support-button inherits styles from action-button */
 
 .support-button:hover {
   border-color: var(--neon-blue);
@@ -1252,9 +1251,7 @@
 }
 
 /* Botón de limpiar chat */
-.clear-button {
-  /* Hereda estilos de action-button */
-}
+/* .clear-button inherits styles from action-button */
 
 .clear-button:hover {
   background: rgba(255, 68, 68, 0.2);

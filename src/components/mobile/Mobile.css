@@ -2298,11 +2298,12 @@ a {
 .chat-menu-options {
   display: flex !important;
   flex-direction: column !important;
-  gap: 0.75rem !important; /* Space between buttons */
-  margin-top: 1rem !important;
-  padding-top: 1rem !important;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  gap: 0.5rem !important;
+  margin-top: 0.5rem !important; 
+  padding-top: 0 !important;
+  border-top: none !important;
   width: 100%;
+  animation: slideUp 0.3s ease-out;
 }
 
 .chat-option-btn {

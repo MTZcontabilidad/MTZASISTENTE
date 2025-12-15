@@ -145,36 +145,6 @@ const MobileChat: React.FC = () => {
                                             )}
                                         </div>
 
-                                        {/* System Style Menu Options */}
-                                        {msg.menu && msg.menu.options && (
-                                            <div className="chat-menu-options">
-                                                {msg.menu.options.map((option: any, idx: number) => (
-                                                    <button 
-                                                        key={idx} 
-                                                        className="chat-option-btn"
-                                                        onClick={() => {
-                                                            if (option.url) {
-                                                                window.open(option.url, '_blank');
-                                                            } else {
-                                                                handleSend(option.label || option.text);
-                                                            }
-                                                        }}
-                                                    >
-                                                        {option.icon && (
-                                                            <span className="material-icons-round">
-                                                                {option.icon}
-                                                            </span>
-                                                        )}
-                                                        <span>{option.label || option.text}</span>
-                                                        {option.url && (
-                                                            <span className="material-icons-round" style={{ marginLeft: 'auto', fontSize: '1rem', opacity: 0.7 }}>
-                                                                open_in_new
-                                                            </span>
-                                                        )}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        )}
 
                                         {/* Lead Capture Form */}
                                         {msg.leadForm && (
@@ -188,6 +158,37 @@ const MobileChat: React.FC = () => {
                                             {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                         </div>
                                     </div>
+                                    
+                                    {/* System Style Menu Options (Separated) */}
+                                    {msg.menu && msg.menu.options && (
+                                        <div className="chat-menu-options">
+                                            {msg.menu.options.map((option: any, idx: number) => (
+                                                <button 
+                                                    key={idx} 
+                                                    className="chat-option-btn"
+                                                    onClick={() => {
+                                                        if (option.url) {
+                                                            window.open(option.url, '_blank');
+                                                        } else {
+                                                            handleSend(option.label || option.text);
+                                                        }
+                                                    }}
+                                                >
+                                                    {option.icon && (
+                                                        <span className="material-icons-round">
+                                                            {option.icon}
+                                                        </span>
+                                                    )}
+                                                    <span>{option.label || option.text}</span>
+                                                    {option.url && (
+                                                        <span className="material-icons-round" style={{ marginLeft: 'auto', fontSize: '1rem', opacity: 0.7 }}>
+                                                            open_in_new
+                                                        </span>
+                                                    )}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                             

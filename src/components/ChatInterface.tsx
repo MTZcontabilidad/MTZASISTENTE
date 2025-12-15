@@ -1052,148 +1052,6 @@ function ChatInterface({}: ChatInterfaceProps = {}) {
                   </div>
                 ) : null}
 
-                {/* Mostrar menú interactivo si existe */}
-                {message.menu && message.menu.options && currentUserId && (
-                  <InteractiveMenu
-                    options={message.menu.options}
-                    userId={currentUserId}
-                    title={message.menu.title}
-                    description={message.menu.description}
-                    guideImage={message.menu.guide_image}
-                    onActionComplete={async (action, result) => {
-                      console.log("Acción completada:", action, result);
-                      
-                      if (action === "navigate" && result?.route) {
-                        try {
-                           setActiveTab(result.route as ClientTab);
-                        } catch (e) {
-                          console.warn("Ruta no válida:", result.route);
-                        }
-                      }
-                      
-                      if ((action === "show_menu" && result?.menu) || (action === "show_tutorial" && result?.id)) {
-                        const { CHAT_TREES, TUTORIAL_CONTENT } = await import('../lib/chatbot/chatTrees');
-                        
-                        if (action === "show_menu") {
-                            const menuKey = result.menu;
-                            let targetMenuKey = menuKey;
-                            if (menuKey === 'root_back') {
-                               targetMenuKey = userRole === 'cliente' ? 'cliente_root' : 'invitado_root';
-                            }
-                            
-                            const menu = CHAT_TREES[targetMenuKey];
-                            if (menu && currentUserId) {
-                               const newMsg: MessageWithMenu = {
-                                 id: `menu-${Date.now()}`,
-                                 conversation_id: conversationId!,
-                                 sender: 'assistant',
-                                 user_id: currentUserId,
-                                 text: menu.text,
-                                 created_at: new Date().toISOString(),
-                                 timestamp: new Date(),
-                                 menu: {
-                                   type: 'options',
-                                   title: 'Opciones:',
-                                   options: menu.options
-                                 }
-                               };
-                               setMessages(prev => [...prev, newMsg]);
-                               setLastAssistantMessage(menu.text);
-                            }
-                        }
-                        
-                        if (action === "show_tutorial" && result.id) {
-                             // Special handler for dynamic data actions
-                             if (result.id === 'action_fetch_profile' && currentUserId) {
-                               setLoading(true);
-                               try {
-                                 // Dynamic import to keep bundle small
-                                 const { supabase } = await import('../lib/supabase');
-                                 const { data: profile } = await supabase
-                                    .from('client_extended_info')
-                                    .select('*')
-                                    .eq('id', currentUserId)
-                                    .single();
-                                    
-                                 let profileText = '';
-                                 if (profile) {
-                                    profileText = `📋 **Ficha de Cliente**\n\n` +
-                                      `**Nombre:** ${profile.preferred_name || 'No registrado'}\n` +
-                                      `**RUT:** ${profile.rut || 'No registrado'}\n` +
-                                      `**Empresa:** ${profile.company_name || 'No registrada'}\n` +
-                                      `**Giro:** ${profile.business_line || 'No registrado'}\n` +
-                                      `**Regimen:** ${profile.tax_regime || 'No asignado'}\n\n` +
-                                      `*Esta información es privada y solo tú puedes verla.*`;
-                                 } else {
-                                    profileText = "⚠️ No encontramos información extendida en tu perfil. Por favor, actualiza tus datos en la sección 'Mi Perfil'.";
-                                 }
-                                 
-                                 const newMsg: MessageWithMenu = {
-                                   id: `prof-${Date.now()}`,
-                                   conversation_id: conversationId!,
-                                   sender: 'assistant',
-                                   user_id: currentUserId,
-                                   text: profileText,
-                                   created_at: new Date().toISOString(),
-                                   timestamp: new Date(),
-                                 };
-                                 setMessages(prev => [...prev, newMsg]);
-                                 setLastAssistantMessage(profileText);
-                               } catch (err) {
-                                 console.error("Error fetching profile:", err);
-                               } finally {
-                                 setLoading(false);
-                               }
-                               return; // Stop here, don't look for static tutorial
-                             }
-
-                             const content = TUTORIAL_CONTENT[result.id];
-                             if (content && currentUserId) {
-                                const newMsg: MessageWithMenu = {
-                                 id: `tut-${Date.now()}`,
-                                 conversation_id: conversationId!,
-                                 sender: 'assistant',
-                                 user_id: currentUserId,
-                                 text: content,
-                                 created_at: new Date().toISOString(),
-                                 timestamp: new Date(),
-                               };
-                               setMessages(prev => [...prev, newMsg]);
-                               setLastAssistantMessage(content);
-                             }
-                        }
-                      }
-                      
-                      // Handle Support Action
-                      if (action === "contact_support") {
-                          setShowHumanSupport(true);
-                      }
-                    }}
-                  />
-                )}
-
-                {/* Mostrar botón de descarga si hay documento */}
-                {message.document && message.document.download_url && (
-                  <a
-                    href={message.document.download_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="document-download-link"
-                    onClick={() => {
-                      // Trackear acceso al documento
-                      if (message.document?.id) {
-                        import("../lib/documents").then(
-                          ({ trackDocumentAccess }) => {
-                            trackDocumentAccess(message.document.id);
-                          }
-                        );
-                      }
-                    }}
-                  >
-                    📥 Descargar {message.document.document_name}
-                  </a>
-                )}
-
                 <span className="timestamp">
                   {message.timestamp
                     ? message.timestamp.toLocaleTimeString("es-ES", {
@@ -1206,6 +1064,126 @@ function ChatInterface({}: ChatInterfaceProps = {}) {
                       })}
                 </span>
               </div>
+
+              {/* Mostrar menú interactivo si existe (Fuera de la burbuja) */}
+              {message.menu && message.menu.options && currentUserId && (
+                <InteractiveMenu
+                  options={message.menu.options}
+                  userId={currentUserId}
+                  title={message.menu.title}
+                  description={message.menu.description}
+                  guideImage={message.menu.guide_image}
+                  onActionComplete={async (action, result) => {
+                    console.log("Acción completada:", action, result);
+                    
+                    if (action === "navigate" && result?.route) {
+                      try {
+                          setActiveTab(result.route as ClientTab);
+                      } catch (e) {
+                        console.warn("Ruta no válida:", result.route);
+                      }
+                    }
+                    
+                    if ((action === "show_menu" && result?.menu) || (action === "show_tutorial" && result?.id)) {
+                      const { CHAT_TREES, TUTORIAL_CONTENT } = await import('../lib/chatbot/chatTrees');
+                      
+                      if (action === "show_menu") {
+                          const menuKey = result.menu;
+                          let targetMenuKey = menuKey;
+                          if (menuKey === 'root_back') {
+                              targetMenuKey = userRole === 'cliente' ? 'cliente_root' : 'invitado_root';
+                          }
+                          
+                          const menu = CHAT_TREES[targetMenuKey];
+                          if (menu && currentUserId) {
+                              const newMsg: MessageWithMenu = {
+                                id: `menu-${Date.now()}`,
+                                conversation_id: conversationId!,
+                                sender: 'assistant',
+                                user_id: currentUserId,
+                                text: menu.text,
+                                created_at: new Date().toISOString(),
+                                timestamp: new Date(),
+                                menu: {
+                                  type: 'options',
+                                  title: 'Opciones:',
+                                  options: menu.options
+                                }
+                              };
+                              setMessages(prev => [...prev, newMsg]);
+                              setLastAssistantMessage(menu.text);
+                          }
+                      }
+                      
+                      if (action === "show_tutorial" && result.id) {
+                            // Special handler for dynamic data actions
+                            if (result.id === 'action_fetch_profile' && currentUserId) {
+                              setLoading(true);
+                              try {
+                                // Dynamic import to keep bundle small
+                                const { supabase } = await import('../lib/supabase');
+                                const { data: profile } = await supabase
+                                  .from('client_extended_info')
+                                  .select('*')
+                                  .eq('id', currentUserId)
+                                  .single();
+                                  
+                                let profileText = '';
+                                if (profile) {
+                                  profileText = `📋 **Ficha de Cliente**\n\n` +
+                                    `**Nombre:** ${profile.preferred_name || 'No registrado'}\n` +
+                                    `**RUT:** ${profile.rut || 'No registrado'}\n` +
+                                    `**Empresa:** ${profile.company_name || 'No registrada'}\n` +
+                                    `**Giro:** ${profile.business_line || 'No registrado'}\n` +
+                                    `**Regimen:** ${profile.tax_regime || 'No asignado'}\n\n` +
+                                    `*Esta información es privada y solo tú puedes verla.*`;
+                                } else {
+                                  profileText = "⚠️ No encontramos información extendida en tu perfil. Por favor, actualiza tus datos en la sección 'Mi Perfil'.";
+                                }
+                                
+                                const newMsg: MessageWithMenu = {
+                                  id: `prof-${Date.now()}`,
+                                  conversation_id: conversationId!,
+                                  sender: 'assistant',
+                                  user_id: currentUserId,
+                                  text: profileText,
+                                  created_at: new Date().toISOString(),
+                                  timestamp: new Date(),
+                                };
+                                setMessages(prev => [...prev, newMsg]);
+                                setLastAssistantMessage(profileText);
+                              } catch (err) {
+                                console.error("Error fetching profile:", err);
+                              } finally {
+                                setLoading(false);
+                              }
+                              return; // Stop here, don't look for static tutorial
+                            }
+
+                            const content = TUTORIAL_CONTENT[result.id];
+                            if (content && currentUserId) {
+                              const newMsg: MessageWithMenu = {
+                                id: `tut-${Date.now()}`,
+                                conversation_id: conversationId!,
+                                sender: 'assistant',
+                                user_id: currentUserId,
+                                text: content,
+                                created_at: new Date().toISOString(),
+                                timestamp: new Date(),
+                              };
+                              setMessages(prev => [...prev, newMsg]);
+                              setLastAssistantMessage(content);
+                            }
+                      }
+                    }
+                    
+                    // Handle Support Action
+                    if (action === "contact_support") {
+                        setShowHumanSupport(true);
+                    }
+                  }}
+                />
+              )}
             </div>
           ))
         )}
