@@ -7,6 +7,13 @@
   },
   "typescript.tsdk": "node_modules/typescript/lib",
   "typescript.enablePromptUseWorkspaceTsdk": true,
+  
+  // Configuración para Deno (Supabase Edge Functions)
+  "deno.enable": true,
+  "deno.unstable": true,
+  "deno.enablePaths": [
+    "supabase/functions"
+  ],
 
   // Configuración MCP de Supabase para Cursor
   "mcp": {
