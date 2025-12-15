@@ -93,11 +93,11 @@ function handleMenuRequest(menuId: string, userName?: string): ChatResponse {
   const menu = CHAT_TREES[menuId];
   if (!menu) return { text: "Menú no encontrado.", nextState: getInitialChatState() };
 
-  // Add numbering to options for Accessibility
-  const numberedOptions = menu.options.map((opt, i) => ({
+  // No numbering needed for modern UI
+  const numberedOptions = menu.options.map((opt) => ({
     ...opt,
     label_original: opt.label,
-    label: `${i + 1}. ${opt.label}` // "1. Opción"
+    label: opt.label 
   }));
 
   const safeName = (userName && userName !== 'undefined') ? userName : 'Usuario';
@@ -245,8 +245,9 @@ async function generateAIResponse(
         4. Responder la duda del usuario de forma útil.
         5. USA LAS MEMORIAS para personalizar la respuesta si es relevante.
         6. PROVEEDOR: Gemini via Supabase.
-        7. SIEMPRE SUGERIR UN MENÚ VISUAL ("menu_suggestion") que tenga sentido con la respuesta.
-           - IDs Disponibles para ${userRole}: ${userRole === 'cliente' ? 'cliente_root, cliente_docs, cliente_taxes, cliente_tutorials' : 'invitado_root, invitado_cotizar, invitado_tutorials, invitado_guiar'}.
+        7. ENRIQUECIMIENTO VISUAL (Menús):
+           - SUGERIR UN MENÚ VISUAL ("menu_suggestion") SOLO si es relevante y aporta valor.
+           - NO inventes menús. IDs Disponibles: ${userRole === 'cliente' ? 'cliente_root, cliente_docs, cliente_taxes, cliente_tutorials' : 'invitado_root, invitado_cotizar, invitado_tutorials, invitado_guiar'}.
         8. ROLES:
            - Si ROL es 'cliente': Tu foco es servicio, soporte técnico y retención.
            - Si ROL es 'invitado': Tu foco es VENTAS y CAPTURA DE LEADS (SDR).
@@ -320,7 +321,7 @@ async function generateAIResponse(
     if (aiRes.suggested_menu_id && CHAT_TREES[aiRes.suggested_menu_id]) {
       const menu = CHAT_TREES[aiRes.suggested_menu_id];
       responseObj.show_menu = true;
-      responseObj.options = menu.options.map((opt, i) => ({ ...opt, label: `${i + 1}. ${opt.label}` }));
+      responseObj.options = menu.options.map((opt) => ({ ...opt, label: opt.label }));
       responseObj.nextState.lastOptions = menu.options;
       responseObj.nextState.lastMenuId = aiRes.suggested_menu_id;
     }

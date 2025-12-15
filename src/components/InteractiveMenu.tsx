@@ -224,7 +224,7 @@ export default function InteractiveMenu({
             onClick={() => handleOptionClick(option)}
             type="button"
           >
-            <span className="menu-option-icon">{option.icon || "•"}</span>
+            {option.icon && <span className="menu-option-icon">{option.icon}</span>}
             <span className="menu-option-label">{option.label}</span>
           </button>
         ))}
