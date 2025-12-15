@@ -22,8 +22,8 @@ import VoiceControls from "./VoiceControls";
 import HumanSupportOptions from "./HumanSupportOptions";
 import UserProfile from "./UserProfile";
 import VoiceSettingsDropdown from "./VoiceSettingsDropdown";
-import { useSpeechToText } from "../lib/speechToText";
-import { useTextToSpeech } from "../lib/textToSpeech";
+// import { useSpeechToText } from "../lib/speechToText"; // Removed
+// import { useTextToSpeech } from "../lib/textToSpeech"; // Removed
 import ClientSidebar, { type ClientTab } from "./ClientSidebar";
 import {
   ClientMeetingsSection,
@@ -102,47 +102,9 @@ function ChatInterface({}: ChatInterfaceProps = {}) {
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   
-  /*
-  const {
-    start: startListening,
-    stop: stopListening,
-    abort: abortListening,
-    isListening,
-    transcript: voiceTranscript,
-    error: sttError,
-    isSupported: sttSupported,
-  } = useSpeechToText({
-    onSpeechEnd: (finalTranscript) => {
-      console.log('🎤 Pausa detectada, transcript:', finalTranscript);
-      
-      if (!finalTranscript || finalTranscript.trim().length < 2) {
-        console.log('⚠️ Transcript muy corto o vacío');
-        return;
-      }
-
-      if (autoSentRef.current) {
-        return;
-      }
-
-      stopListening();
-      
-      autoSentRef.current = true;
-      // lastVoiceTranscriptRef.current = ""; // Removed standard ref usage if not defined, assuming handled inside hook or not needed here
-      
-      const trySendMessage = () => {
-        const currentConversationId = conversationId;
-        const currentHandleSend = handleSendRef.current; // Assuming this ref is populated elsewhere
-
-        if (!currentConversationId) {
-             console.warn('⚠️ No hay conversationId');
-             return;
-        }
-        if (currentHandleSend) currentHandleSend();
-      };
-      trySendMessage();
-    }
-  });
-  */
+  /* 
+   * STT Hook Logic Removed - Handled by VoiceControls or Mocked
+   */
   // Mock values to prevent TS errors
   const startListening = () => {};
   const stopListening = () => {};
@@ -153,6 +115,8 @@ function ChatInterface({}: ChatInterfaceProps = {}) {
   // Code removed
   
   // Text-to-Speech para el botón "Leer" en cada mensaje
+  // TTS Logic Removed
+  /*
   const {
     speak,
     pause,
@@ -161,33 +125,11 @@ function ChatInterface({}: ChatInterfaceProps = {}) {
     isSpeaking: ttsIsSpeaking,
     isPaused: ttsIsPaused,
   } = useTextToSpeech();
+  */
   
   const isUpdatingInputRef = useRef(false);
   
-  /*
-  useEffect(() => {
-    // Prevenir loops: solo actualizar si realmente cambió el transcript y no estamos en medio de una actualización
-    if (isUpdatingInputRef.current) return;
-    
-    if (voiceTranscript && voiceTranscript !== lastVoiceTranscriptRef.current && !autoSentRef.current && isListening) {
-      isUpdatingInputRef.current = true;
-      lastVoiceTranscriptRef.current = voiceTranscript;
-      setInput(voiceTranscript);
-      // Resetear flag después de un breve delay
-      setTimeout(() => {
-        isUpdatingInputRef.current = false;
-      }, 50);
-    } else if (!voiceTranscript && !isListening && lastVoiceTranscriptRef.current && !autoSentRef.current) {
-      // Si no hay transcript y no se está escuchando, limpiar el input y el ref
-      isUpdatingInputRef.current = true;
-      lastVoiceTranscriptRef.current = "";
-      setInput("");
-      setTimeout(() => {
-        isUpdatingInputRef.current = false;
-      }, 50);
-    }
-  }, [voiceTranscript, isListening]); // Removido 'input' de dependencias para evitar loop
-  */
+  // Commented out useEffect removed
 
   // Auto-enviar mensaje cuando se detiene la grabación manualmente (botón)
   // DESHABILADO: El envío automático se maneja completamente en onSpeechEnd
@@ -1076,65 +1018,7 @@ function ChatInterface({}: ChatInterfaceProps = {}) {
                 {message.sender === "assistant" && (
                   <div className="assistant-header">
                     <span className="assistant-name">Arise</span>
-                    <button
-                      className={`read-button ${ttsIsSpeaking && lastAssistantMessage === message.text ? "active" : ""}`}
-                      onClick={() => {
-                        // Extraer texto sin HTML para leer
-                        const textToRead = message.text.replace(/<[^>]*>/g, '').replace(/\*\*/g, '').trim();
-                        
-                        if (ttsIsSpeaking && lastAssistantMessage === message.text) {
-                          // Si está leyendo este mensaje, pausar/reanudar
-                          if (ttsIsPaused) {
-                            resume();
-                          } else {
-                            pause();
-                          }
-                        } else {
-                          // Leer este mensaje
-                          stopTTS(); // Detener cualquier lectura anterior
-                          if (textToRead) {
-                            // Cargar configuración desde localStorage si existe
-                            let voiceRate = 1.1;
-                            let voicePitch = 1.1;
-                            let voiceVolume = 1.0;
-                            let useGemini = true;
-                            let geminiVoiceName = 'es-CL-Neural2-A';
-                            
-                            try {
-                              const saved = localStorage.getItem('voiceSettings');
-                              if (saved) {
-                                const parsed = JSON.parse(saved);
-                                voiceRate = parsed.speakingRate || voiceRate;
-                                voicePitch = parsed.pitch || voicePitch;
-                                voiceVolume = parsed.volume || voiceVolume;
-                                useGemini = parsed.useGeminiTTS !== undefined ? parsed.useGeminiTTS : useGemini;
-                                geminiVoiceName = parsed.geminiVoice || geminiVoiceName;
-                              }
-                            } catch (error) {
-                              console.log('Error cargando configuración de voz:', error);
-                            }
-                            
-                            speak(textToRead, {
-                              rate: voiceRate,
-                              pitch: voicePitch,
-                              volume: voiceVolume,
-                              useGemini: useGemini,
-                              geminiVoice: useGemini ? geminiVoiceName : undefined,
-                            });
-                            setLastAssistantMessage(message.text);
-                          }
-                        }
-                      }}
-                      type="button"
-                      title={ttsIsSpeaking && lastAssistantMessage === message.text 
-                        ? (ttsIsPaused ? "Reanudar lectura" : "Pausar lectura") 
-                        : "Leer mensaje"}
-                      aria-label="Leer mensaje"
-                    >
-                      {ttsIsSpeaking && lastAssistantMessage === message.text 
-                        ? (ttsIsPaused ? "▶️" : "⏸️") 
-                        : "🔊"}
-                    </button>
+                    {/* TTS Button Removed */}
                   </div>
                 )}
                 
