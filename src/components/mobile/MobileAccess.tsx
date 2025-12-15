@@ -83,7 +83,7 @@ const MobileAccess: React.FC = () => {
         tool.subtitle.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    const showHighlights = !searchTerm;
+    // const showHighlights = !searchTerm; // Unused
 
     return (
         <div className="mobile-view-container system-bg-void">
@@ -94,237 +94,195 @@ const MobileAccess: React.FC = () => {
                 </div>
             )}
 
-            {/* INTEGRATED HEADER & SEARCH */}
-            <div className="glass-header-integrated sticky top-0" style={{ padding: '1.5rem 1.5rem 1.25rem 1.5rem' }}>
-                <div style={{ marginBottom: '1.25rem' }}></div>
+            {/* HEADER COMPACTO CON BUSCADOR INTEGRADO */}
+            <div className="glass-header" style={{ 
+                padding: '1.25rem 1.25rem 1.5rem 1.25rem', 
+                height: 'auto', 
+                display: 'block',
+                background: 'linear-gradient(to bottom, rgba(var(--mobile-bg-rgb), 0.95), rgba(var(--mobile-bg-rgb), 0.8))'
+            }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'end', marginBottom: '1.25rem' }}>
+                    <div>
+                        <h1 style={{
+                            fontSize: '1.75rem',
+                            fontWeight: 800,
+                            background: 'linear-gradient(to right, #22d3ee, #3b82f6)',
+                            WebkitBackgroundClip: 'text',
+                            WebkitTextFillColor: 'transparent',
+                            letterSpacing: '-0.02em',
+                            margin: 0,
+                            lineHeight: 1
+                        }}>
+                            Accesos
+                        </h1>
+                        <p style={{
+                            fontSize: '0.7rem',
+                            color: 'var(--mobile-text-muted)',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.15em',
+                            marginTop: '0.35rem',
+                            fontWeight: 600
+                        }}>
+                            Herramientas & Trámites
+                        </p>
+                    </div>
+                </div>
 
                 <div className="relative group" style={{ position: 'relative' }}>
                     <span 
                         className="material-icons-round" 
                         style={{
                             position: 'absolute',
-                            left: '0.875rem',
+                            left: '1rem',
                             top: '50%',
                             transform: 'translateY(-50%)',
-                            color: 'var(--mobile-text-muted)',
+                            color: 'var(--mobile-primary)',
                             fontSize: '1.25rem',
                             zIndex: 1,
-                            transition: 'color 0.3s ease'
+                            pointerEvents: 'none'
                         }}
                     >
                         search
                     </span>
                     <input 
-                        className="access-search-input"
-                        placeholder="Buscar trámites, impuestos o servicios..."
+                        className="system-input"
+                        placeholder="Buscar servicio..."
                         type="text"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         style={{
                             width: '100%',
-                            padding: '0.875rem 1rem 0.875rem 2.75rem',
-                            borderRadius: '0.75rem',
-                            border: '1px solid rgba(255, 255, 255, 0.1)',
-                            background: 'rgba(var(--mobile-bg-rgb), 0.6)',
+                            padding: '0.875rem 1rem 0.875rem 3rem',
+                            borderRadius: '1rem',
+                            border: '1px solid rgba(59, 130, 246, 0.2)',
+                            background: 'rgba(15, 23, 42, 0.6)',
                             backdropFilter: 'blur(12px)',
                             WebkitBackdropFilter: 'blur(12px)',
                             color: 'var(--mobile-text)',
                             fontSize: '0.9rem',
-                            outline: 'none',
-                            transition: 'all 0.3s ease'
-                        }}
-                        onFocus={(e) => {
-                            e.target.style.borderColor = 'var(--mobile-primary)';
-                            e.target.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)';
-                        }}
-                        onBlur={(e) => {
-                            e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)';
-                            e.target.style.boxShadow = 'none';
+                            boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.2)'
                         }}
                     />
                 </div>
             </div>
 
-            <div className="mobile-content-scroll" style={{ padding: '1.5rem 1rem 6rem 1rem' }}>
-                {showHighlights && (
-                    <>
-                        {/* DESTACADOS */}
-                        <div style={{ marginBottom: '2rem' }}>
-                            <h2 className="section-label" style={{ marginBottom: '0.875rem', paddingLeft: '0.25rem' }}>
-                                DESTACADOS
-                            </h2>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.875rem' }}>
-                                {HIGHLIGHTS.map((highlight) => (
+            <div className="mobile-content-scroll" style={{ padding: '1.5rem 1rem 7rem 1rem' }}>
+                
+{/* INSTITUCIONES / ORGANISMOS - LISTA PRINCIPAL (Solo visible sin búsqueda) */}
+                {!searchTerm && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', marginTop: '1rem' }}>
+                        {INSTITUTIONS.map(category => {
+                            const categoryTools = filteredTools.filter(t => t.category === category.id);
+                            // if (categoryTools.length === 0 && searchTerm) return null; // Logic no longer needed as we hide parent
+
+                            const isOpen = openCategories[category.id];
+
+                            return (
+                                <div key={category.id} className="animate-fade-in-up" style={{
+                                    background: 'rgba(15, 23, 42, 0.4)',
+                                    borderRadius: '1rem',
+                                    border: '1px solid rgba(255, 255, 255, 0.05)',
+                                    overflow: 'hidden'
+                                }}>
                                     <button 
-                                        key={highlight.id}
-                                        className="highlight-card-compact" 
-                                        onClick={() => handleAccessClick(highlight)}
+                                        onClick={() => toggleCategory(category.id)}
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            width: '100%',
+                                            padding: '1rem',
+                                            background: isOpen ? 'rgba(59, 130, 246, 0.08)' : 'transparent',
+                                            border: 'none',
+                                            borderBottom: isOpen ? '1px solid rgba(255, 255, 255, 0.05)' : 'none',
+                                            cursor: 'pointer',
+                                            transition: 'all 0.3s ease'
+                                        }}
                                     >
-                                        <div className="icon-container" style={{
-                                            backgroundColor: 'rgba(59, 130, 246, 0.15)',
-                                            borderColor: 'rgba(59, 130, 246, 0.3)'
+                                        <div style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            width: '2.25rem',
+                                            height: '2.25rem',
+                                            borderRadius: '0.75rem',
+                                            background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(59, 130, 246, 0.1) 100%)',
+                                            color: 'var(--mobile-primary)',
+                                            marginRight: '0.875rem',
+                                            boxShadow: '0 0 10px rgba(59, 130, 246, 0.15)'
                                         }}>
-                                            <span className="material-icons-round" style={{ 
-                                                color: 'var(--mobile-primary)',
-                                                fontSize: '1.75rem'
-                                            }}>
-                                                {highlight.icon}
-                                            </span>
+                                            <span className="material-icons-round" style={{ fontSize: '1.25rem' }}>{category.icon}</span>
                                         </div>
-                                        
-                                        <div style={{ 
-                                            flex: 1, 
-                                            textAlign: 'left', 
-                                            minWidth: 0 
+                                        <span style={{
+                                            flex: 1,
+                                            textAlign: 'left',
+                                            fontWeight: 700,
+                                            fontSize: '0.95rem',
+                                            color: isOpen ? 'var(--mobile-primary)' : 'var(--mobile-text)',
+                                            letterSpacing: '0.02em'
                                         }}>
-                                            <div style={{
-                                                fontWeight: 700,
-                                                color: 'var(--mobile-text)',
-                                                fontSize: '0.875rem',
-                                                lineHeight: 1.3,
-                                                marginBottom: '0.25rem',
-                                                overflow: 'hidden',
-                                                textOverflow: 'ellipsis',
-                                                whiteSpace: 'nowrap'
-                                            }}>
-                                                {highlight.title}
-                                            </div>
-                                            <div style={{
-                                                fontSize: '0.7rem',
-                                                color: 'var(--mobile-text-muted)',
-                                                fontWeight: 500,
-                                                overflow: 'hidden',
-                                                textOverflow: 'ellipsis',
-                                                whiteSpace: 'nowrap'
-                                            }}>
-                                                {highlight.subtitle}
-                                            </div>
-                                        </div>
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* INSTITUCIONES / ORGANISMOS */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                            {INSTITUTIONS.map(category => {
-                                const categoryTools = filteredTools.filter(t => t.category === category.id);
-                                if (categoryTools.length === 0 && searchTerm) return null; // Ocultar si filtramos y no hay matches
-
-                                const isOpen = openCategories[category.id] || searchTerm; // Expandir todo si busca
-
-                                return (
-                                    <div key={category.id} className="animate-fade-in-up">
-                                        <button 
-                                            onClick={() => toggleCategory(category.id)}
+                                            {category.label}
+                                        </span>
+                                        <span 
+                                            className="material-icons-round"
                                             style={{
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                width: '100%',
-                                                padding: '0.75rem 0.5rem',
-                                                marginBottom: '0.5rem',
-                                                background: 'transparent',
-                                                border: 'none',
-                                                cursor: 'pointer'
+                                                color: isOpen ? 'var(--mobile-primary)' : 'var(--mobile-text-muted)',
+                                                transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                                                transition: 'transform 0.3s ease'
                                             }}
                                         >
-                                            <div style={{
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                                width: '2rem',
-                                                height: '2rem',
-                                                borderRadius: '0.5rem',
-                                                backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                                                color: 'var(--mobile-primary)',
-                                                marginRight: '0.75rem'
-                                            }}>
-                                                <span className="material-icons-round" style={{ fontSize: '1.25rem' }}>{category.icon}</span>
-                                            </div>
-                                            <span style={{
-                                                flex: 1,
-                                                textAlign: 'left',
-                                                fontWeight: 700,
-                                                fontSize: '0.95rem',
-                                                color: 'var(--mobile-text)',
-                                                letterSpacing: '0.02em'
-                                            }}>
-                                                {category.label}
-                                            </span>
-                                            <span 
-                                                className="material-icons-round"
-                                                style={{
-                                                    color: 'var(--mobile-text-muted)',
-                                                    transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-                                                    transition: 'transform 0.3s ease'
-                                                }}
-                                            >
-                                                expand_more
-                                            </span>
-                                        </button>
+                                            expand_more
+                                        </span>
+                                    </button>
 
-                                        {isOpen && (
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem', paddingLeft: '0.5rem' }}>
-                                                {categoryTools.map(tool => (
-                                                    <button 
-                                                        key={tool.id}
-                                                        className="tool-card-refined"
-                                                        onClick={() => handleAccessClick(tool)}
-                                                    >
-                                                        <div className="icon-box-small">
-                                                            <span className="material-icons-round">{tool.icon}</span>
+                                    {isOpen && (
+                                        <div style={{ display: 'grid', gap: '1px', background: 'rgba(255, 255, 255, 0.05)' }}>
+                                            {categoryTools.map(tool => (
+                                                <button 
+                                                    key={tool.id}
+                                                    onClick={() => handleAccessClick(tool)}
+                                                    style={{
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        padding: '1rem 1.25rem',
+                                                        background: 'var(--mobile-bg)', // Opaque to hide grid gap
+                                                        width: '100%',
+                                                        border: 'none',
+                                                        textAlign: 'left',
+                                                        gap: '1rem'
+                                                    }}
+                                                    className="hover:bg-slate-800/50 transition-colors"
+                                                >
+                                                    <div style={{ color: 'var(--mobile-text-muted)', display: 'flex' }}>
+                                                        <span className="material-icons-round" style={{ fontSize: '1.25rem' }}>chevron_right</span>
+                                                    </div>
+                                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                                        <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--mobile-text)', marginBottom: '0.1rem' }}>
+                                                            {tool.title}
                                                         </div>
-                                                        <div style={{ 
-                                                            textAlign: 'left', 
-                                                            flex: 1,
-                                                            minWidth: 0
-                                                        }}>
-                                                            <div style={{
-                                                                fontWeight: 700,
-                                                                color: 'var(--mobile-text)',
-                                                                fontSize: '0.9rem',
-                                                                lineHeight: 1.4,
-                                                                marginBottom: '0.25rem'
-                                                            }}>
-                                                                {tool.title}
-                                                            </div>
-                                                            <div style={{
-                                                                fontSize: '0.75rem',
-                                                                color: 'var(--mobile-text-muted)',
-                                                                fontWeight: 500
-                                                            }}>
-                                                                {tool.subtitle}
-                                                            </div>
+                                                        <div style={{ fontSize: '0.75rem', color: 'var(--mobile-text-muted)' }}>
+                                                            {tool.subtitle}
                                                         </div>
-                                                        <span 
-                                                            className="material-icons-round" 
-                                                            style={{
-                                                                color: 'var(--mobile-text-muted)',
-                                                                fontSize: '1.25rem',
-                                                                marginLeft: '0.5rem',
-                                                                flexShrink: 0
-                                                            }}
-                                                        >
-                                                            chevron_right
-                                                        </span>
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </>
+                                                    </div>
+                                                    <span className="material-icons-round" style={{ fontSize: '1.25rem', color: 'var(--mobile-primary)', opacity: 0.5 }}>
+                                                        open_in_new
+                                                    </span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
                 )}
 
-                {/* BÚSQUEDA */}
+                {/* RESULTADOS DE BÚSQUEDA (Solo visible con búsqueda) */}
                 {searchTerm && (
                     <div className="animate-fade-in">
                         <div className="section-label" style={{ marginBottom: '0.875rem', paddingLeft: '0.25rem' }}>
-                            RESULTADOS DE BÚSQUEDA
+                            RESULTADOS
                         </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                             {filteredTools.map(tool => (
                                 <button 
                                     key={tool.id}
@@ -336,43 +294,30 @@ const MobileAccess: React.FC = () => {
                                     </div>
                                     <div style={{ 
                                         textAlign: 'left', 
-                                        flex: 1,
+                                        flex: 1, 
                                         minWidth: 0
                                     }}>
                                         <div style={{
                                             fontWeight: 700,
                                             color: 'var(--mobile-text)',
                                             fontSize: '0.9rem',
-                                            lineHeight: 1.4,
-                                            marginBottom: '0.25rem'
+                                            marginBottom: '0.2rem'
                                         }}>
                                             {tool.title}
                                         </div>
-                                        <div style={{
-                                            fontSize: '0.75rem',
-                                            color: 'var(--mobile-text-muted)',
-                                            fontWeight: 500
-                                        }}>
+                                        <div style={{ fontSize: '0.75rem', color: 'var(--mobile-text-muted)' }}>
                                             {tool.subtitle}
                                         </div>
                                     </div>
-                                    <span 
-                                        className="material-icons-round" 
-                                        style={{
-                                            color: 'var(--mobile-text-muted)',
-                                            fontSize: '1.25rem',
-                                            marginLeft: '0.5rem',
-                                            flexShrink: 0
-                                        }}
-                                    >
-                                        chevron_right
+                                    <span className="material-icons-round" style={{ color: 'var(--mobile-primary)' }}>
+                                        arrow_forward
                                     </span>
                                 </button>
                             ))}
                             {filteredTools.length === 0 && (
                                 <div className="search-empty-state">
-                                    <span className="material-icons-round">search_off</span>
-                                    <span>No hay resultados</span>
+                                    <span className="material-icons-round" style={{ fontSize: '3rem', color: 'var(--mobile-text-muted)', marginBottom: '1rem' }}>manage_search</span>
+                                    <span style={{ fontSize: '0.9rem', color: 'var(--mobile-text-muted)' }}>No encontramos servicios relacionados</span>
                                 </div>
                             )}
                         </div>
