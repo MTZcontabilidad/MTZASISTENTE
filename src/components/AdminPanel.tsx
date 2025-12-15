@@ -30,14 +30,14 @@ import { getDocumentIcon } from "../lib/documents";
 import { UserProfile, ClientInfo, UserType, UserRole } from "../types";
 import WheelchairWorkshopPanel from "./WheelchairWorkshopPanel";
 import TransportPanel from "./TransportPanel";
-import VoiceSettingsPanel from "./VoiceSettingsPanel";
+// import VoiceSettingsPanel from "./VoiceSettingsPanel"; // Removed
 import "./AdminPanel.css";
 
 interface UserWithClientInfo extends UserProfile {
   client_info?: ClientInfo | null;
 }
 
-type AdminTab = "users" | "faqs" | "company" | "documents" | "meetings" | "requests" | "wheelchair" | "transport" | "voice";
+type AdminTab = "users" | "faqs" | "company" | "documents" | "meetings" | "requests" | "wheelchair" | "transport";
 
 interface AdminPanelProps {
   onLogout?: () => void;
@@ -532,7 +532,7 @@ function AdminPanel({ onLogout }: AdminPanelProps) {
     { id: "requests", label: "🔔 Requerimientos", icon: "🔔" },
     { id: "wheelchair", label: "🪑 Taller de Sillas", icon: "🪑" },
     { id: "transport", label: "🚐 Transporte Inclusivo", icon: "🚐" },
-    { id: "voice", label: "🎤 Asistente de Voz", icon: "🎤" },
+    // { id: "voice", label: "🎤 Asistente de Voz", icon: "🎤" }, // Removed
   ];
 
   return (
@@ -589,7 +589,7 @@ function AdminPanel({ onLogout }: AdminPanelProps) {
               {activeTab === "requests" && "Revisa requerimientos y solicitudes"}
               {activeTab === "wheelchair" && "Gestiona solicitudes del Taller de Sillas de Ruedas"}
               {activeTab === "transport" && "Gestiona solicitudes de Transporte Inclusivo"}
-              {activeTab === "voice" && "Configura el asistente de voz: velocidad, tono, pausas y más"}
+              {/* {activeTab === "voice" && "Configura el asistente de voz: velocidad, tono, pausas y más"} Removed */}
             </p>
           </div>
           <button
@@ -909,9 +909,9 @@ function AdminPanel({ onLogout }: AdminPanelProps) {
         </div>
       )}
 
-      {activeTab === "voice" && (
-        <VoiceSettingsPanel />
-      )}
+      {/* {activeTab === "voice" && (
+        <VoiceSettingsPanel /> Removed 
+      )} */ }
 
       {/* Modal de FAQ */}
       {showFAQModal && (

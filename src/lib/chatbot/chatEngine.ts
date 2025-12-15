@@ -153,8 +153,10 @@ async function generateAIResponse(
     const aiProfile = extendedInfo?.ai_profile || { tone: 'neutral' };
 
     // Determine Provider
+    // Determine Provider
     const aiProviderEnv = import.meta.env.VITE_AI_PROVIDER || 'gemini';
-    const forceLocal = (typeof localStorage !== 'undefined' && localStorage.getItem('MTZ_USE_LOCAL_LLM') === 'true') || aiProviderEnv === 'local';
+    // Forced to false to ensure Gemini is always used
+    const forceLocal = false; 
     const isLocalProvider = forceLocal;
 
     const safeName = (userName && userName !== 'undefined') ? userName : (basicInfo?.preferred_name || 'Usuario');
@@ -193,58 +195,8 @@ async function generateAIResponse(
     let aiRes: any = {};
 
     if (isLocalProvider) {
-        // --- LOCAL LLM EXECUTION (STREAMING OPTIMIZED) ---
-        // Prompt for Plain Text + Tags to prevent ugly JSON streaming
-        const systemPromptLocal = `
-        Eres Arise, asistente de MTZ.
-        ${companyContext}
-        ${clientContext}
-        ${faqContext}
-        USUARIO: ${safeName} | ROL: ${userRole}
-        MEMORIAS PREVIAS: ${memoryContext || "Ninguna"}
-        
-        OBJETIVO:
-        1. Tu misión es ANALIZAR la situación del usuario y GUIARLO.
-        2. Tus respuestas deben ser CORTAS y directas al grano. Evita paja.
-        3. Usa las MEMORIAS y PERFIL DEL CLIENTE para personalizar (ej: si tiene IVA atrasado, menciónalo con tacto).
-        4. Si es INVITADO, tu objetivo es vender/captar lead. Si es CLIENTE, resolver dudas.
-        5. IMPORTANTE: Usa la información de PREGUNTAS FRECUENTES si la pregunta coincide.
-        
-        FORMATO: Texto plano.
-        METADATA (Al final de tu respuesta):
-        - [MENU:id_menu] (Si sugieres opciones visuales)
-        - [LEAD] (Si detectas alta intención de compra)
-        Ids Menú: ${userRole === 'cliente' ? 'cliente_root, cliente_docs, cliente_taxes' : 'invitado_root, invitado_cotizar'}
-        `;
-
-        const { callLocalLLM } = await import('../localLLMClient');
-        const localUrl = import.meta.env.VITE_LOCAL_LLM_URL || 'http://localhost:1234/v1';
-        const localModel = import.meta.env.VITE_LOCAL_LLM_MODEL || 'llama-3.2-3b-instruct';
-
-        const messages = [
-            { role: "system", content: systemPromptLocal },
-            { role: "user", content: message }
-        ];
-
-        // Streaming Handler
-        const data = await callLocalLLM(messages, {
-            url: localUrl,
-            model: localModel,
-            temperature: 0.7
-        }, (chunk) => {
-             if (onChunk) onChunk(chunk);
-        });
-
-        let fullText = data.choices?.[0]?.message?.content || "";
-        
-        // Parse Tags
-        aiRes.text = fullText.replace(/\[MENU:.*?\]/g, '').replace(/\[LEAD\]/g, '').trim();
-        
-        const menuMatch = fullText.match(/\[MENU:(.*?)\]/);
-        if (menuMatch) aiRes.suggested_menu_id = menuMatch[1];
-        
-        if (fullText.includes('[LEAD]')) aiRes.show_lead_form = true;
-
+         // Block removed - Dead code
+         throw new Error("Local LLM is disabled");
     } else {
         // --- GEMINI EDGE FUNCTION EXECUTION (JSON) ---
         

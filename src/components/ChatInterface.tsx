@@ -21,7 +21,7 @@ import MeetingScheduler from "./MeetingScheduler";
 import VoiceControls from "./VoiceControls";
 import HumanSupportOptions from "./HumanSupportOptions";
 import UserProfile from "./UserProfile";
-import VoiceSettingsDropdown from "./VoiceSettingsDropdown";
+// import VoiceSettingsDropdown from "./VoiceSettingsDropdown"; // Removed
 // import { useSpeechToText } from "../lib/speechToText"; // Removed
 // import { useTextToSpeech } from "../lib/textToSpeech"; // Removed
 import ClientSidebar, { type ClientTab } from "./ClientSidebar";

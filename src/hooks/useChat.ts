@@ -13,7 +13,7 @@ import { detectImportantInfo } from "../lib/chatUtils";
 import { handleChat, ChatState, getInitialChatState } from "../lib/chatbot/chatEngine";
 import { Message, UserType, UserRole, UserMemory } from "../types";
 // We don't import specific UI components like VoiceControls here, but we manage the state they need.
-import { useTextToSpeech, type TTSOptions } from "../lib/textToSpeech";
+// import { useTextToSpeech, type TTSOptions } from "../lib/textToSpeech"; // Removed
 
 export interface MessageWithMenu extends Message {
   menu?: any;
@@ -48,8 +48,8 @@ export function useChat() {
   const handleSendRef = useRef<((customMessage?: string) => void) | null>(null);
   const welcomeSpeechRef = useRef<SpeechSynthesisUtterance | null>(null);
 
-  // Text-to-Speech hook
-  const tts = useTextToSpeech();
+  // Text-to-Speech hook removed
+  // const tts = useTextToSpeech();
 
   // Load Conversation & User
   useEffect(() => {
@@ -293,23 +293,7 @@ export function useChat() {
   const playWelcomeAudio = async (greeting: string, welcomeMsg: string, displayName: string) => {
     return; // Feature disabled per user request
     if (welcomePlayed) return;
-    const audioText = userName 
-      ? `¡Hola ${displayName}! Soy Arise, tu asistente de MTZ. ¿En qué te ayudo?`
-      : `¡Hola! Soy Arise, tu asistente de MTZ. ¿En qué te ayudo?`;
-    
-    try {
-        let options: TTSOptions = { rate: 1.1, pitch: 1.1, volume: 1.0, useGemini: false };
-        try {
-            const saved = localStorage.getItem('voiceSettings');
-            if (saved) {
-                const parsed = JSON.parse(saved as string);
-                options = { ...options, ...parsed };
-            }
-        } catch(e) {}
-        
-        await tts.speak(audioText, options);
-        setWelcomePlayed(true);
-    } catch(e) { console.warn('Welcome audio failed', e); }
+    // Audio function removed
   };
 
   const handleSend = useCallback(async (customMessage?: string) => {
@@ -520,7 +504,7 @@ export function useChat() {
     handleStopResponse,
     handleClearChat,
     showClearConfirm, setShowClearConfirm,
-    tts,
+    // tts, // Removed
     lastAssistantMessage,
     setLastAssistantMessage
   };

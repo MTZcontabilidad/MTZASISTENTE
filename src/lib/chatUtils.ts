@@ -6,7 +6,7 @@ import { supabase } from "./supabase";
 /**
  * Detecta si el mensaje contiene información importante que debe guardarse en memoria usando IA (Gemini)
  */
-import { callLocalLLM } from "./localLLMClient";
+// import { callLocalLLM } from "./localLLMClient"; // Removed
 
 /**
  * Detecta si el mensaje contiene información importante que debe guardarse en memoria usando IA
@@ -23,10 +23,9 @@ export async function detectImportantInfo(userInput: string): Promise<{
         return { shouldSave: false, type: null };
     }
 
-    // 2. Determinar si usar Local LLM
-    const forceLocal = (typeof localStorage !== 'undefined' && localStorage.getItem('MTZ_USE_LOCAL_LLM') === 'true') || import.meta.env.VITE_AI_PROVIDER === 'local';
-    const localUrl = (typeof localStorage !== 'undefined' ? localStorage.getItem('MTZ_LOCAL_LLM_URL') : '') || import.meta.env.VITE_LOCAL_LLM_URL || 'http://localhost:1234/v1';
-    
+    // 2. Determinar si usar Local LLM (Eliminado - Siempre usa Cloud)
+    // const forceLocal = false; 
+
     const systemPrompt = `Eres un experto en Memory Extraction. 
     Analiza el mensaje y extrae datos relevantes.
     NO saludes. SOLO responde con un JSON válido.
@@ -46,18 +45,8 @@ export async function detectImportantInfo(userInput: string): Promise<{
 
     let responseText = "";
 
-    if (forceLocal) {
-       console.log('[detectImportantInfo] Usando Local LLM:', localUrl);
-       const response = await callLocalLLM([
-           { role: "system", content: systemPrompt },
-           { role: "user", content: userInput }
-       ], {
-           url: localUrl,
-           model: 'llama-3.2-3b-instruct', // O el que esté configurado
-           temperature: 0.1
-       });
-       responseText = response.choices?.[0]?.message?.content || "{}";
-    } else {
+    // Siempre usar Supabase (Gemini)
+    if (true) {
        // 3. Fallback a Supabase (Gemini)
        const { data: responseData, error } = await supabase.functions.invoke('gemini-chat', {
             body: {
