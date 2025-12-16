@@ -889,6 +889,9 @@
   font-weight: 600;
   letter-spacing: 0.02em;
   transition: all 0.3s ease;
+  text-align: center;
+  width: 100%;
+  line-height: 1.2;
 }
 
 .mobile-nav .nav-item:hover {
