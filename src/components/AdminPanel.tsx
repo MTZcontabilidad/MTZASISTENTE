@@ -476,6 +476,39 @@ function AdminPanel({ onLogout }: AdminPanelProps) {
     ).length,
   };
 
+  const [selectedUser, setSelectedUser] = useState<UserWithClientInfo | null>(
+    null
+  );
+  // Leads de invitados
+  const [guestLeads, setGuestLeads] = useState<any[]>([]);
+
+  // Cargar usuarios al montar
+  useEffect(() => {
+    fetchUsers();
+    fetchFAQs();
+    if (activeTab === "company") fetchCompanyInfo();
+    if (activeTab === "documents") fetchAllDocuments();
+    if (activeTab === "meetings") fetchAllMeetings();
+    if (activeTab === "requests") {
+        fetchPendingMeetings();
+        fetchGuestLeads();
+    }
+  }, [activeTab]); // Dependencia activeTab para cargar bajo demanda
+
+  // Funciones para Leads
+  const fetchGuestLeads = async () => {
+    try {
+        const { data, error } = await supabase
+            .from('guest_leads')
+            .select('*')
+            .order('created_at', { ascending: false });
+        if (error) throw error;
+        setGuestLeads(data || []);
+    } catch (err) {
+        console.error("Error fetching leads:", err);
+    }
+  };
+
   const getRefreshAction = () => {
     if (activeTab === "users") return fetchUsers;
     if (activeTab === "faqs") return fetchFAQs;
@@ -904,7 +937,13 @@ function AdminPanel({ onLogout }: AdminPanelProps) {
         <RequestsSection
           users={users}
           meetings={meetings}
+          leads={guestLeads}
           onUserClick={handleEditUser}
+          onArchiveLead={async (id) => {
+             if (!confirm('¿Archivar esta solicitud?')) return;
+             await supabase.from('guest_leads').update({ status: 'archived' }).eq('id', id);
+             fetchGuestLeads(); // Refresh
+          }}
         />
       )}
 
@@ -2025,35 +2064,87 @@ function MeetingsSection({
       )}
     </div>
   );
-}
-
 // Sección de Requerimientos
 interface RequestsSectionProps {
   users: UserWithClientInfo[];
   meetings: any[];
+  leads: any[]; // New prop for guest leads
   onUserClick: (user: UserWithClientInfo) => void;
+  onArchiveLead: (id: string) => void; // Action to archive
 }
 
-function RequestsSection({ users, meetings, onUserClick }: RequestsSectionProps) {
+function RequestsSection({ users, meetings, leads, onUserClick, onArchiveLead }: RequestsSectionProps) {
   // Reuniones pendientes
   const pendingMeetings = meetings.filter(m => m.status === 'pending');
   
   // Usuarios inactivos
   const inactiveUsers = users.filter(u => u.is_active === false);
   
-  // Usuarios sin información completa o con notas/solicitudes
-  const incompleteUsers = users.filter(u => {
-    const hasIncompleteData = !u.client_info?.company_name && 
-                             !u.client_info?.phone && 
-                             u.user_type !== 'invitado';
-    const hasNotes = u.client_info?.notes && u.client_info.notes.trim() !== '';
-    return hasIncompleteData || hasNotes;
-  });
+  // Leads pendientes (Guest Leads)
+  const pendingLeads = leads.filter(l => l.status === 'pending' || !l.status);
 
   return (
     <div className="requests-section">
-      <div className="requests-grid">
-        {/* Reuniones pendientes */}
+      <div className="requests-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem' }}>
+        
+        {/* COLUMNA 1: LEADS (VENTAS/SOLICITUDES) - PRIORIDAD ALTA */}
+        <div className="request-card highlight-border" style={{ borderColor: 'var(--primary-color)' }}>
+           <div className="request-header" style={{ background: 'rgba(var(--primary-rgb), 0.1)' }}>
+            <h3 style={{ color: 'var(--primary-color)' }}>📩 Solicitudes (Leads)</h3>
+            <span className="request-count success">{pendingLeads.length}</span>
+          </div>
+          {pendingLeads.length === 0 ? (
+            <p className="no-requests">No hay solicitudes nuevas</p>
+          ) : (
+            <div className="request-list">
+              {pendingLeads.map((lead) => {
+                // Parse contact info if needed, assuming distinct structure
+                const contact = lead.contact_info?.contact || 'Sin contacto';
+                const name = lead.contact_info?.name || 'Invitado';
+                const intent = lead.intent === 'service_request_with_credentials' ? '🔥 Trámite Urgente' : 'Consultas Generales';
+                
+                // Construct WhatsApp Link
+                // Clean phone number: remove +, spaces, dashes
+                const cleanPhone = contact.replace(/\D/g, ''); 
+                // Default to 569 if just 8 digits logic, but let's assume fully qualified or safe logic
+                const waLink = `https://wa.me/${cleanPhone}?text=Hola%20${encodeURIComponent(name)},%20te%20escribo%20de%20MTZ%20Consultores%20por%20tu%20solicitud.`;
+
+                return (
+                  <div key={lead.id} className="request-item" style={{ borderLeft: '3px solid var(--primary-color)' }}>
+                    <div className="request-info">
+                       <strong style={{ color: 'var(--text-primary)', display: 'block' }}>{name}</strong>
+                       <span style={{ fontSize: '0.8rem', color: 'var(--primary-color)', fontWeight: 600 }}>{intent}</span>
+                       <div style={{ fontSize: '0.8rem', marginTop: '0.2rem', color: 'var(--text-secondary)' }}>
+                         📞 {contact}
+                       </div>
+                       <small>{new Date(lead.created_at).toLocaleDateString('es-CL')}</small>
+                    </div>
+                    <div className="request-actions" style={{ flexDirection: 'column', gap: '0.5rem' }}>
+                        <a 
+                          href={waLink} 
+                          target="_blank" 
+                          rel="noreferrer"
+                          className="view-button"
+                          style={{ background: '#25D366', color: 'white', border: 'none', textAlign: 'center', textDecoration: 'none', fontSize: '0.8rem' }}
+                        >
+                          💬 WhatsApp
+                        </a>
+                        <button
+                          onClick={() => onArchiveLead(lead.id)}
+                          className="view-button"
+                          style={{ background: '#e5e7eb', color: '#374151', border: 'none' }}
+                        >
+                          ✅ Archivar
+                        </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* COLUMNA 2: REUNIONES */}
         <div className="request-card">
           <div className="request-header">
             <h3>📅 Reuniones Pendientes</h3>
@@ -2062,7 +2153,7 @@ function RequestsSection({ users, meetings, onUserClick }: RequestsSectionProps)
           {pendingMeetings.length === 0 ? (
             <p className="no-requests">No hay reuniones pendientes</p>
           ) : (
-            <div className="request-list">
+             <div className="request-list">
               {pendingMeetings.slice(0, 5).map((meeting) => {
                 const user = users.find(u => u.id === meeting.user_id);
                 return (
@@ -2086,7 +2177,7 @@ function RequestsSection({ users, meetings, onUserClick }: RequestsSectionProps)
           )}
         </div>
 
-        {/* Usuarios inactivos */}
+        {/* COLUMNA 3: USUARIOS INACTIVOS */}
         <div className="request-card">
           <div className="request-header">
             <h3>❌ Usuarios Inactivos</h3>
