@@ -484,9 +484,6 @@ function AdminPanel({ onLogout }: AdminPanelProps) {
     ).length,
   };
 
-  const [selectedUser, setSelectedUser] = useState<UserWithClientInfo | null>(
-    null
-  );
   // Leads de invitados
   const [guestLeads, setGuestLeads] = useState<any[]>([]);
 
@@ -496,7 +493,7 @@ function AdminPanel({ onLogout }: AdminPanelProps) {
     fetchFAQs();
     if (activeTab === "company") fetchCompanyInfo();
     if (activeTab === "documents") fetchAllDocuments();
-    if (activeTab === "meetings") fetchAllMeetings();
+    if (activeTab === "meetings") fetchMeetings();
     if (activeTab === "requests") {
         fetchPendingMeetings();
         fetchGuestLeads();
