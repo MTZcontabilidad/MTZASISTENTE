@@ -1170,6 +1170,7 @@
 
 .chat-row {
   display: flex;
+  flex-direction: column;
   width: 100%;
   animation: messageSlideIn 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
   opacity: 0;
@@ -1187,11 +1188,11 @@
 }
 
 .chat-row.user {
-  justify-content: flex-end;
+  align-items: flex-end;
 }
 
 .chat-row.bot {
-  justify-content: flex-start;
+  align-items: flex-start;
 }
 
 .system-chat-bubble {
@@ -1350,9 +1351,81 @@
 
 /* Opciones de menú en mensajes */
 .chat-menu-options {
-  margin-top: 0.75rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  margin-top: 1rem;
+  padding: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 90%;
+  gap: 0.625rem;
+  animation: slideUp 0.3s ease-out forwards;
+}
+
+.chat-option-btn {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+  padding: 1rem 1.25rem;
+  background: rgba(var(--mobile-card-rgb), 0.9);
+  border: 1px solid rgba(var(--mobile-primary-rgb), 0.3);
+  border-radius: 1rem;
+  color: var(--mobile-text);
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-align: left;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  position: relative;
+  overflow: hidden;
+}
+
+.chat-option-btn::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--mobile-primary);
+  opacity: 0.5;
+  transition: opacity 0.3s ease;
+}
+
+.chat-option-btn:hover {
+  background: linear-gradient(135deg, 
+    rgba(var(--mobile-card-rgb), 0.95) 0%, 
+    rgba(var(--mobile-card-rgb), 0.8) 100%);
+  border-color: var(--mobile-primary);
+  transform: translateY(-2px) translateX(2px);
+  box-shadow: 
+    0 10px 15px -3px rgba(0, 0, 0, 0.2), 
+    0 4px 6px -2px rgba(var(--mobile-primary-rgb), 0.1);
+}
+
+.chat-option-btn:hover::before {
+  opacity: 1;
+}
+
+.chat-option-btn:active {
+  transform: scale(0.98);
+}
+
+.chat-option-btn .material-icons-round {
+  font-size: 1.5rem;
+  color: var(--mobile-primary);
+  filter: drop-shadow(0 0 8px rgba(var(--mobile-primary-rgb), 0.4));
+  transition: transform 0.3s ease;
+}
+
+.chat-option-btn:hover .material-icons-round {
+  transform: scale(1.2);
+}
+
+/* Label specific style */
+.chat-option-btn span:not(.material-icons-round) {
+  flex: 1;
 }
 
 /* Animaciones */

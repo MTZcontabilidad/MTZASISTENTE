@@ -87,55 +87,67 @@ export const CHAT_TREES: Record<string, ChatMenu> = {
   },
 
   // --- MENÚS COMPARTIDOS (Tutoriales) ---
+  // --- MENÚS COMPARTIDOS (Tutoriales) ---
   invitado_root: {
     id: 'invitado_root',
-    text: '¡Hola! 👋 Bienvenido a MTZ. Soy Arise, tu asistente virtual. ¿En qué puedo ayudarte hoy?',
+    text: '¡Hola! 👋 Bienvenido a MTZ. Soy Arise, tu asistente virtual. Para guiarte mejor, cuéntame: ¿Cuál es tu situación actual?',
     options: [
-      { id: 'opt_servicios', label: '🚀 Quiero Cotizar / Emprender', action: 'show_menu', params: { menu: 'invitado_cotizar' } },
-      { id: 'opt_guias', label: '📚 Guías y Tutoriales', action: 'show_menu', params: { menu: 'invitado_tutorials' } },
-      { id: 'opt_ubicacion', label: '📍 Ubicación y Contacto', action: 'show_menu', params: { menu: 'general_contact' } },
-      { id: 'opt_login', label: '🔐 Iniciar Sesión', action: 'link', params: { url: '/login' } },
+      { id: 'opt_emprender', label: '🚀 Quiero Emprender / Crear Empresa', description: 'Tengo una idea y quiero formalizarla', icon: 'rocket_launch', action: 'show_menu', params: { menu: 'invitado_cotizar_creacion_empresa' } },
+      { id: 'opt_soy_empresa', label: '⚖️ Ya tengo Empresa / Busco Contador', description: 'Necesito servicios contables o cambiarme', icon: 'business', action: 'show_menu', params: { menu: 'invitado_servicios_contables' } },
+      { id: 'opt_urgencia', label: '🆘 Tengo Problemas con el SII', description: 'Multas, bloqueos o declaraciones pendientes', icon: 'warning', action: 'show_menu', params: { menu: 'invitado_urgencia' } },
+      { id: 'opt_explorar', label: '📚 Solo estoy mirando (Recursos)', description: 'Ver guías, tutoriales o ubicación', icon: 'menu_book', action: 'show_menu', params: { menu: 'invitado_explorar' } },
+      { id: 'opt_login', label: '🔐 Soy Cliente (Iniciar Sesión)', icon: 'login', action: 'link', params: { url: '/login' } },
     ]
   },
 
-  invitado_cotizar: {
-    id: 'invitado_cotizar',
-    text: '¡Excelente! Estamos listos para ayudarte a crecer. ¿Qué tipo de servicio te interesa?',
+  invitado_urgencia: {
+    id: 'invitado_urgencia',
+    text: 'Comprendo, los problemas con el SII pueden ser estresantes. 😟 Lo mejor es actuar rápido. ¿Qué necesitas resolver?',
     options: [
-      { id: 'opt_creacion_empresa', label: '🏢 Crear mi Empresa', action: 'show_menu', params: { menu: 'invitado_cotizar_creacion_empresa' } },
-      { id: 'opt_servicios_contables', label: '📈 Servicios Contables (Empresa ya creada)', action: 'show_menu', params: { menu: 'invitado_servicios_contables' } },
-      { id: 'opt_asesoria_tributaria', label: '💡 Asesoría Tributaria Específica', action: 'contact_support' },
-      { id: 'back_root', label: '⬅️ Volver al inicio', action: 'show_menu', params: { menu: 'invitado_root' } }
+      { id: 'urg_multas', label: '💸 Tengo Multas o Deudas', action: 'link', params: { url: 'https://wa.me/56990062213?text=Hola,%20necesito%20ayuda%20urgente%20con%20multas%20del%20SII' } },
+      { id: 'urg_bloqueo', label: '🚫 Me bloquearon la Facturación', action: 'link', params: { url: 'https://wa.me/56990062213?text=Hola,%20tengo%20bloqueada%20la%20facturacion%20en%20el%20SII' } },
+      { id: 'urg_renta', label: '📉 Problemas con Operación Renta', action: 'link', params: { url: 'https://wa.me/56990062213?text=Hola,%20tengo%20observaciones%20en%20mi%20Renta' } },
+      { id: 'back_root', label: '🔙 Volver al inicio', action: 'show_menu', params: { menu: 'invitado_root' } }
+    ]
+  },
+
+  invitado_explorar: {
+    id: 'invitado_explorar',
+    text: '¡Perfecto! Aquí tienes recursos útiles e información sobre nosotros.',
+    options: [
+      { id: 'opt_guias', label: '📚 Ver Guías y Tutoriales', action: 'show_menu', params: { menu: 'invitado_tutorials' } },
+      { id: 'opt_ubicacion', label: '📍 Dónde estamos (Ubicación)', action: 'show_menu', params: { menu: 'invitado_contact' } },
+      { id: 'back_root', label: '🔙 Volver al inicio', action: 'show_menu', params: { menu: 'invitado_root' } }
     ]
   },
 
   invitado_cotizar_creacion_empresa: {
     id: 'invitado_cotizar_creacion_empresa',
-    text: '¡Emprender es el camino! Te ayudamos con todo el proceso de creación de tu empresa, desde la elección del tipo societario hasta el inicio de actividades en el SII.',
+    text: '¡Emprender es el camino! 🌟 Te ayudamos con todo el proceso "Tu Empresa en un Día":\n\n✅ Redacción de Estatutos\n✅ Inicio de Actividades SII\n✅ Habilitación de Facturación\n✅ Regímenes Tributarios',
     options: [
-      { id: 'opt_agendar_creacion', label: '📅 Agendar Asesoría Gratis', action: 'link', params: { url: 'https://calendly.com/mtz-consultores/asesoria-inicial' } },
-      { id: 'opt_ver_requisitos', label: '📄 Ver Requisitos', action: 'show_tutorial', params: { id: 'tutorial_creacion_empresa' } },
-      { id: 'back_cotizar', label: '⬅️ Volver', action: 'show_menu', params: { menu: 'invitado_cotizar' } }
+      { id: 'opt_agendar_creacion', label: '📅 Agendar y Comenzar', description: 'Agenda una reunión para iniciar', action: 'link', params: { url: 'https://calendly.com/mtz-consultores/asesoria-inicial' } },
+      { id: 'opt_ver_requisitos', label: '📄 ¿Qué necesito? (Requisitos)', action: 'show_tutorial', params: { id: 'tutorial_creacion_empresa' } },
+      { id: 'back_cotizar', label: '⬅️ Volver', action: 'show_menu', params: { menu: 'invitado_root' } }
     ]
   },
 
   invitado_servicios_contables: {
     id: 'invitado_servicios_contables',
-    text: 'Perfecto. Para empresas ya constituidas, ofrecemos planes integrales de contabilidad:\n\n✅ Declaración Mensual F29\n✅ Declaración de Renta Anual\n✅ Asesoría Laboral y Remuneraciones\n✅ Representación ante el SII\n\n¿Buscas cambiar de contador o regularizar tu situación?',
+    text: 'Excelente. Para empresas ya constituidas, ofrecemos planes integrales para que te olvides del SII y te enfoques en crecer.\n\n✅ Declaración Mensual F29\n✅ Balances y Renta\n✅ Remuneraciones\n\n¿Buscas cambiar de contador o regularizar?',
     options: [
-      { id: 'opt_cotizar_plan', label: '💰 Cotizar Plan Mensual', action: 'link', params: { url: 'https://wa.me/56912345678?text=Hola,%20me%20interesa%20cotizar%20un%20plan%20contable' } },
-      { id: 'opt_regularizar', label: '⚠️ Necesito Regularizar (Multas/Bloqueos)', action: 'link', params: { url: 'https://wa.me/56912345678?text=Hola,%20tengo%20problemas%20con%20el%20SII%20y%20necesito%20ayuda' } },
-      { id: 'root_back', label: '⬅️ Volver al inicio', action: 'show_menu', params: { menu: 'invitado_cotizar' } }
+      { id: 'opt_cotizar_plan', label: '💰 Cotizar Plan Mensual', description: 'Hablemos sobre tu empresa', action: 'link', params: { url: 'https://wa.me/56990062213?text=Hola,%20me%20interesa%20cotizar%20un%20plan%20contable' } },
+      { id: 'opt_diagnostico', label: '🔍 Diagnóstico Tributario', description: 'Revisión de tu situación actual', action: 'link', params: { url: 'https://calendly.com/mtz-consultores/diagnostico' } },
+      { id: 'root_back', label: '⬅️ Volver al inicio', action: 'show_menu', params: { menu: 'invitado_root' } }
     ]
   },
 
   invitado_contact: {
     id: 'invitado_contact',
-    text: 'Estamos ubicados en Juan Martinez 616, Iquique. Horario: 9:00 - 18:00.',
+    text: 'Estamos ubicados en pleno centro de Iquique.\n\n📍 **Dirección:** Juan Martinez 616\n⏰ **Horario:** Lunes a Viernes, 9:00 - 18:00 hrs.',
     options: [
-      { id: 'wsp', label: 'WhatsApp', icon: '💬', action: 'link', params: { url: 'https://wa.me/56912345678' } },
-      { id: 'map', label: 'Ver Mapa', icon: '🗺️', action: 'link', params: { url: 'https://maps.google.com' } },
-      { id: 'back', label: '🔙 Volver', action: 'show_menu', params: { menu: 'invitado_root' } }
+      { id: 'wsp', label: '💬 Hablar por WhatsApp', icon: 'chat', action: 'link', params: { url: 'https://wa.me/56990062213' } },
+      { id: 'map', label: '🗺️ Ver en Google Maps', icon: 'map', action: 'link', params: { url: 'https://maps.google.com/?q=Juan+Martinez+616+Iquique' } },
+      { id: 'back', label: '🔙 Volver', action: 'show_menu', params: { menu: 'invitado_explorar' } }
     ]
   },
 
