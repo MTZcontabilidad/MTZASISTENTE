@@ -28,7 +28,8 @@ function AppContent() {
 
   useEffect(() => {
     if (loading) {
-        const timer = setTimeout(() => setShowReset(true), 5000); // Show reset after 5s
+        // Aumentar tiempo de espera a 12 segundos (conexiones lentas)
+        const timer = setTimeout(() => setShowReset(true), 12000); 
         return () => clearTimeout(timer);
     } else {
         setShowReset(false);
@@ -46,18 +47,27 @@ function AppContent() {
         {showReset && (
             <div className="animate-fade-in p-4 bg-white rounded-lg shadow-md max-w-sm text-center">
                 <p className="text-sm text-gray-500 mb-3">
-                    Estás tardando más de lo normal. ¿Problemas de caché?
+                    La carga está tardando más de lo esperado.
                 </p>
-                <button 
-                    onClick={() => {
-                        localStorage.clear();
-                        sessionStorage.clear();
-                        window.location.reload();
-                    }}
-                    className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 text-sm font-medium transition-colors"
-                >
-                    Reiniciar Sistema y Limpiar Caché
-                </button>
+                <div className="flex flex-col gap-2">
+                    <button 
+                        onClick={() => window.location.reload()}
+                        className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm font-medium transition-colors"
+                    >
+                        🔄 Reintentar conexión
+                    </button>
+                    
+                    <button 
+                        onClick={() => {
+                            localStorage.clear();
+                            sessionStorage.clear();
+                            window.location.reload();
+                        }}
+                        className="px-4 py-2 text-red-500 hover:bg-red-50 rounded text-sm font-medium transition-colors"
+                    >
+                        🗑️ Limpiar caché y reiniciar
+                    </button>
+                </div>
             </div>
         )}
       </div>
