@@ -45,7 +45,15 @@ interface AdminPanelProps {
 }
 
 function AdminPanel({ onLogout }: AdminPanelProps) {
-  const [activeTab, setActiveTab] = useState<AdminTab>("users");
+  const [activeTab, setActiveTab] = useState<AdminTab>(() => {
+      const saved = sessionStorage.getItem('admin_active_tab');
+      return (saved as AdminTab) || "users";
+  });
+
+  // Persist tab on change
+  useEffect(() => {
+    sessionStorage.setItem('admin_active_tab', activeTab);
+  }, [activeTab]);
 
   // Estados para usuarios
   const [users, setUsers] = useState<UserWithClientInfo[]>([]);
