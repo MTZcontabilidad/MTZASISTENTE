@@ -43,7 +43,9 @@ const MobileChat: React.FC = () => {
     });
 
     // Sync transcript to input
+    const transcriptRef = useRef(transcript);
     useEffect(() => {
+        transcriptRef.current = transcript;
         if (transcript) {
             setInput(transcript);
         }
@@ -144,20 +146,21 @@ const MobileChat: React.FC = () => {
                                                 <p>{msg.text}</p>
                                             )}
                                         </div>
-
-
-                                        {/* Lead Capture Form */}
-                                        {msg.leadForm && (
-                                            <LeadCaptureForm 
-                                                sessionId={userId || 'guest'} 
-                                                onSuccess={() => handleSend('Datos enviados correctamente')}
-                                            />
-                                        )}
                                         
                                         <div className="message-time">
                                             {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                         </div>
                                     </div>
+
+                                    {/* Lead Capture Form - Separated for full width */}
+                                    {msg.leadForm && (
+                                        <div className="chat-menu-options" style={{ marginTop: '0.5rem' }}>
+                                             <LeadCaptureForm 
+                                                sessionId={userId || 'guest'} 
+                                                onSuccess={() => handleSend('Datos enviados correctamente')}
+                                            />
+                                        </div>
+                                    )}
                                     
                                     {/* System Style Menu Options (Separated) */}
                                     {msg.menu && msg.menu.options && (
@@ -196,14 +199,16 @@ const MobileChat: React.FC = () => {
                                 <div className="chat-row bot fade-in">
                                     <div className="system-chat-bubble bot">
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                            <span className="material-icons-round spin-animation" style={{ color: 'var(--mobile-primary)', fontSize: '1.25rem' }}>sync</span>
+                                            <span className="material-icons-round spin-animation" style={{ color: 'var(--mobile-primary)', fontSize: '1.25rem' }}>smart_toy</span>
                                             <span style={{ color: 'var(--mobile-primary)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 600 }}>
-                                                Analizando...
+                                                Procesando...
                                             </span>
                                         </div>
                                     </div>
                                 </div>
                             )}
+                            {/* 4. Integrar Knowledge Base (SII Links) - SOLO PARA CLIENTES Y ADMINS */}
+
                             <div ref={messagesEndRef} />
                         </div>
                     )}
@@ -234,7 +239,20 @@ const MobileChat: React.FC = () => {
                         {isSpeechSupported && (
                             <button 
                                 className={`icon-btn-secondary ${isListening ? 'active' : ''}`}
-                                onClick={() => isListening ? stopListening() : startListening()}
+                                onClick={() => {
+                                    if (isListening) {
+                                        stopListening();
+                                        // Wait briefly for final transcript to settle
+                                        setTimeout(() => {
+                                            if (transcriptRef.current.trim()) {
+                                                handleSend(transcriptRef.current);
+                                                setInput("");
+                                            }
+                                        }, 500);
+                                    } else {
+                                        startListening();
+                                    }
+                                }}
                                 disabled={loading || loadingHistory}
                                 title={isListening ? 'Detener grabación' : 'Grabar voz'}
                             >

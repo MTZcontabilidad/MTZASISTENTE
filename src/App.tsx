@@ -70,27 +70,16 @@ function AppContent() {
           return (
             <DevModeSelector 
                 onSelectRole={(role: UserRole, userType?: UserType) => {
-                    if (role === 'admin') {
-                        // Mock Admin Login
-                        setUser({
-                            id: 'dev-admin',
-                            email: 'admin@dev.local',
-                            role: 'admin',
-                            user_type: 'invitado'
-                        });
-                        setDevMode(true);
-                    } else if (role === 'cliente') {
-                        setShowNormalAuth(true); // Clients test normal auth for now
-                    } else {
-                        // Guest mock
-                        setUser({
-                             id: 'dev-user',
-                             email: 'dev@local.com',
-                             role: role,
-                             user_type: userType || 'invitado'
-                        });
-                        setDevMode(true);
-                    }
+                    const devUser = {
+                        id: role === 'admin' ? 'dev-admin' : 'dev-user',
+                        email: role === 'admin' ? 'admin@dev.local' : 'dev@local.com',
+                        role: role,
+                        user_type: userType || 'invitado'
+                    };
+                    
+                    setUser(devUser);
+                    localStorage.setItem('MTZ_DEBUG_USER', JSON.stringify(devUser)); // Sync with useChat
+                    setDevMode(true);
                 }}
                 onStartNormalAuth={() => setShowNormalAuth(true)}
             />

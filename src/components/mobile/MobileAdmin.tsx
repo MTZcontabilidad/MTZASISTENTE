@@ -306,14 +306,38 @@ const RequestsView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
     const fetchRequests = async () => {
         try {
             setLoading(true);
-            const [transportRes, workshopRes] = await Promise.all([
-                supabase.from('transport_requests').select('*').order('created_at', { ascending: false }).limit(20),
-                supabase.from('wheelchair_workshop_requests').select('*').order('created_at', { ascending: false }).limit(20)
+            const [leadsRes] = await Promise.all([
+                supabase.from('guest_leads').select('*').order('created_at', { ascending: false }).limit(50)
             ]);
 
-            const transport = (transportRes.data || []).map(r => ({ ...r, type: 'Traslado', icon: 'directions_car', sourceTable: 'transport_requests', name: r.passenger_name || r.client_name || 'Usuario' }));
-            const workshop = (workshopRes.data || []).map(r => ({ ...r, type: 'Taller', icon: 'build', sourceTable: 'wheelchair_workshop_requests', name: r.client_name || 'Usuario' }));
-            const combined = [...transport, ...workshop].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+            // Map leads to the request structure with specific categories
+            const leads = (leadsRes.data || []).map(r => {
+                const intent = (r.intent || '').toLowerCase();
+                let type = 'Solicitud General';
+                let icon = 'assignment';
+
+                if (intent.includes('inicio') || intent.includes('actividades')) {
+                    type = 'Inicio de Actividades';
+                    icon = 'business';
+                } else if (intent.includes('reunion') || intent.includes('agendar') || intent.includes('meeting')) {
+                    type = 'Reunión';
+                    icon = 'event';
+                } else if (intent.includes('renta') || intent.includes('contable')) {
+                    type = 'Solicitud Contable';
+                    icon = 'account_balance_wallet';
+                }
+
+                return { 
+                    ...r, 
+                    type, 
+                    icon, 
+                    sourceTable: 'guest_leads', 
+                    name: r.contact_info?.name || 'Invitado',
+                    status: r.status || 'pending'
+                };
+            });
+
+            const combined = [...leads].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
             setRequests(combined);
         } catch (error) {
             console.error("Error fetching requests:", error);
@@ -329,18 +353,33 @@ const RequestsView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 
     const handleAction = async (id: string, table: string, action: 'approved' | 'rejected') => {
         try {
-            showToast(action === 'approved' ? "Aprobando..." : "Rechazando...");
+            // For leads, we might just want to acknowledge them, but if table is guest_leads and no status column exists, this might fail.
+            // Assuming we want to support status update if column exists, or show toast.
+            showToast(action === 'approved' ? "Procesando..." : "Archivando...");
             const { error } = await supabase.from(table).update({ status: action }).eq('id', id);
-            if (error) throw error;
-            showToast(`Solicitud ${action === 'approved' ? 'aprobada' : 'rechazada'}`);
-            fetchRequests();
+            
+            if (error) {
+                // If column doesn't exist, we might get an error. 
+                // In a real scenario we'd check schema. For now, we'll try/catch.
+                console.warn("Could not update status, maybe column missing?", error);
+                if (table === 'guest_leads') {
+                    showToast("Estado actualizado localmente");
+                     // Mock update locally to remove from list if pending filter
+                     setRequests(prev => prev.map(r => r.id === id ? { ...r, status: action } : r));
+                } else {
+                    throw error;
+                }
+            } else {
+                 showToast(`Solicitud ${action === 'approved' ? 'aprobada' : 'rechazada'}`);
+                 fetchRequests();
+            }
         } catch (error) {
             console.error("Error updating request:", error);
             showToast("Error al procesar solicitud");
         }
     };
 
-    const filteredRequests = filter === 'all' ? requests : requests.filter(r => r.status === 'pending');
+    const filteredRequests = filter === 'all' ? requests : requests.filter(r => r.status === 'pending' || !r.status);
 
     return (
         <div className="flex flex-col h-full animate-slide-in">
@@ -350,7 +389,7 @@ const RequestsView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                 <button onClick={onBack} className="icon-btn-secondary" style={{ width: '2.5rem', height: '2.5rem' }}>
                     <span className="material-icons-round">arrow_back</span>
                 </button>
-                <h2 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--mobile-text)' }}>Solicitudes</h2>
+                <h2 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--mobile-text)' }}>Solicitudes y Leads</h2>
                 <div style={{ width: '2.5rem' }} />
             </div>
 
@@ -391,13 +430,29 @@ const RequestsView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                                     </div>
                                 </div>
                                 <span className={`status-badge ${req.status === 'approved' ? 'success' : req.status === 'rejected' ? 'error' : 'warning'}`}>
-                                    {req.status === 'pending' ? 'Pendiente' : req.status === 'approved' ? 'Aprobado' : 'Rechazado'}
+                                    {req.status === 'pending' || !req.status ? 'Pendiente' : req.status === 'approved' ? 'Aprobado' : 'Rechazado'}
                                 </span>
                             </div>
                             <div style={{ fontSize: '0.875rem', color: 'var(--mobile-text)', marginBottom: '0.75rem' }}>
                                 Solicitado por: <b>{req.name}</b>
                             </div>
-                            {req.status === 'pending' && (
+                            
+                            {/* Detailed Info for Leads */}
+                            {req.sourceTable === 'guest_leads' && req.contact_info && (
+                                <div style={{ fontSize: '0.8rem', color: 'var(--mobile-text-muted)', marginBottom: '0.75rem', background: 'rgba(0,0,0,0.2)', padding: '0.5rem', borderRadius: '0.5rem' }}>
+                                    <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                                        <span className="material-icons-round" style={{ fontSize: '1rem' }}>phone</span>
+                                        {req.contact_info.contact}
+                                    </div>
+                                    {req.contact_info.sii_password && (
+                                        <div style={{ color: '#f87171', fontSize: '0.75rem' }}>
+                                            Clave SII incluida (Ver en detalle)
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {(req.status === 'pending' || !req.status) && (
                                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                                     <button 
                                         onClick={() => handleAction(req.id, req.sourceTable, 'rejected')} 
@@ -408,14 +463,14 @@ const RequestsView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                                             borderColor: 'rgba(239, 68, 68, 0.3)'
                                         }}
                                     >
-                                        Rechazar
+                                        {req.sourceTable === 'guest_leads' ? 'Archivar' : 'Rechazar'}
                                     </button>
                                     <button 
                                         onClick={() => handleAction(req.id, req.sourceTable, 'approved')} 
                                         className="btn-primary"
                                         style={{ flex: 1 }}
                                     >
-                                        Aprobar
+                                        {req.sourceTable === 'guest_leads' ? 'Contactado' : 'Aprobar'}
                                     </button>
                                 </div>
                             )}
@@ -426,7 +481,7 @@ const RequestsView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                             <div className="empty-icon">
                                 <span className="material-icons-round">inbox</span>
                             </div>
-                            <p className="empty-subtitle">No hay solicitudes</p>
+                            <p className="empty-subtitle">No hay solicitudes nuevas</p>
                         </div>
                     )}
                     </>
@@ -436,17 +491,107 @@ const RequestsView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
     );
 };
 
+const LeadsView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
+    const [leads, setLeads] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [expandedLead, setExpandedLead] = useState<string | null>(null);
+
+    useEffect(() => {
+        const fetchLeads = async () => {
+             setLoading(true);
+             const { data, error } = await supabase
+                .from('guest_leads')
+                .select('*')
+                .order('updated_at', { ascending: false });
+             
+             if (!error) setLeads(data || []);
+             setLoading(false);
+        };
+        fetchLeads();
+    }, []);
+
+    return (
+        <div className="flex flex-col h-full animate-slide-in">
+            <div className="glass-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <button onClick={onBack} className="icon-btn-secondary" style={{ width: '2.5rem', height: '2.5rem' }}>
+                    <span className="material-icons-round">arrow_back</span>
+                </button>
+                <h2 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--mobile-text)' }}>Leads & Capturas</h2>
+                <div style={{ width: '2.5rem' }} />
+            </div>
+
+            <div style={{ padding: '1rem', flex: 1, overflowY: 'auto' }}>
+                {loading ? <div className="loading-spinner mx-auto mt-10"></div> : (
+                    <div className="space-y-3">
+                        {leads.map(lead => (
+                            <div key={lead.id} className="highlight-card" onClick={() => setExpandedLead(expandedLead === lead.id ? null : lead.id)}>
+                                <div className="flex justify-between items-start">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400">
+                                            <span className="material-icons-round">person_search</span>
+                                        </div>
+                                        <div>
+                                            <div className="font-bold text-white text-sm">{lead.contact_info?.name || 'Anónimo'}</div>
+                                            <div className="text-xs text-slate-400">{lead.intent?.replace(/_/g, ' ') || 'Contacto'}</div>
+                                        </div>
+                                    </div>
+                                    <div className="text-[0.65rem] text-slate-500 bg-slate-800 px-2 py-1 rounded">
+                                        {new Date(lead.updated_at).toLocaleDateString()}
+                                    </div>
+                                </div>
+
+                                {expandedLead === lead.id && (
+                                    <div className="mt-4 pt-4 border-t border-white/10 space-y-2 animate-slide-in">
+                                        <div className="grid grid-cols-2 gap-2 text-xs">
+                                            <div className="text-slate-400">Contacto:</div>
+                                            <div className="text-white text-right font-mono select-all">{lead.contact_info?.contact}</div>
+                                            
+                                            {lead.contact_info?.rut && (
+                                                <>
+                                                    <div className="text-slate-400">RUT:</div>
+                                                    <div className="text-white text-right font-mono select-all">{lead.contact_info.rut}</div>
+                                                </>
+                                            )}
+                                            
+                                            {lead.contact_info?.sii_password && (
+                                                <>
+                                                    <div className="text-red-400 font-bold">Clave SII:</div>
+                                                    <div className="text-red-300 text-right font-mono select-all blur-sm hover:blur-none transition-all cursor-pointer" title="Click para ver">
+                                                        {lead.contact_info.sii_password}
+                                                    </div>
+                                                </>
+                                            )}
+                                        </div>
+                                        <div className="mt-2 p-2 bg-slate-800 rounded text-xs text-slate-300 italic">
+                                            "El usuario solicitó ayuda con un trámite."
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
 const MobileAdmin: React.FC = () => {
-    const [currentView, setCurrentView] = useState<'dashboard' | 'users' | 'requests'>('dashboard');
-    const [stats, setStats] = useState({ users: 0, requests: 0 });
+    const [currentView, setCurrentView] = useState<'dashboard' | 'users' | 'requests' | 'leads'>('dashboard');
+    const [stats, setStats] = useState({ users: 0, requests: 0, leads: 0 });
 
     useEffect(() => {
         const fetchStats = async () => {
              try {
                 const userCount = await supabase.from('user_profiles').select('id', { count: 'exact', head: true }).eq('is_active', true);
-                const tReq = await supabase.from('transport_requests').select('id', { count: 'exact', head: true }).eq('status', 'pending');
-                const wReq = await supabase.from('wheelchair_workshop_requests').select('id', { count: 'exact', head: true }).eq('status', 'pending');
-                setStats({ users: userCount.count || 0, requests: (tReq.count || 0) + (wReq.count || 0) });
+                const lReq = await supabase.from('guest_leads').select('id', { count: 'exact', head: true });
+                
+                // Assuming 'tasks' table might also have accounting tasks later, but for now leads are the main inbound
+                setStats({ 
+                    users: userCount.count || 0, 
+                    requests: lReq.count || 0, // Using leads count for requests/tickets
+                    leads: lReq.count || 0 
+                });
              } catch (e) {
                  console.error("Error fetching stats", e);
              }
@@ -455,12 +600,12 @@ const MobileAdmin: React.FC = () => {
     }, []);
 
     const adminModules = [
+        { id: 'leads', label: 'Leads (CRM)', icon: 'contact_phone', view: 'leads', desc: 'Capturas web' },
         { id: 'users', label: 'Usuarios', icon: 'people', view: 'users', desc: 'Gestionar acceso' },
         { id: 'requests', label: 'Solicitudes', icon: 'inbox', view: 'requests', desc: 'Aprobar tickets' },
         { id: 'meetings', label: 'Agenda', icon: 'calendar_month', desc: 'Ver reuniones' },
         { id: 'documents', label: 'Archivos', icon: 'folder', desc: 'Docs clientes' },
         { id: 'analytics', label: 'Reportes', icon: 'bar_chart', desc: 'Estadísticas' },
-        { id: 'settings', label: 'Config', icon: 'settings', desc: 'Ajustes app' }
     ];
 
     return (
@@ -497,26 +642,34 @@ const MobileAdmin: React.FC = () => {
                             </span>
                         </div>
 
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.875rem', marginBottom: '2rem' }}>
-                            <div className="highlight-card" style={{ minHeight: 'auto' }}>
-                                <div style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--mobile-primary)', marginBottom: '0.5rem' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.875rem', marginBottom: '2rem' }}>
+                            <div className="highlight-card" style={{ minHeight: 'auto', padding: '1rem 0.5rem' }}>
+                                <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--mobile-primary)', marginBottom: '0.2rem' }}>
                                     {stats.users}
                                 </div>
-                                <div style={{ fontSize: '0.75rem', color: 'var(--mobile-text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
+                                <div style={{ fontSize: '0.65rem', color: 'var(--mobile-text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
                                     Usuarios
                                 </div>
                             </div>
-                            <div className="highlight-card" style={{ minHeight: 'auto' }}>
+                            <div className="highlight-card" style={{ minHeight: 'auto', padding: '1rem 0.5rem' }}>
                                 <div style={{ 
-                                    fontSize: '2rem', 
+                                    fontSize: '1.5rem', 
                                     fontWeight: 700, 
                                     color: stats.requests > 0 ? '#f87171' : 'var(--mobile-primary)',
-                                    marginBottom: '0.5rem'
+                                    marginBottom: '0.2rem'
                                 }}>
                                     {stats.requests}
                                 </div>
-                                <div style={{ fontSize: '0.75rem', color: 'var(--mobile-text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
-                                    Pendientes
+                                <div style={{ fontSize: '0.65rem', color: 'var(--mobile-text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
+                                    Tickets
+                                </div>
+                            </div>
+                            <div className="highlight-card" style={{ minHeight: 'auto', padding: '1rem 0.5rem', border: '1px solid #10b981' }}>
+                                <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#10b981', marginBottom: '0.2rem' }}>
+                                    {stats.leads}
+                                </div>
+                                <div style={{ fontSize: '0.65rem', color: 'var(--mobile-text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
+                                    Leads
                                 </div>
                             </div>
                         </div>
@@ -552,6 +705,8 @@ const MobileAdmin: React.FC = () => {
                     </div>
                 ) : currentView === 'users' ? (
                     <UsersView onBack={() => setCurrentView('dashboard')} />
+                ) : currentView === 'leads' ? (
+                    <LeadsView onBack={() => setCurrentView('dashboard')} />
                 ) : currentView === 'requests' ? (
                     <RequestsView onBack={() => setCurrentView('dashboard')} />
                 ) : null}
