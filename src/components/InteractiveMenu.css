@@ -36,18 +36,20 @@
 }
 
 .menu-options {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr); /* 2 columns grid */
+  gap: 12px;
   margin-top: 12px;
   width: 100%;
 }
 
 .menu-option-button {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 12px;
-  padding: 14px 20px;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px 12px;
   background: linear-gradient(
     135deg,
     var(--bg-tertiary) 0%,
@@ -56,13 +58,14 @@
   border: 2px solid var(--border-color);
   border-radius: 12px;
   color: var(--text-primary);
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.3s ease;
-  text-align: left;
+  text-align: center;
   font-family: inherit;
   width: 100%;
+  min-height: 100px; /* Give it some height for the card look */
 }
 
 .menu-option-button:hover {
@@ -72,16 +75,19 @@
     rgba(0, 212, 255, 0.1) 0%,
     var(--bg-tertiary) 100%
   );
-  transform: translateX(5px);
-  box-shadow: 0 0 15px rgba(0, 212, 255, 0.3);
+  transform: translateY(-3px);
+  box-shadow: 0 5px 15px rgba(0, 212, 255, 0.2);
 }
 
 .menu-option-button:active {
-  transform: translateX(3px);
+  transform: translateY(-1px);
 }
 
+
+
 .menu-option-icon {
-  font-size: 20px;
+  font-size: 24px;
+  margin-bottom: 4px;
   flex-shrink: 0;
 }
 

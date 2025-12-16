@@ -211,6 +211,7 @@ const MobileChat: React.FC = () => {
 
                             <div ref={messagesEndRef} />
                         </div>
+
                     )}
                 </div>
 

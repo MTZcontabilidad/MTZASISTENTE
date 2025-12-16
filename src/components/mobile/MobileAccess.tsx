@@ -282,7 +282,12 @@ const MobileAccess: React.FC = () => {
                         <div className="section-label" style={{ marginBottom: '0.875rem', paddingLeft: '0.25rem' }}>
                             RESULTADOS
                         </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                        <div style={{ 
+                            display: 'grid', 
+                            gridTemplateColumns: 'repeat(2, 1fr)', 
+                            gap: '0.75rem',
+                            alignItems: 'stretch'
+                        }}>
                             {filteredTools.map(tool => (
                                 <button 
                                     key={tool.id}
@@ -293,25 +298,26 @@ const MobileAccess: React.FC = () => {
                                         <span className="material-icons-round">{tool.icon}</span>
                                     </div>
                                     <div style={{ 
-                                        textAlign: 'left', 
-                                        flex: 1, 
-                                        minWidth: 0
+                                        textAlign: 'center', 
+                                        width: '100%',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        alignItems: 'center',
+                                        gap: '0.25rem'
                                     }}>
                                         <div style={{
                                             fontWeight: 700,
                                             color: 'var(--mobile-text)',
-                                            fontSize: '0.9rem',
-                                            marginBottom: '0.2rem'
+                                            fontSize: '0.85rem',
+                                            lineHeight: 1.3
                                         }}>
                                             {tool.title}
                                         </div>
-                                        <div style={{ fontSize: '0.75rem', color: 'var(--mobile-text-muted)' }}>
+                                        <div style={{ fontSize: '0.75rem', color: 'var(--mobile-text-muted)', lineHeight: 1.3 }}>
                                             {tool.subtitle}
                                         </div>
                                     </div>
-                                    <span className="material-icons-round" style={{ color: 'var(--mobile-primary)' }}>
-                                        arrow_forward
-                                    </span>
+                                    {/* Arrow removed for grid layout */}
                                 </button>
                             ))}
                             {filteredTools.length === 0 && (

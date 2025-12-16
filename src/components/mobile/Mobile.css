@@ -2113,6 +2113,7 @@ select.system-input:focus {
   transition: all 0.3s ease;
   position: relative;
   overflow: hidden; overscroll-behavior: none;
+  margin-bottom: 0.25rem;
 }
 
 .tool-card-refined:hover .icon-box-small {
@@ -2296,19 +2297,23 @@ a {
 /* Tool Card Refined */
 .tool-card-refined {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 0.875rem;
-  padding: 0.875rem 1rem;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 1rem;
   background: rgba(var(--mobile-card-rgb), 0.4);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 0.875rem;
+  border-radius: 1rem;
   width: 100%;
   transition: all 0.3s ease;
   cursor: pointer;
   position: relative;
   overflow: hidden; overscroll-behavior: none;
+  text-align: center;
+  min-height: 8rem;
 }
 
 .tool-card-refined:hover {
@@ -2369,9 +2374,9 @@ a {
    ============================================ */
 
 .chat-menu-options {
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 0.5rem !important;
+  display: grid !important;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem !important;
   margin-top: 0.5rem !important; 
   padding-top: 0 !important;
   border-top: none !important;
@@ -2383,26 +2388,30 @@ a {
   background: rgba(var(--mobile-card-rgb), 0.6);
   border: 1px solid rgba(var(--mobile-primary-rgb), 0.3);
   color: var(--mobile-text);
-  padding: 0.875rem 1.25rem;
+  padding: 1rem 0.75rem;
   border-radius: 0.875rem;
-  font-weight: 600;
-  font-size: 0.95rem;
-  text-align: left; /* Align text left */
-  display: flex !important; /* Force flex */
+  font-weight: 500;
+  font-size: 0.85rem;
+  text-align: center;
+  display: flex !important;
+  flex-direction: column;
   align-items: center;
-  justify-content: flex-start; /* Icon on left */
-  gap: 0.75rem;
+  justify-content: center;
+  gap: 0.5rem;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  width: 100%; /* Full width */
+  width: 100%;
   position: relative;
   overflow: hidden; overscroll-behavior: none;
-  margin-bottom: 0 !important; /* Reset any margin */
+  margin-bottom: 0 !important;
+  min-height: 5rem;
+  word-wrap: break-word;
 }
 
 .chat-option-btn .material-icons-round {
   color: var(--mobile-primary);
-  font-size: 1.25rem;
+  font-size: 1.5rem;
+  margin-bottom: 2px;
 }
 
 .chat-option-btn:hover {
