@@ -495,7 +495,7 @@ function AdminPanel({ onLogout }: AdminPanelProps) {
     if (activeTab === "documents") fetchAllDocuments();
     if (activeTab === "meetings") fetchMeetings();
     if (activeTab === "requests") {
-        fetchPendingMeetings();
+        // fetchPendingMeetings(); // Removed undefined function
         fetchGuestLeads();
     }
   }, [activeTab]); // Dependencia activeTab para cargar bajo demanda
@@ -944,7 +944,7 @@ function AdminPanel({ onLogout }: AdminPanelProps) {
           meetings={meetings}
           leads={guestLeads}
           onUserClick={handleEditUser}
-          onArchiveLead={async (id) => {
+          onArchiveLead={async (id: string) => {
              if (!confirm('¿Archivar esta solicitud?')) return;
              await supabase.from('guest_leads').update({ status: 'archived' }).eq('id', id);
              fetchGuestLeads(); // Refresh
@@ -2069,6 +2069,7 @@ function MeetingsSection({
       )}
     </div>
   );
+}
 // Sección de Requerimientos
 interface RequestsSectionProps {
   users: UserWithClientInfo[];
@@ -2087,6 +2088,14 @@ function RequestsSection({ users, meetings, leads, onUserClick, onArchiveLead }:
   
   // Leads pendientes (Guest Leads)
   const pendingLeads = leads.filter(l => l.status === 'pending' || !l.status);
+
+  // Usuarios con información incompleta
+  const incompleteUsers = users.filter((u) => {
+    return (
+      (u.user_type === 'cliente_nuevo' || u.user_type === 'cliente_existente') &&
+      (!u.client_info?.company_name || !u.client_info?.phone)
+    );
+  });
 
   return (
     <div className="requests-section">
