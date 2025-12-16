@@ -199,3 +199,34 @@ export interface MeetingInput {
   duration_minutes?: number
 }
 
+// Multi-Company Types
+export interface Company {
+    id: string;
+    rut: string;
+    razon_social: string;
+    plan_type: string;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface CompanyUser {
+    id: string;
+    user_id: string;
+    company_id: string;
+    role: 'admin' | 'editor' | 'viewer' | 'accountant';
+    created_at: string;
+}
+
+export interface MonthlyTaxSummary {
+    id: string;
+    company_id: string;
+    period: string; // Date string (YYYY-MM-DD)
+    total_ventas_neto: number;
+    total_compras_neto: number;
+    iva_pagar: number;
+    monto_f29: number;
+    estado_f29: 'pendiente' | 'declarado' | 'pagado';
+    created_at: string;
+    updated_at: string;
+}
+

@@ -238,6 +238,14 @@ const MobileProfile: React.FC = () => {
 
 
 
+                        {/* MULTI-EMPRESA SECTION (NEW) */}
+                        <CompaniesSection userId={profile?.id} />
+
+                        {/* SETTINGS */}
+                        <div className="mb-6">
+                             {/* ... existing settings if any, else this block is placeholder for future settings ... */}
+                        </div>
+
                         {/* LOGOUT */}
                         <div className="pt-4 pb-6">
                             <button 
@@ -255,7 +263,7 @@ const MobileProfile: React.FC = () => {
                                 fontFamily: 'monospace',
                                 opacity: 0.6
                             }}>
-                                MTZ Ouroborus AI v2.0.4
+                                MTZ Ouroborus AI v2.1.0-MC
                             </p>
                         </div>
                     </div>
@@ -264,4 +272,183 @@ const MobileProfile: React.FC = () => {
     );
 };
 
+// Sub-component for Companies
+const CompaniesSection: React.FC<{ userId: string }> = ({ userId }) => {
+    const [companies, setCompanies] = useState<any[]>([]);
+    const [selectedCompany, setSelectedCompany] = useState<any | null>(null);
+    const [taxSummaries, setTaxSummaries] = useState<any[]>([]);
+
+    useEffect(() => {
+        if (!userId) return;
+        const fetchCompanies = async () => {
+            // Join company_users with companies
+            const { data, error } = await supabase
+                .from('company_users')
+                .select('role, companies(*)')
+                .eq('user_id', userId);
+            
+            if (data) {
+                // Flatten structure
+                const flatList = data.map((item: any) => ({
+                    ...item.companies,
+                    user_role: item.role
+                }));
+                setCompanies(flatList);
+            }
+        };
+        fetchCompanies();
+    }, [userId]);
+
+    const handleCompanyClick = async (company: any) => {
+        setSelectedCompany(company);
+        // Fetch Tax Summaries
+        const { data } = await supabase
+            .from('monthly_tax_summaries')
+            .select('*')
+            .eq('company_id', company.id)
+            .order('period', { ascending: false });
+        setTaxSummaries(data || []);
+    };
+
+    if (companies.length === 0) return null;
+
+    return (
+        <div className="mb-6">
+            <span className="section-label">Mis Empresas</span>
+            <div className="system-list-container">
+                {companies.map(comp => (
+                    <button 
+                        key={comp.id}
+                        className="system-list-item"
+                        style={{ width: '100%' }}
+                        onClick={() => handleCompanyClick(comp)}
+                    >
+                         <div className="avatar-wrapper" style={{ 
+                            width: '2.5rem', 
+                            height: '2.5rem',
+                            border: '1px solid rgba(16, 185, 129, 0.3)',
+                            background: 'rgba(16, 185, 129, 0.1)'
+                        }}>
+                            <span className="material-icons-round" style={{ fontSize: '1.25rem', color: '#10b981' }}>business</span>
+                        </div>
+                        <div className="item-info" style={{ textAlign: 'left' }}>
+                            <div className="item-title">{comp.razon_social}</div>
+                            <div className="item-email">{comp.rut}</div>
+                        </div>
+                        <span className="material-icons-round" style={{ color: 'var(--mobile-text-muted)' }}>chevron_right</span>
+                    </button>
+                ))}
+            </div>
+
+            {/* Company Detail Modal */}
+            {selectedCompany && (
+                <div className="modal-overlay bottom-sheet" onClick={() => setSelectedCompany(null)}>
+                    <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxHeight: '85vh', overflowY: 'auto' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '1.5rem' }}>
+                            <div>
+                                <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: '#fff', marginBottom: '0.25rem' }}>
+                                    {selectedCompany.razon_social}
+                                </h3>
+                                <div style={{ fontSize: '0.85rem', color: '#10b981', fontFamily: 'monospace' }}>
+                                    {selectedCompany.rut}
+                                </div>
+                            </div>
+                            <button onClick={() => setSelectedCompany(null)} className="icon-btn-secondary">
+                                <span className="material-icons-round">close</span>
+                            </button>
+                        </div>
+
+                         {/* Actions */}
+                         {selectedCompany.drive_folder_url && (
+                             <a 
+                                href={selectedCompany.drive_folder_url} 
+                                target="_blank" 
+                                rel="noreferrer"
+                                className="btn-primary"
+                                style={{ 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    justifyContent: 'center', 
+                                    gap: '0.5rem',
+                                    marginBottom: '2rem',
+                                    background: '#3b82f6',
+                                    borderColor: '#2563eb'
+                                }}
+                            >
+                                <span className="material-icons-round">folder_open</span>
+                                Ver Documentos en Drive
+                                <span className="material-icons-round" style={{ fontSize: '1rem' }}>open_in_new</span>
+                            </a>
+                        )}
+
+                        <h4 className="section-label" style={{ marginBottom: '1rem' }}>Resumen F29 (Últimos Meses)</h4>
+                        
+                        {taxSummaries.length === 0 ? (
+                            <div className="empty-state-mobile">
+                                <p className="empty-subtitle">No hay información tributaria cargada.</p>
+                            </div>
+                        ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                {taxSummaries.map(summary => (
+                                    <div key={summary.id} className="highlight-card" style={{ padding: '0.75rem', minHeight: 'auto' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                                            <span style={{ fontWeight: 600, color: '#fff' }}>
+                                                {new Date(summary.period).toLocaleDateString('es-CL', { month: 'long', year: 'numeric' }).toUpperCase()}
+                                            </span>
+                                            <span className={`status-badge ${summary.estado_f29 === 'pagado' ? 'success' : 'warning'}`}>
+                                                {summary.estado_f29?.toUpperCase()}
+                                            </span>
+                                        </div>
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.8rem' }}>
+                                            <div>
+                                                <div style={{ color: 'var(--mobile-text-muted)', fontSize: '0.7rem' }}>VENTAS NETO</div>
+                                                <div style={{ color: '#fff', fontFamily: 'monospace' }}>${summary.total_ventas_neto?.toLocaleString('es-CL')}</div>
+                                            </div>
+                                            <div style={{ textAlign: 'right' }}>
+                                                <div style={{ color: 'var(--mobile-text-muted)', fontSize: '0.7rem' }}>COMPRAS NETO</div>
+                                                <div style={{ color: '#fff', fontFamily: 'monospace' }}>${summary.total_compras_neto?.toLocaleString('es-CL')}</div>
+                                            </div>
+                                            <div style={{ gridColumn: 'span 2', marginTop: '0.25rem', paddingTop: '0.25rem', borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                <div>
+                                                    <span style={{ color: '#fbbf24', fontWeight: 600, fontSize: '0.9rem' }}>IVA A PAGAR: </span>
+                                                    <span style={{ color: '#fbbf24', fontFamily: 'monospace', fontWeight: 700, fontSize: '0.9rem' }}>${summary.iva_pagar?.toLocaleString('es-CL')}</span>
+                                                </div>
+                                                
+                                                {summary.f29_url && (
+                                                    <a 
+                                                        href={summary.f29_url} 
+                                                        target="_blank" 
+                                                        rel="noreferrer"
+                                                        className="icon-btn-secondary"
+                                                        style={{ 
+                                                            width: '2rem', 
+                                                            height: '2rem', 
+                                                            background: 'rgba(59, 130, 246, 0.2)', 
+                                                            color: '#60a5fa',
+                                                            border: '1px solid rgba(59, 130, 246, 0.4)',
+                                                            borderRadius: '0.375rem',
+                                                            display: 'flex',
+                                                            justifyContent: 'center',
+                                                            alignItems: 'center',
+                                                            textDecoration: 'none'
+                                                        }}
+                                                        title="Descargar F29"
+                                                    >
+                                                        <span className="material-icons-round" style={{ fontSize: '1.25rem' }}>description</span>
+                                                    </a>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                        
+                        <div style={{ height: '2rem' }}></div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
 export default MobileProfile;

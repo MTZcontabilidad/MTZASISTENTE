@@ -215,11 +215,57 @@ async function generateAIResponse(
             linksContextInfo = `\n[SISTEMA: El usuario pregunta por un trámite con link oficial (${detectedLinks[0].text}), pero como es INVITADO, NO LE DES EL LINK. OFRECE HACER EL TRÁMITE POR ÉL.]`;
         }
 
+        // 4b. FETCH USER COMPANIES & DOCS (New Logic)
+        let userCompanyContext = "";
+        if (userId && (userRole === 'cliente' || userRole === 'admin')) {
+             const { data: userComps } = await supabase
+                .from('company_users')
+                .select(`
+                    companies (
+                        id, razon_social, rut, drive_folder_url
+                    )
+                `)
+                .eq('user_id', userId);
+            
+            if (userComps && userComps.length > 0) {
+                const comps = userComps.map((uc: any) => uc.companies).filter(Boolean);
+                
+                // Fetch summaries for these companies
+                const compIds = comps.map(c => c.id);
+                const { data: summaries } = await supabase
+                    .from('monthly_tax_summaries')
+                    .select('company_id, period, f29_url, iva_pagar')
+                    .in('company_id', compIds)
+                    .order('period', { ascending: false });
+
+                userCompanyContext = `
+                EMPRESAS Y DOCUMENTOS DEL CLIENTE:
+                ${comps.map(c => {
+                    const lastF29 = summaries?.find(s => s.company_id === c.id);
+                    let dateStr = 'Sin datos';
+                    if (lastF29?.period) {
+                        const d = new Date(lastF29.period);
+                        // Adjust for timezone or just use UTC parts to avoid off-by-one errors
+                        dateStr = `${d.getUTCMonth() + 1}/${d.getUTCFullYear()}`;
+                    }
+                    
+                    return `
+                    - Empresa: ${c.razon_social} (${c.rut})
+                      * Carpeta Drive: ${c.drive_folder_url || 'No asignada'}
+                      * Último F29 (${dateStr}): ${lastF29?.f29_url || 'No disponible'}
+                      * IVA a Pagar: ${lastF29?.iva_pagar || 'N/A'}
+                    `;
+                }).join('\n')}
+                `;
+            }
+        }
+
         const systemPromptJSON = `
         Eres Arise, asistente de MTZ (Consultora de Negocios y Contabilidad).
         
         ${companyContext}
         ${clientContext}
+        ${userCompanyContext}
         ${faqContext}
         
         USUARIO: ${safeName} | ROL: ${userRole}

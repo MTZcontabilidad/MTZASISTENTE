@@ -576,8 +576,186 @@ const LeadsView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
     );
 };
 
+const CompaniesView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
+    const [companies, setCompanies] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [selectedCompany, setSelectedCompany] = useState<any | null>(null);
+    const [assignEmail, setAssignEmail] = useState('');
+    const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+    const fetchCompanies = async () => {
+        setLoading(true);
+        const { data, error } = await supabase
+            .from('companies')
+            .select('*')
+            .order('razon_social', { ascending: true });
+        if (!error) setCompanies(data || []);
+        setLoading(false);
+    };
+
+    useEffect(() => { fetchCompanies(); }, []);
+
+    const showToast = (msg: string) => {
+        setToastMessage(msg);
+        setTimeout(() => setToastMessage(null), 3000);
+    };
+
+    const [editDriveUrl, setEditDriveUrl] = useState('');
+
+    useEffect(() => {
+        if (selectedCompany) {
+            setEditDriveUrl(selectedCompany.drive_folder_url || '');
+            setAssignEmail(''); // Reset email input on open
+        }
+    }, [selectedCompany]);
+
+    const handleSaveDriveUrl = async () => {
+        if (!selectedCompany) return;
+        try {
+            const { error } = await supabase
+                .from('companies')
+                .update({ drive_folder_url: editDriveUrl })
+                .eq('id', selectedCompany.id);
+
+            if (error) throw error;
+            showToast("URL Drive actualizada");
+            
+            // Update local state
+            setCompanies(prev => prev.map(c => c.id === selectedCompany.id ? { ...c, drive_folder_url: editDriveUrl } : c));
+            setSelectedCompany((prev: any) => ({ ...prev, drive_folder_url: editDriveUrl }));
+        } catch (error) {
+            console.error(error);
+            showToast("Error al guardar URL");
+        }
+    };
+
+    const handleAssignUser = async () => {
+        if (!assignEmail || !selectedCompany) return;
+        try {
+            // 1. Find User
+            const { data: users } = await supabase.from('user_profiles').select('id').eq('email', assignEmail).single();
+            if (!users) {
+                showToast("Usuario no encontrado (¿Registrado?)");
+                return;
+            }
+            
+            // 2. Assign
+            const { error } = await supabase.from('company_users').insert({
+                company_id: selectedCompany.id,
+                user_id: users.id,
+                role: 'admin'
+            });
+
+            if (error) throw error;
+            showToast("Usuario asignado correctamente");
+            setAssignEmail('');
+        } catch (error) {
+            console.error(error);
+            showToast("Error al asignar (¿Ya asignado?)");
+        }
+    };
+
+    const filtered = companies.filter(c => 
+        (c.razon_social || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+        (c.rut || '').toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    return (
+        <div className="flex flex-col h-full animate-slide-in">
+             {toastMessage && <div className="toast-notification info">{toastMessage}</div>}
+            
+            <div className="glass-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <button onClick={onBack} className="icon-btn-secondary" style={{ width: '2.5rem', height: '2.5rem' }}>
+                    <span className="material-icons-round">arrow_back</span>
+                </button>
+                <h2 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--mobile-text)' }}>Gestión Empresas</h2>
+                <div style={{ width: '2.5rem' }} />
+            </div>
+
+            <div style={{ padding: '1rem', flex: 1, overflowY: 'auto' }}>
+                 <div className="input-icon-wrapper" style={{ marginBottom: '1rem' }}>
+                    <span className="material-icons-round">search</span>
+                    <input 
+                        className="system-input" 
+                        placeholder="Buscar empresa..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                </div>
+
+                {loading ? <div className="loading-spinner mx-auto" /> : (
+                    <div className="system-list-container">
+                        {filtered.map(comp => (
+                            <button 
+                                key={comp.id} 
+                                className="system-list-item"
+                                style={{ width: '100%' }}
+                                onClick={() => setSelectedCompany(comp)}
+                            >
+                                <div className="avatar-wrapper" style={{ width: '2.5rem', height: '2.5rem', background: '#3b82f620', border: '1px solid #3b82f640' }}>
+                                    <span className="material-icons-round" style={{ fontSize: '1.25rem', color: '#3b82f6' }}>business</span>
+                                </div>
+                                <div className="item-info" style={{ textAlign: 'left' }}>
+                                    <div className="item-title">{comp.razon_social}</div>
+                                    <div className="item-email">{comp.rut}</div>
+                                </div>
+                                <span className="material-icons-round" style={{ color: 'var(--mobile-text-muted)' }}>edit</span>
+                            </button>
+                        ))}
+                    </div>
+                )}
+            </div>
+
+             {/* Detail Modal */}
+             {selectedCompany && (
+                <div className="modal-overlay bottom-sheet" onClick={() => setSelectedCompany(null)}>
+                    <div className="modal-content" onClick={e => e.stopPropagation()}>
+                        <h3 style={{ marginBottom: '0.25rem' }}>{selectedCompany.razon_social}</h3>
+                        <p style={{ fontFamily: 'monospace', color: '#10b981', marginBottom: '1.5rem' }}>{selectedCompany.rut}</p>
+                        
+                        {/* URL Drive Section */}
+                         <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.05)', borderRadius: '0.5rem', marginBottom: '1rem' }}>
+                            <label className="section-label">Carpeta Google Drive (Link)</label>
+                            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                                <input 
+                                    className="system-input" 
+                                    placeholder="https://drive.google.com/..."
+                                    value={editDriveUrl}
+                                    onChange={e => setEditDriveUrl(e.target.value)}
+                                />
+                                <button className="btn-primary" onClick={handleSaveDriveUrl} style={{ width: 'auto', padding: '0 1rem' }}>
+                                    <span className="material-icons-round">save</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Assign User Section */}
+                        <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.05)', borderRadius: '0.5rem', marginBottom: '1rem' }}>
+                            <label className="section-label">Asignar Cliente (Gmail)</label>
+                            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                                <input 
+                                    className="system-input" 
+                                    placeholder="ejemplo@gmail.com"
+                                    value={assignEmail}
+                                    onChange={e => setAssignEmail(e.target.value)}
+                                />
+                                <button className="btn-primary" onClick={handleAssignUser} style={{ width: 'auto', padding: '0 1rem' }}>
+                                    <span className="material-icons-round">person_add</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <button className="btn-secondary" style={{ width: '100%' }} onClick={() => setSelectedCompany(null)}>Cerrar</button>
+                    </div>
+                </div>
+             )}
+        </div>
+    );
+};
+
 const MobileAdmin: React.FC = () => {
-    const [currentView, setCurrentView] = useState<'dashboard' | 'users' | 'requests' | 'leads'>('dashboard');
+    const [currentView, setCurrentView] = useState<'dashboard' | 'users' | 'requests' | 'leads' | 'companies'>('dashboard');
     const [stats, setStats] = useState({ users: 0, requests: 0, leads: 0 });
 
     useEffect(() => {
@@ -602,8 +780,8 @@ const MobileAdmin: React.FC = () => {
     const adminModules = [
         { id: 'leads', label: 'Leads (CRM)', icon: 'contact_phone', view: 'leads', desc: 'Capturas web' },
         { id: 'users', label: 'Usuarios', icon: 'people', view: 'users', desc: 'Gestionar acceso' },
+        { id: 'companies', label: 'Empresas', icon: 'business', view: 'companies', desc: 'Clientes y RUTs' },
         { id: 'requests', label: 'Solicitudes', icon: 'inbox', view: 'requests', desc: 'Aprobar tickets' },
-        { id: 'meetings', label: 'Agenda', icon: 'calendar_month', desc: 'Ver reuniones' },
         { id: 'documents', label: 'Archivos', icon: 'folder', desc: 'Docs clientes' },
         { id: 'analytics', label: 'Reportes', icon: 'bar_chart', desc: 'Estadísticas' },
     ];
@@ -709,6 +887,8 @@ const MobileAdmin: React.FC = () => {
                     <LeadsView onBack={() => setCurrentView('dashboard')} />
                 ) : currentView === 'requests' ? (
                     <RequestsView onBack={() => setCurrentView('dashboard')} />
+                ) : currentView === 'companies' ? (
+                    <CompaniesView onBack={() => setCurrentView('dashboard')} />
                 ) : null}
             </div>
         </div>
